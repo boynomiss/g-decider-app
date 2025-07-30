@@ -8,7 +8,8 @@ import { useAuth } from '@/hooks/use-auth';
 // Google Places API configuration
 const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
 const GOOGLE_PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place';
-const PLACES_PROXY_URL = 'https://toolkit.rork.com/places/search';
+// Updated to use direct Google Places API since proxy is not available
+const PLACES_SEARCH_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
 
 // Default location (Manila, Philippines)
 const DEFAULT_LOCATION = {
@@ -56,7 +57,7 @@ const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Sugg
   console.log('Converting Google Place:', place.name, place);
   
   const photos = place.photos ? place.photos.slice(0, 3).map((photo: any) => 
-    `https://toolkit.rork.com/places/photo?photoreference=${photo.photo_reference}&maxwidth=400&key=${GOOGLE_API_KEY}`
+    `https://maps.googleapis.com/maps/api/place/photo?photoreference=${photo.photo_reference}&maxwidth=400&key=${GOOGLE_API_KEY}`
   ) : [
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop'
   ];
@@ -94,33 +95,27 @@ const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Sugg
   return suggestion;
 };
 
-// Fetch places from Google Places API using server-side proxy
+// Fetch places from Google Places API directly
 const fetchGooglePlaces = async (effectiveFilters: any): Promise<Suggestion[]> => {
   const radius = getDistanceRadius(effectiveFilters.distanceRange);
   const type = getCategoryType(effectiveFilters.category);
   const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
   
-  // Build request payload for our proxy endpoint
-  const requestPayload = {
+  // Build URL parameters for direct Google Places API
+  const params = new URLSearchParams({
     location: `${DEFAULT_LOCATION.lat},${DEFAULT_LOCATION.lng}`,
-    radius: radius,
+    radius: radius.toString(),
     type,
-    apiKey: GOOGLE_API_KEY,
+    key: GOOGLE_API_KEY,
     ...priceLevel
-  };
+  });
 
-  console.log('🔍 Fetching Google Places with params:', requestPayload);
+  const url = `${PLACES_SEARCH_URL}?${params.toString()}`;
+  console.log('🔍 Fetching Google Places with URL:', url);
   
   try {
     const response = await Promise.race([
-      fetch(PLACES_PROXY_URL, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestPayload)
-      }),
+      fetch(url),
       new Promise<Response>((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), 15000)
       )

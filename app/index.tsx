@@ -8,6 +8,7 @@ import CategoryButtons from '@/components/CategoryButtons';
 import MoodSlider from '@/components/MoodSlider';
 import ActionButton from '@/components/ActionButton';
 import Footer from '@/components/Footer';
+import APIStatus from '@/components/APIStatus';
 import { useAppStore } from '@/hooks/use-app-store';
 
 export default function HomeScreen() {
@@ -28,6 +29,7 @@ export default function HomeScreen() {
       >
         <View style={styles.fixedContent}>
           <Header />
+          <APIStatus isVisible={true} />
           <AdPlacement />
           <CategoryButtons />
           <MoodSlider />
@@ -48,6 +50,7 @@ export default function HomeScreen() {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Header />
+        <APIStatus isVisible={true} />
         <AdPlacement />
         <CategoryButtons />
         <MoodSlider />
