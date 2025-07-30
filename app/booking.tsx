@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, ScrollView, View, Text, TouchableOpacity, TextInput, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
@@ -8,6 +8,46 @@ import { useAuth } from '../hooks/use-auth';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
+// Extracted form input component
+const FormInput = React.memo(({ 
+  value, 
+  onChangeText, 
+  placeholder, 
+  keyboardType = 'default' 
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  keyboardType?: 'default' | 'phone-pad';
+}) => (
+  <View style={styles.inputContainer}>
+    <TextInput
+      style={styles.input}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor="#999"
+      keyboardType={keyboardType}
+    />
+  </View>
+));
+
+// Extracted action buttons component
+const ActionButtons = React.memo(({ onCancel, onConfirm }: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) => (
+  <View style={styles.actionButtons}>
+    <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+      <Text style={styles.cancelButtonText}>Cancel</Text>
+    </TouchableOpacity>
+    
+    <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
+      <Text style={styles.confirmButtonText}>Confirm</Text>
+    </TouchableOpacity>
+  </View>
+));
+
 export default function BookingScreen() {
   const { currentSuggestion, effectiveFilters } = useAppStore();
   const { user, isAuthenticated } = useAuth();
@@ -15,14 +55,14 @@ export default function BookingScreen() {
   const insets = useSafeAreaInsets();
   
   // Map social context to party size
-  const getPartySizeFromSocialContext = (socialContext: string) => {
+  const getPartySizeFromSocialContext = useCallback((socialContext: string) => {
     switch (socialContext) {
       case 'solo': return 'Solo';
       case 'with-bae': return 'For two';
       case 'barkada': return 'For groups';
       default: return 'For two';
     }
-  };
+  }, []);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -39,21 +79,25 @@ export default function BookingScreen() {
       partySize: effectiveFilters ? getPartySizeFromSocialContext(effectiveFilters.socialContext) : 'For two',
       eta: '',
     });
-  }, [isAuthenticated, user, effectiveFilters]);
+  }, [isAuthenticated, user, effectiveFilters, getPartySizeFromSocialContext]);
+
+  // Memoized handlers
+  const handleConfirm = useCallback(() => {
+    router.push('/confirmation');
+  }, [router]);
+
+  const handleCancel = useCallback(() => {
+    router.push('/');
+  }, [router]);
+
+  const handleInputChange = useCallback((field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   if (!currentSuggestion) {
     router.replace('/');
     return null;
   }
-
-  const handleConfirm = () => {
-    // Handle booking confirmation
-    router.push('/confirmation');
-  };
-
-  const handleCancel = () => {
-    router.push('/');
-  };
 
   const containerStyle = {
     ...styles.container,
@@ -83,55 +127,33 @@ export default function BookingScreen() {
           </View>
 
           <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                placeholder="Full Name"
-                placeholderTextColor="#999"
-              />
-            </View>
+            <FormInput
+              value={formData.name}
+              onChangeText={(text) => handleInputChange('name', text)}
+              placeholder="Full Name"
+            />
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={formData.phone}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-                placeholder="Phone Number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
+            <FormInput
+              value={formData.phone}
+              onChangeText={(text) => handleInputChange('phone', text)}
+              placeholder="Phone Number"
+              keyboardType="phone-pad"
+            />
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={formData.partySize}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, partySize: text }))}
-                placeholder="For how many"
-              />
-            </View>
+            <FormInput
+              value={formData.partySize}
+              onChangeText={(text) => handleInputChange('partySize', text)}
+              placeholder="For how many"
+            />
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                value={formData.eta}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, eta: text }))}
-                placeholder="Set ETA"
-              />
-            </View>
+            <FormInput
+              value={formData.eta}
+              onChangeText={(text) => handleInputChange('eta', text)}
+              placeholder="Set ETA"
+            />
           </View>
 
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
+          <ActionButtons onCancel={handleCancel} onConfirm={handleConfirm} />
         </View>
       </ScrollView>
       

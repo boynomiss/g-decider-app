@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Dimensions, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
@@ -9,97 +9,251 @@ import Footer from '../components/Footer';
 
 const { width } = Dimensions.get('window');
 
+// Extracted components for better organization
+const ErrorState = React.memo(({ onBroadenSearch, onGoHome }: { 
+  onBroadenSearch: () => void; 
+  onGoHome: () => void; 
+}) => (
+  <LinearGradient
+    colors={['#C8A8E9', '#B19CD9']}
+    style={styles.errorContainer}
+  >
+    <Stack.Screen options={{ headerShown: false }} />
+    <Text style={styles.errorTitle}>No Results Found</Text>
+    <Text style={styles.errorSubtitle}>
+      We couldn't find any suggestions that match all your filters. Would you like to broaden your search?
+    </Text>
+    <TouchableOpacity style={styles.broadenButton} onPress={onBroadenSearch}>
+      <Text style={styles.broadenButtonText}>Broaden Search</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.homeButton} onPress={onGoHome}>
+      <Text style={styles.homeButtonText}>Go Back Home</Text>
+    </TouchableOpacity>
+  </LinearGradient>
+));
+
+const LoadingState = React.memo(() => (
+  <LinearGradient
+    colors={['#C8A8E9', '#B19CD9']}
+    style={styles.loadingContainer}
+  >
+    <Text style={styles.loadingText}>Generating suggestion...</Text>
+  </LinearGradient>
+));
+
+const ImageGallery = React.memo(({ images, onImagePress }: { 
+  images: string[]; 
+  onImagePress: (index: number) => void; 
+}) => (
+  <View style={styles.imageContainer}>
+    <ScrollView 
+      horizontal 
+      pagingEnabled 
+      showsHorizontalScrollIndicator={false}
+      style={styles.imageScroll}
+    >
+      {images.map((image, index) => (
+        <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
+          <Image
+            source={{ uri: image }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+    <View style={styles.imageIndicator}>
+      {images.map((_, index) => (
+        <View key={index} style={styles.dot} />
+      ))}
+    </View>
+  </View>
+));
+
+const ActionButtons = React.memo(({ onPass, onRestart, onBookNow, retriesLeft }: {
+  onPass: () => void;
+  onRestart: () => void;
+  onBookNow: () => void;
+  retriesLeft: number;
+}) => (
+  <View style={styles.bottomActions}>
+    <TouchableOpacity style={styles.actionButton} onPress={onPass}>
+      <X size={24} color="#FF6B6B" />
+      <Text style={styles.actionText}>Pass</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity 
+      style={styles.actionButton} 
+      onPress={onRestart}
+      disabled={retriesLeft <= 0}
+    >
+      <RotateCcw size={24} color="#666" />
+      <Text style={styles.actionText}>Restart</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.actionButton} onPress={onBookNow}>
+      <ThumbsUp size={24} color="#4CAF50" />
+      <Text style={styles.actionText}>Book Now</Text>
+    </TouchableOpacity>
+  </View>
+));
+
+const ImageModal = React.memo(({ 
+  visible, 
+  images, 
+  selectedIndex, 
+  onClose, 
+  reviews 
+}: {
+  visible: boolean;
+  images: string[];
+  selectedIndex: number;
+  onClose: () => void;
+  reviews?: any[];
+}) => (
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalContainer}>
+      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent}>
+          <ScrollView 
+            horizontal 
+            pagingEnabled 
+            showsHorizontalScrollIndicator={false}
+            style={styles.modalImageScroll}
+            contentOffset={{ x: selectedIndex * width, y: 0 }}
+          >
+            {images.map((image, index) => (
+              <Image
+                key={index}
+                source={{ uri: image }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            ))}
+          </ScrollView>
+          
+          {reviews && reviews.length > 0 && (
+            <View style={styles.reviewsContainer}>
+              <Text style={styles.reviewsTitle}>What people say</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.reviewsScroll}
+              >
+                {reviews.map((review, index) => (
+                  <View key={index} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewAuthor}>{review.author}</Text>
+                      <View style={styles.reviewRating}>
+                        {[...Array(5)].map((_, i) => (
+                          <Text key={i} style={styles.star}>
+                            {i < review.rating ? '★' : '☆'}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={styles.reviewText} numberOfLines={3}>
+                      "{review.text}"
+                    </Text>
+                    <Text style={styles.reviewTime}>{review.time}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <X size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </View>
+  </Modal>
+));
+
 export default function ResultScreen() {
-  const { currentSuggestion, resetSuggestion, generateSuggestion, retriesLeft, isLoading, effectiveFilters, openInMaps, updateFilters } = useAppStore();
+  const { 
+    currentSuggestion, 
+    resetSuggestion, 
+    generateSuggestion, 
+    retriesLeft, 
+    isLoading, 
+    effectiveFilters, 
+    openInMaps, 
+    updateFilters 
+  } = useAppStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
-  // Show error state if no suggestion and not loading
-  if (!currentSuggestion && !isLoading) {
-    return (
-      <LinearGradient
-        colors={['#C8A8E9', '#B19CD9']}
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}
-      >
-        <Stack.Screen options={{ headerShown: false }} />
-        <Text style={{ color: '#FFF', fontSize: 22, marginBottom: 16, textAlign: 'center', fontWeight: 'bold' }}>
-          No Results Found
-        </Text>
-        <Text style={{ color: '#FFF', fontSize: 16, marginBottom: 28, textAlign: 'center' }}>
-          We couldn't find any suggestions that match all your filters. Would you like to broaden your search?
-        </Text>
-        <TouchableOpacity 
-          style={{ backgroundColor: '#7DD3C0', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginBottom: 16 }}
-          onPress={async () => {
-            // Broaden search: relax budget and mood filters, keep others
-            updateFilters({ budget: null, mood: 50 });
-            await generateSuggestion();
-          }}
-        >
-          <Text style={{ color: '#4A4A4A', fontSize: 16, fontWeight: '600' }}>Broaden Search</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={{ backgroundColor: '#FFF', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 }}
-          onPress={() => {
-            console.log('🏠 Going back home from error state');
-            router.replace('/');
-          }}
-        >
-          <Text style={{ color: '#4A4A4A', fontSize: 16, fontWeight: '600' }}>Go Back Home</Text>
-        </TouchableOpacity>
-      </LinearGradient>
-    );
-  }
-
-  // Show loading if still generating suggestion
-  if (isLoading || !currentSuggestion) {
-    return (
-      <LinearGradient
-        colors={['#C8A8E9', '#B19CD9']}
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-      >
-        <Text style={{ color: '#FFF', fontSize: 18, marginBottom: 20 }}>Generating suggestion...</Text>
-      </LinearGradient>
-    );
-  }
-
-  const handlePass = async () => {
+  // Memoized handlers
+  const handlePass = useCallback(async () => {
     console.log('🚫 Pass button pressed, generating new suggestion');
     try {
       await generateSuggestion();
     } catch (error) {
       console.error('Error generating new suggestion:', error);
     }
-  };
+  }, [generateSuggestion]);
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     console.log('🔄 Restart button pressed, going back to main page');
     resetSuggestion();
     router.replace('/');
-  };
+  }, [resetSuggestion, router]);
 
-  const handleBookNow = () => {
+  const handleBookNow = useCallback(() => {
     console.log('📝 Book Now button pressed, navigating to booking');
     router.push('/booking');
-  };
+  }, [router]);
 
-  const handleImagePress = (index: number) => {
+  const handleImagePress = useCallback((index: number) => {
     setSelectedImageIndex(index);
     setImageModalVisible(true);
-  };
+  }, []);
 
-  const getBudgetDisplay = () => {
+  const handleBroadenSearch = useCallback(async () => {
+    updateFilters({ budget: null, mood: 50 });
+    await generateSuggestion();
+  }, [updateFilters, generateSuggestion]);
+
+  const handleGoHome = useCallback(() => {
+    console.log('🏠 Going back home from error state');
+    router.replace('/');
+  }, [router]);
+
+  const handleOpenMaps = useCallback(() => {
+    if (currentSuggestion) {
+      openInMaps(currentSuggestion);
+    }
+  }, [currentSuggestion, openInMaps]);
+
+  // Memoized budget display
+  const budgetDisplay = useMemo(() => {
     const budgetMap = {
       'P': '₱',
       'PP': '₱₱', 
       'PPP': '₱₱₱'
     };
-    // Use effective filters (what was actually used in generation) instead of user's selected filter
     const budgetToShow = effectiveFilters?.budget || currentSuggestion?.budget || 'PP';
     return budgetMap[budgetToShow];
-  };
+  }, [effectiveFilters?.budget, currentSuggestion?.budget]);
+
+  // Show error state if no suggestion and not loading
+  if (!currentSuggestion && !isLoading) {
+    return <ErrorState onBroadenSearch={handleBroadenSearch} onGoHome={handleGoHome} />;
+  }
+
+  // Show loading if still generating suggestion
+  if (isLoading || !currentSuggestion) {
+    return <LoadingState />;
+  }
 
   const containerStyle = {
     ...styles.container,
@@ -114,38 +268,17 @@ export default function ResultScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Image Gallery */}
-        <View style={styles.imageContainer}>
-          <ScrollView 
-            horizontal 
-            pagingEnabled 
-            showsHorizontalScrollIndicator={false}
-            style={styles.imageScroll}
-          >
-            {currentSuggestion.images.map((image, index) => (
-              <TouchableOpacity key={index} onPress={() => handleImagePress(index)}>
-                <Image
-                  source={{ uri: image }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <View style={styles.imageIndicator}>
-            {currentSuggestion.images.map((_, index) => (
-              <View key={index} style={styles.dot} />
-            ))}
-          </View>
-        </View>
+        <ImageGallery 
+          images={currentSuggestion.images} 
+          onImagePress={handleImagePress} 
+        />
 
-        {/* Content Card */}
         <View style={styles.contentCard}>
           <Text style={styles.name}>{currentSuggestion.name}</Text>
           <Text style={styles.location}>{currentSuggestion.location}</Text>
           
           <View style={styles.budgetContainer}>
-            <Text style={styles.budget}>{getBudgetDisplay()}</Text>
+            <Text style={styles.budget}>{budgetDisplay}</Text>
           </View>
 
           <View style={styles.tagsContainer}>
@@ -165,10 +298,7 @@ export default function ResultScreen() {
           )}
 
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={styles.mapButton}
-              onPress={() => openInMaps(currentSuggestion)}
-            >
+            <TouchableOpacity style={styles.mapButton} onPress={handleOpenMaps}>
               <MapPin size={20} color="#8B5FBF" />
               <Text style={styles.mapButtonText}>View in Maps</Text>
             </TouchableOpacity>
@@ -178,102 +308,24 @@ export default function ResultScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.bottomActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={handlePass}>
-              <X size={24} color="#FF6B6B" />
-              <Text style={styles.actionText}>Pass</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={handleRestart}
-              disabled={retriesLeft <= 0}
-            >
-              <RotateCcw size={24} color="#666" />
-              <Text style={styles.actionText}>Restart</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton} onPress={handleBookNow}>
-              <ThumbsUp size={24} color="#4CAF50" />
-              <Text style={styles.actionText}>Book Now</Text>
-            </TouchableOpacity>
-          </View>
+          <ActionButtons 
+            onPass={handlePass}
+            onRestart={handleRestart}
+            onBookNow={handleBookNow}
+            retriesLeft={retriesLeft}
+          />
         </View>
       </ScrollView>
       
       <Footer />
       
-      {/* Image Modal */}
-      <Modal
+      <ImageModal 
         visible={imageModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setImageModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <TouchableOpacity 
-            style={styles.modalOverlay} 
-            onPress={() => setImageModalVisible(false)}
-          >
-            <View style={styles.modalContent}>
-              <ScrollView 
-                horizontal 
-                pagingEnabled 
-                showsHorizontalScrollIndicator={false}
-                style={styles.modalImageScroll}
-                contentOffset={{ x: selectedImageIndex * width, y: 0 }}
-              >
-                {currentSuggestion.images.map((image, index) => (
-                  <Image
-                    key={index}
-                    source={{ uri: image }}
-                    style={styles.modalImage}
-                    resizeMode="contain"
-                  />
-                ))}
-              </ScrollView>
-              
-              {/* Reviews Section */}
-              {currentSuggestion.reviews && currentSuggestion.reviews.length > 0 && (
-                <View style={styles.reviewsContainer}>
-                  <Text style={styles.reviewsTitle}>What people say</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.reviewsScroll}
-                  >
-                    {currentSuggestion.reviews.map((review, index) => (
-                      <View key={index} style={styles.reviewCard}>
-                        <View style={styles.reviewHeader}>
-                          <Text style={styles.reviewAuthor}>{review.author}</Text>
-                          <View style={styles.reviewRating}>
-                            {[...Array(5)].map((_, i) => (
-                              <Text key={i} style={styles.star}>
-                                {i < review.rating ? '★' : '☆'}
-                              </Text>
-                            ))}
-                          </View>
-                        </View>
-                        <Text style={styles.reviewText} numberOfLines={3}>
-                          "{review.text}"
-                        </Text>
-                        <Text style={styles.reviewTime}>{review.time}</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-              
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setImageModalVisible(false)}
-              >
-                <X size={24} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+        images={currentSuggestion.images}
+        selectedIndex={selectedImageIndex}
+        onClose={() => setImageModalVisible(false)}
+        reviews={currentSuggestion.reviews}
+      />
     </LinearGradient>
   );
 }
@@ -285,6 +337,61 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  // Error state styles
+  errorContainer: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    paddingHorizontal: 20 
+  },
+  errorTitle: {
+    color: '#FFF', 
+    fontSize: 22, 
+    marginBottom: 16, 
+    textAlign: 'center', 
+    fontWeight: 'bold' 
+  },
+  errorSubtitle: {
+    color: '#FFF', 
+    fontSize: 16, 
+    marginBottom: 28, 
+    textAlign: 'center' 
+  },
+  broadenButton: {
+    backgroundColor: '#7DD3C0', 
+    paddingHorizontal: 30, 
+    paddingVertical: 12, 
+    borderRadius: 25, 
+    marginBottom: 16 
+  },
+  broadenButtonText: {
+    color: '#4A4A4A', 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
+  homeButton: {
+    backgroundColor: '#FFF', 
+    paddingHorizontal: 30, 
+    paddingVertical: 12, 
+    borderRadius: 25 
+  },
+  homeButtonText: {
+    color: '#4A4A4A', 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
+  // Loading state styles
+  loadingContainer: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  loadingText: {
+    color: '#FFF', 
+    fontSize: 18, 
+    marginBottom: 20 
+  },
+  // Image gallery styles
   imageContainer: {
     height: 300,
     marginTop: 20,
@@ -315,6 +422,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
+  // Content card styles
   contentCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -373,7 +481,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 16,
-    maxHeight: 72, // 3 lines max (24 * 3)
+    maxHeight: 72,
     paddingHorizontal: 20,
   },
   discountContainer: {
@@ -441,6 +549,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -475,7 +584,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  // Reviews Section Styles
+  // Reviews styles
   reviewsContainer: {
     position: 'absolute',
     bottom: 0,

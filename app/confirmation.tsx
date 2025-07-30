@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
@@ -6,20 +6,50 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, Home } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
 
+// Extracted details card component
+const DetailsCard = React.memo(({ suggestion }: { suggestion: any }) => (
+  <View style={styles.detailsCard}>
+    <Text style={styles.detailsTitle}>Booking Details</Text>
+    <Text style={styles.detailText}>
+      <Text style={styles.detailLabel}>Location: </Text>
+      {suggestion.location}
+    </Text>
+    <Text style={styles.detailText}>
+      <Text style={styles.detailLabel}>Budget: </Text>
+      ₱{suggestion.budget}
+    </Text>
+    {suggestion.discount && (
+      <Text style={styles.discountText}>
+        🎉 {suggestion.discount}
+      </Text>
+    )}
+  </View>
+));
+
+// Extracted home button component
+const HomeButton = React.memo(({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity style={styles.homeButton} onPress={onPress}>
+    <Home size={20} color="#FFF" />
+    <Text style={styles.homeButtonText}>Back to Home</Text>
+  </TouchableOpacity>
+));
+
 export default function ConfirmationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentSuggestion, restartSession } = useAppStore();
 
-  const handleGoHome = () => {
+  // Memoized handlers
+  const handleGoHome = useCallback(() => {
     restartSession();
     router.push('/');
-  };
+  }, [restartSession, router]);
 
-  const containerStyle = {
+  // Memoized container style
+  const containerStyle = useMemo(() => ({
     ...styles.container,
     paddingTop: insets.top + 8,
-  };
+  }), [insets.top]);
 
   return (
     <LinearGradient
@@ -38,35 +68,13 @@ export default function ConfirmationScreen() {
             Your booking for {currentSuggestion?.name || 'your selection'} has been confirmed.
           </Text>
           
-          <View style={styles.detailsCard}>
-            <Text style={styles.detailsTitle}>Booking Details</Text>
-            {currentSuggestion && (
-              <>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Location: </Text>
-                  {currentSuggestion.location}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Budget: </Text>
-                  ₱{currentSuggestion.budget}
-                </Text>
-                {currentSuggestion.discount && (
-                  <Text style={styles.discountText}>
-                    🎉 {currentSuggestion.discount}
-                  </Text>
-                )}
-              </>
-            )}
-          </View>
+          {currentSuggestion && <DetailsCard suggestion={currentSuggestion} />}
           
           <Text style={styles.message}>
             You&apos;ll receive a confirmation email shortly with all the details.
           </Text>
           
-          <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
-            <Home size={20} color="#FFF" />
-            <Text style={styles.homeButtonText}>Back to Home</Text>
-          </TouchableOpacity>
+          <HomeButton onPress={handleGoHome} />
         </View>
       </View>
     </LinearGradient>
