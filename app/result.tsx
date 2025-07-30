@@ -24,11 +24,25 @@ export default function ResultScreen() {
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}
       >
         <Stack.Screen options={{ headerShown: false }} />
-        <Text style={{ color: '#FFF', fontSize: 18, marginBottom: 20, textAlign: 'center' }}>
-          No suggestion available
+        <Text style={{ color: '#FFF', fontSize: 22, marginBottom: 16, textAlign: 'center', fontWeight: 'bold' }}>
+          No Results Found
+        </Text>
+        <Text style={{ color: '#FFF', fontSize: 16, marginBottom: 28, textAlign: 'center' }}>
+          We couldn't find any suggestions that match all your filters. Would you like to broaden your search?
         </Text>
         <TouchableOpacity 
-          style={{ backgroundColor: '#7DD3C0', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 }}
+          style={{ backgroundColor: '#7DD3C0', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginBottom: 16 }}
+          onPress={async () => {
+            // Broaden search: relax budget and mood filters, keep others
+            const { updateFilters, generateSuggestion } = useAppStore.getState();
+            updateFilters({ budget: null, mood: 50 });
+            await generateSuggestion();
+          }}
+        >
+          <Text style={{ color: '#4A4A4A', fontSize: 16, fontWeight: '600' }}>Broaden Search</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#FFF', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 }}
           onPress={() => {
             console.log('🏠 Going back home from error state');
             router.replace('/');

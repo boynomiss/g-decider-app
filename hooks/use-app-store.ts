@@ -4,6 +4,7 @@ import { Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserFilters, AppState, Suggestion, AuthState } from '@/types/app';
 import { useAuth } from '@/hooks/use-auth';
+import * as Location from 'expo-location';
 
 // Google Places API configuration
 const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
@@ -95,21 +96,59 @@ const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Sugg
   return suggestion;
 };
 
+// Helper: Map mood slider to keywords
+const getVibeKeywords = (mood: number, category: string) => {
+  if (category === 'food') {
+    if (mood > 60) return ['lively', 'party', 'trendy', 'buzzy', 'hip', 'music', 'bar'];
+    if (mood < 40) return ['cozy', 'quiet', 'relaxed', 'tranquil', 'chill', 'cafe'];
+    return ['casual', 'restaurant'];
+  } else if (category === 'activity') {
+    if (mood > 60) return ['adventure', 'energetic', 'exciting', 'active', 'fun', 'hype', 'extreme', 'outdoor', 'sports', 'amusement', 'nightlife'];
+    if (mood < 40) return ['relaxing', 'peaceful', 'calm', 'chill', 'wellness', 'spa', 'museum', 'art', 'nature', 'park'];
+    return ['activity', 'attraction', 'experience'];
+  } else {
+    if (mood > 60) return ['adventure', 'energetic', 'exciting', 'active', 'fun', 'hype'];
+    if (mood < 40) return ['relaxing', 'peaceful', 'calm', 'chill', 'wellness'];
+    return ['activity'];
+  }
+};
+// Helper: Map social context to keywords
+const getSocialKeywords = (social: string, category: string) => {
+  if (category === 'food') {
+    if (social === 'with-bae') return ['romantic', 'date', 'couple'];
+    if (social === 'barkada') return ['group', 'friends', 'barkada', 'family'];
+    return ['solo', 'single', 'quiet'];
+  } else if (category === 'activity') {
+    if (social === 'with-bae') return ['for two', 'couple', 'romantic', 'date', 'duo'];
+    if (social === 'barkada') return ['group', 'friends', 'barkada', 'team', 'party', 'family', 'group activity'];
+    return ['solo', 'single', 'individual', 'self-guided', 'one person'];
+  } else {
+    if (social === 'with-bae') return ['for two', 'couple', 'romantic'];
+    if (social === 'barkada') return ['group', 'friends', 'barkada', 'team'];
+    return ['solo', 'single', 'individual'];
+  }
+};
+
 // Fetch places from Google Places API directly
-const fetchGooglePlaces = async (effectiveFilters: any): Promise<Suggestion[]> => {
+const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: number, lng: number}): Promise<Suggestion[]> => {
   const radius = getDistanceRadius(effectiveFilters.distanceRange);
   const type = getCategoryType(effectiveFilters.category);
   const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
-  
+  // Compose keyword string
+  const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category);
+  const socialKeywords = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category);
+  const keywords = [...vibeKeywords, ...socialKeywords].join(' ');
   // Build URL parameters for direct Google Places API
-  const params = new URLSearchParams({
-    location: `${DEFAULT_LOCATION.lat},${DEFAULT_LOCATION.lng}`,
+  const paramsObj: Record<string, string> = {
+    location: `${userLocation.lat},${userLocation.lng}`,
     radius: radius.toString(),
     type,
     key: GOOGLE_API_KEY,
-    ...priceLevel
-  });
-
+    keyword: keywords,
+  };
+  if (priceLevel.minprice !== undefined) paramsObj['minprice'] = priceLevel.minprice.toString();
+  if (priceLevel.maxprice !== undefined) paramsObj['maxprice'] = priceLevel.maxprice.toString();
+  const params = new URLSearchParams(paramsObj);
   const url = `${PLACES_SEARCH_URL}?${params.toString()}`;
   console.log('🔍 Fetching Google Places with URL:', url);
   
@@ -129,9 +168,28 @@ const fetchGooglePlaces = async (effectiveFilters: any): Promise<Suggestion[]> =
     const data = await response.json();
     console.log('📥 Google Places API response status:', data.status);
     
+    // After fetching, strict post-filtering
     if (data.status === 'OK' && data.results && data.results.length > 0) {
-      console.log(`✅ SUCCESS: Found ${data.results.length} real places from Google Places API`);
-      const suggestions = data.results.slice(0, 10).map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters));
+      let suggestions = data.results.map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters));
+      // Strict filter: mood, socialContext, budget
+      suggestions = suggestions.filter((s: Suggestion) => {
+        // Mood: must match (by tag or description)
+        const moodMatch = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
+        // Social: must match
+        const socialMatch = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
+        // Budget: for activity, try to match on known price tags or description
+        let budgetMatch = s.budget === effectiveFilters.budget;
+        if (effectiveFilters.category === 'activity') {
+          // Try to match on tags or description for price hints
+          const budgetHints: Record<'P' | 'PP' | 'PPP', string[]> = {
+            'P': ['free', 'budget', 'cheap', 'affordable', 'low cost'],
+            'PP': ['midrange', 'moderate', 'average price', 'standard'],
+            'PPP': ['expensive', 'premium', 'luxury', 'high end', 'pricey']
+          };
+          budgetMatch = budgetHints[effectiveFilters.budget as 'P' | 'PP' | 'PPP']?.some((hint: string) => s.tags.join(' ').toLowerCase().includes(hint) || s.description.toLowerCase().includes(hint)) || s.budget === effectiveFilters.budget;
+        }
+        return moodMatch && socialMatch && budgetMatch;
+      });
       return suggestions;
     }
     
@@ -232,6 +290,42 @@ const generateRealisticSuggestion = async (effectiveFilters: any): Promise<Sugge
   console.log('🏪 Generated realistic suggestion:', suggestion.name);
   return suggestion;
 };
+
+// Curated fallback for new places
+const curatedNewPlaces: Suggestion[] = [
+  {
+    id: 'curated-1',
+    name: 'The Newest Ramen Spot',
+    location: 'Greenhills, San Juan',
+    images: [
+      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop'
+    ],
+    budget: 'PP',
+    tags: ['Japanese', 'Ramen', 'New', 'Trendy'],
+    description: 'A just-opened ramen bar with creative broths and modern vibes.',
+    category: 'food',
+    mood: 'both',
+    socialContext: ['solo', 'with-bae', 'barkada'],
+    timeOfDay: ['afternoon', 'night'],
+    coordinates: { lat: 14.6042, lng: 121.0359 }
+  },
+  {
+    id: 'curated-2',
+    name: 'Escape Room X',
+    location: 'BGC, Taguig',
+    images: [
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=300&fit=crop'
+    ],
+    budget: 'PP',
+    tags: ['Escape Room', 'Puzzle', 'New', 'Adventure'],
+    description: 'A brand new escape room experience for groups and thrill-seekers.',
+    category: 'activity',
+    mood: 'hype',
+    socialContext: ['barkada', 'with-bae'],
+    timeOfDay: ['afternoon', 'night'],
+    coordinates: { lat: 14.5534, lng: 121.0492 }
+  }
+];
 
 const defaultFilters: UserFilters = {
   mood: 50,
@@ -335,6 +429,15 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
     console.log('Starting suggestion generation...');
     setState(prev => ({ ...prev, isLoading: true }));
 
+    let userLocation = DEFAULT_LOCATION;
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({});
+        userLocation = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      }
+    } catch (e) { /* fallback to default */ }
+
     try {
       // Get current filters and apply randomization for unselected filters
       const currentFilters = stateRef.current.filters;
@@ -357,47 +460,128 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
       
       let suggestion: Suggestion | null = null;
       let suggestions: Suggestion[] = [];
+      const newRetriesNormal = currentState.retriesLeft === -1 ? -1 : currentState.retriesLeft - 1;
       
-      try {
-        // Try to fetch from Google Places API first
-        console.log('🔍 Fetching from Google Places API...');
-        suggestions = await fetchGooglePlaces(effectiveFilters);
-        
-        if (suggestions.length > 0) {
-          console.log(`✅ SUCCESS: Found ${suggestions.length} real places from Google Places API`);
-          suggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
-          console.log(`✅ SELECTED REAL PLACE: "${suggestion.name}" at ${suggestion.location}`);
+      if (effectiveFilters.category === 'something-new') {
+        // Only food or activity, and prioritize newness
+        const types = ['restaurant', 'tourist_attraction'];
+        let allSuggestions: Suggestion[] = [];
+        const newRetries = currentState.retriesLeft === -1 ? -1 : currentState.retriesLeft - 1;
+        for (const t of types) {
+          const params = new URLSearchParams({
+            location: `${userLocation.lat},${userLocation.lng}`,
+            radius: getDistanceRadius(effectiveFilters.distanceRange).toString(),
+            type: t,
+            key: GOOGLE_API_KEY
+          });
+          const url = `${PLACES_SEARCH_URL}?${params.toString()}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.status === 'OK' && data.results && data.results.length > 0) {
+            let suggestions = data.results.map((place: any) => convertGooglePlaceToSuggestion(place, {...effectiveFilters, category: t === 'restaurant' ? 'food' : 'activity'}));
+            // Newness: very low review count but high rating
+            suggestions = suggestions.filter((s: Suggestion, idx: number) => {
+              const reviews = (data.results[idx]?.user_ratings_total) || 0;
+              const rating = (data.results[idx]?.rating) || 0;
+              return (reviews < 50 && rating >= 4.0);
+            });
+            allSuggestions = allSuggestions.concat(suggestions);
+          }
+        }
+        // If no API results, use curated fallback
+        if (allSuggestions.length === 0) {
+          // Filter curated list by filters
+          const filteredCurated = curatedNewPlaces.filter((s: Suggestion) => {
+            const moodMatch = getVibeKeywords(effectiveFilters.mood, s.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
+            const socialMatch = getSocialKeywords(effectiveFilters.socialContext, s.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
+            let budgetMatch = s.budget === effectiveFilters.budget;
+            if (s.category === 'activity') {
+              const budgetHints: Record<'P' | 'PP' | 'PPP', string[]> = {
+                'P': ['free', 'budget', 'cheap', 'affordable', 'low cost'],
+                'PP': ['midrange', 'moderate', 'average price', 'standard'],
+                'PPP': ['expensive', 'premium', 'luxury', 'high end', 'pricey']
+              };
+              budgetMatch = budgetHints[effectiveFilters.budget as 'P' | 'PP' | 'PPP']?.some((hint: string) => s.tags.join(' ').toLowerCase().includes(hint) || s.description.toLowerCase().includes(hint)) || s.budget === effectiveFilters.budget;
+            }
+            return moodMatch && socialMatch && budgetMatch;
+          });
+          if (filteredCurated.length > 0) {
+            const suggestion = filteredCurated[Math.floor(Math.random() * filteredCurated.length)];
+            setState(prev => ({
+              ...prev,
+              currentSuggestion: suggestion,
+              retriesLeft: newRetries,
+              isLoading: false,
+              effectiveFilters: {
+                budget: effectiveFilters.budget,
+                timeOfDay: effectiveFilters.timeOfDay,
+                socialContext: effectiveFilters.socialContext,
+                distanceRange: effectiveFilters.distanceRange
+              }
+            }));
+            return;
+          } else {
+            setState(prev => ({
+              ...prev,
+              currentSuggestion: null,
+              isLoading: false
+            }));
+            // Optionally: show a message to broaden search
+            return;
+          }
+        }
+        if (allSuggestions.length > 0) {
+          const suggestion = allSuggestions[Math.floor(Math.random() * allSuggestions.length)];
+          setState(prev => ({
+            ...prev,
+            currentSuggestion: suggestion,
+            retriesLeft: newRetriesNormal,
+            isLoading: false,
+            effectiveFilters: {
+              budget: effectiveFilters.budget,
+              timeOfDay: effectiveFilters.timeOfDay,
+              socialContext: effectiveFilters.socialContext,
+              distanceRange: effectiveFilters.distanceRange
+            }
+          }));
+          return;
         } else {
-          throw new Error('No results from Google Places API');
+          setState(prev => ({
+            ...prev,
+            currentSuggestion: null,
+            isLoading: false
+          }));
+          // Optionally: show a message to broaden search
+          return;
         }
-      } catch (error) {
-        console.warn('❌ Google Places API failed:', (error as Error)?.message || error);
-        console.log('🔄 Falling back to realistic local suggestions...');
-        
-        // Use realistic local data as fallback instead of AI
-        suggestion = await generateRealisticSuggestion(effectiveFilters);
-        console.log('🏪 FALLBACK: Using realistic local suggestion:', suggestion.name);
-      }
-
-      const newRetries = currentState.retriesLeft === -1 ? -1 : currentState.retriesLeft - 1;
-      
-      // Save retries for unauthenticated users
-      if (!auth.isAuthenticated && newRetries >= 0) {
-        saveRetries(newRetries);
-      }
-      
-      setState(prev => ({
-        ...prev,
-        currentSuggestion: suggestion,
-        retriesLeft: newRetries,
-        isLoading: false,
-        effectiveFilters: {
-          budget: effectiveFilters.budget,
-          timeOfDay: effectiveFilters.timeOfDay,
-          socialContext: effectiveFilters.socialContext,
-          distanceRange: effectiveFilters.distanceRange
+      } else {
+        // Normal food/activity
+        suggestions = await fetchGooglePlaces(effectiveFilters, userLocation);
+        if (suggestions.length > 0) {
+          suggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
+          setState(prev => ({
+            ...prev,
+            currentSuggestion: suggestion,
+            retriesLeft: newRetriesNormal,
+            isLoading: false,
+            effectiveFilters: {
+              budget: effectiveFilters.budget,
+              timeOfDay: effectiveFilters.timeOfDay,
+              socialContext: effectiveFilters.socialContext,
+              distanceRange: effectiveFilters.distanceRange
+            }
+          }));
+          return;
+        } else {
+          setState(prev => ({
+            ...prev,
+            currentSuggestion: null,
+            isLoading: false
+          }));
+          // Optionally: show a message to broaden search
+          return;
         }
-      }));
+      }
     } catch (error) {
       console.error('Error generating suggestion:', error);
       setState(prev => ({ 
