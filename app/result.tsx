@@ -4,13 +4,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, RotateCcw, ThumbsUp, MapPin } from 'lucide-react-native';
-import { useAppStore } from '@/hooks/use-app-store';
-import Footer from '@/components/Footer';
+import { useAppStore } from '../hooks/use-app-store';
+import Footer from '../components/Footer';
 
 const { width } = Dimensions.get('window');
 
 export default function ResultScreen() {
-  const { currentSuggestion, resetSuggestion, generateSuggestion, retriesLeft, isLoading, effectiveFilters, openInMaps } = useAppStore();
+  const { currentSuggestion, resetSuggestion, generateSuggestion, retriesLeft, isLoading, effectiveFilters, openInMaps, updateFilters } = useAppStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -34,7 +34,6 @@ export default function ResultScreen() {
           style={{ backgroundColor: '#7DD3C0', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginBottom: 16 }}
           onPress={async () => {
             // Broaden search: relax budget and mood filters, keep others
-            const { updateFilters, generateSuggestion } = useAppStore.getState();
             updateFilters({ budget: null, mood: 50 });
             await generateSuggestion();
           }}
@@ -66,20 +65,19 @@ export default function ResultScreen() {
     );
   }
 
-  const handlePass = () => {
-    console.log('🚫 Pass button pressed, resetting and going home');
-    resetSuggestion();
-    router.replace('/');
+  const handlePass = async () => {
+    console.log('🚫 Pass button pressed, generating new suggestion');
+    try {
+      await generateSuggestion();
+    } catch (error) {
+      console.error('Error generating new suggestion:', error);
+    }
   };
 
-  const handleRestart = async () => {
-    if (retriesLeft > 0) {
-      try {
-        await generateSuggestion();
-      } catch (error) {
-        console.error('Error restarting suggestion:', error);
-      }
-    }
+  const handleRestart = () => {
+    console.log('🔄 Restart button pressed, going back to main page');
+    resetSuggestion();
+    router.replace('/');
   };
 
   const handleBookNow = () => {
@@ -234,6 +232,38 @@ export default function ResultScreen() {
                   />
                 ))}
               </ScrollView>
+              
+              {/* Reviews Section */}
+              {currentSuggestion.reviews && currentSuggestion.reviews.length > 0 && (
+                <View style={styles.reviewsContainer}>
+                  <Text style={styles.reviewsTitle}>What people say</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.reviewsScroll}
+                  >
+                    {currentSuggestion.reviews.map((review, index) => (
+                      <View key={index} style={styles.reviewCard}>
+                        <View style={styles.reviewHeader}>
+                          <Text style={styles.reviewAuthor}>{review.author}</Text>
+                          <View style={styles.reviewRating}>
+                            {[...Array(5)].map((_, i) => (
+                              <Text key={i} style={styles.star}>
+                                {i < review.rating ? '★' : '☆'}
+                              </Text>
+                            ))}
+                          </View>
+                        </View>
+                        <Text style={styles.reviewText} numberOfLines={3}>
+                          "{review.text}"
+                        </Text>
+                        <Text style={styles.reviewTime}>{review.time}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setImageModalVisible(false)}
@@ -343,6 +373,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 16,
+    maxHeight: 72, // 3 lines max (24 * 3)
+    paddingHorizontal: 20,
   },
   discountContainer: {
     backgroundColor: '#FFF3CD',
@@ -393,14 +425,16 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    paddingHorizontal: 20,
   },
   actionButton: {
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   actionText: {
     fontSize: 14,
@@ -440,5 +474,65 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
     padding: 8,
+  },
+  // Reviews Section Styles
+  reviewsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  reviewsTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  reviewsScroll: {
+    maxHeight: 120,
+  },
+  reviewCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 15,
+    marginRight: 15,
+    minWidth: 250,
+    maxWidth: 300,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewAuthor: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reviewRating: {
+    flexDirection: 'row',
+  },
+  star: {
+    color: '#FFD700',
+    fontSize: 12,
+  },
+  reviewText: {
+    color: '#FFF',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 5,
+    fontStyle: 'italic',
+  },
+  reviewTime: {
+    color: '#CCC',
+    fontSize: 11,
+    textAlign: 'right',
   },
 });

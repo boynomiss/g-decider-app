@@ -26,7 +26,7 @@ import Shield from 'lucide-react-native/dist/esm/icons/shield';
 import CreditCard from 'lucide-react-native/dist/esm/icons/credit-card';
 import LogOut from 'lucide-react-native/dist/esm/icons/log-out';
 import ChevronRight from 'lucide-react-native/dist/esm/icons/chevron-right';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '../hooks/use-auth';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();

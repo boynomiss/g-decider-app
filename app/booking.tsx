@@ -3,10 +3,10 @@ import { StyleSheet, ScrollView, View, Text, TouchableOpacity, TextInput, Image 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppStore } from '@/hooks/use-app-store';
-import { useAuth } from '@/hooks/use-auth';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import { useAppStore } from '../hooks/use-app-store';
+import { useAuth } from '../hooks/use-auth';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 export default function BookingScreen() {
   const { currentSuggestion, effectiveFilters } = useAppStore();

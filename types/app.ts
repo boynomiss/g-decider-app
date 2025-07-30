@@ -7,6 +7,13 @@ export interface UserFilters {
   distanceRange: number | null; // in km, null means not explicitly set
 }
 
+export interface Review {
+  author: string;
+  rating: number;
+  text: string;
+  time: string;
+}
+
 export interface Suggestion {
   id: string;
   name: string;
@@ -25,6 +32,9 @@ export interface Suggestion {
     lat: number;
     lng: number;
   };
+  rating?: number;
+  reviewCount?: number;
+  reviews?: Review[];
 }
 
 export interface User {

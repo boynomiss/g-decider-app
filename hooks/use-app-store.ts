@@ -2,9 +2,11 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserFilters, AppState, Suggestion, AuthState } from '@/types/app';
-import { useAuth } from '@/hooks/use-auth';
+import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
+import { useAuth } from './use-auth';
 import * as Location from 'expo-location';
+import { getComprehensiveImages, getCuratedImages } from '../utils/image-sourcing';
+import { generateComprehensiveDescription } from '../utils/description-generator';
 
 // Google Places API configuration
 const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
@@ -53,18 +55,150 @@ const getCategoryType = (category: 'food' | 'activity' | 'something-new'): strin
   }
 };
 
+// Helper: Fetch images from multiple sources for actual places
+const fetchAdditionalImages = async (placeName: string, placeLocation: string, category: string, website?: string) => {
+  const additionalImages: string[] = [];
+  
+  try {
+    // 1. Try to get images from Google Maps search
+    const searchQuery = `${placeName} ${placeLocation}`;
+    const googleMapsImages = await fetchGoogleMapsImages(searchQuery);
+    additionalImages.push(...googleMapsImages);
+    
+    // 2. Try to get images from establishment website (if available)
+    if (website) {
+      const websiteImages = await fetchWebsiteImages(website);
+      additionalImages.push(...websiteImages);
+    }
+    
+    // 3. Try to get images from blog sites and reviews
+    const blogImages = await fetchBlogImages(searchQuery);
+    additionalImages.push(...blogImages);
+    
+  } catch (error) {
+    console.log('⚠️ Error fetching additional images:', error);
+  }
+  
+  return additionalImages;
+};
+
+// Helper: Fetch images from Google Maps search
+const fetchGoogleMapsImages = async (searchQuery: string): Promise<string[]> => {
+  try {
+    // This would require a Google Custom Search API or similar
+    // For now, we'll return an empty array as this needs API setup
+    console.log('🔍 Searching Google Maps for:', searchQuery);
+    return [];
+  } catch (error) {
+    console.log('⚠️ Error fetching Google Maps images:', error);
+    return [];
+  }
+};
+
+// Helper: Fetch images from establishment website
+const fetchWebsiteImages = async (websiteUrl: string): Promise<string[]> => {
+  try {
+    // This would require web scraping capabilities
+    // For now, we'll return an empty array as this needs proper implementation
+    console.log('🌐 Fetching images from website:', websiteUrl);
+    return [];
+  } catch (error) {
+    console.log('⚠️ Error fetching website images:', error);
+    return [];
+  }
+};
+
+// Helper: Fetch images from blog sites and reviews
+const fetchBlogImages = async (searchQuery: string): Promise<string[]> => {
+  try {
+    // This would require integration with review sites or blog APIs
+    // For now, we'll return an empty array as this needs proper implementation
+    console.log('📝 Searching blog sites for:', searchQuery);
+    return [];
+  } catch (error) {
+    console.log('⚠️ Error fetching blog images:', error);
+    return [];
+  }
+};
+
+// Helper: Get additional images synchronously (fallback)
+const getAdditionalImages = (placeName: string, placeLocation: string, category: string): string[] => {
+  // For now, return curated images that match the place type
+  const curatedImageMap = {
+    food: [
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop&q=80'
+    ],
+    activity: [
+      'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80'
+    ],
+    'something-new': [
+      'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80'
+    ]
+  };
+  
+  return curatedImageMap[category as keyof typeof curatedImageMap] || curatedImageMap.food;
+};
+
 // Convert Google Places result to our Suggestion format
-const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Suggestion => {
+const convertGooglePlaceToSuggestion = async (place: any, effectiveFilters: any): Promise<Suggestion> => {
   console.log('Converting Google Place:', place.name, place);
   
-  const photos = place.photos ? place.photos.slice(0, 3).map((photo: any) => 
-    `https://maps.googleapis.com/maps/api/place/photo?photoreference=${photo.photo_reference}&maxwidth=400&key=${GOOGLE_API_KEY}`
-  ) : [
-    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop'
-  ];
+  // Enhanced image handling: ensure 3-8 high-quality images from actual place
+  let photos: string[] = [];
+  
+  // Priority 1: Google Places photos (actual place images)
+  if (place.photos && place.photos.length > 0) {
+    const googlePhotos = place.photos.slice(0, 6).map((photo: any) => 
+      `https://maps.googleapis.com/maps/api/place/photo?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_API_KEY}`
+    );
+    photos = googlePhotos;
+    console.log(`📸 Found ${googlePhotos.length} Google Places photos for ${place.name}`);
+  }
+  
+  // Use comprehensive image sourcing to get 3-8 high-quality images
+  try {
+    photos = await getComprehensiveImages(
+      place.name,
+      place.formatted_address || '',
+      effectiveFilters.category,
+      photos
+    );
+  } catch (error) {
+    console.log('⚠️ Error in comprehensive image sourcing, using fallback:', error);
+    // Fallback to basic curated images
+    const fallbackImages = getCuratedImages(effectiveFilters.category, place.name);
+    photos = fallbackImages.slice(0, 8);
+  }
+  
+  // Limit to maximum 8 images
+  photos = photos.slice(0, 8);
+  
+  console.log(`📸 Generated ${photos.length} high-quality images for ${place.name}`);
 
-  const budgetMap: { [key: number]: 'P' | 'PP' | 'PPP' } = { 0: 'P', 1: 'P', 2: 'PP', 3: 'PPP', 4: 'PPP' };
-  const budget = place.price_level !== undefined ? budgetMap[place.price_level] || 'PP' : effectiveFilters.budget;
+  // Enhanced budget mapping with better detection
+  const budgetMap: { [key: number]: 'P' | 'PP' | 'PPP' } = { 
+    0: 'P',    // Free
+    1: 'P',    // Inexpensive
+    2: 'PP',   // Moderate
+    3: 'PPP',  // Expensive
+    4: 'PPP'   // Very Expensive
+  };
+  
+  // Determine budget from Google Places API or user filters
+  let budget: 'P' | 'PP' | 'PPP';
+  if (place.price_level !== undefined) {
+    budget = budgetMap[place.price_level] || 'PP';
+    console.log(`💰 Google Places price_level: ${place.price_level} -> Budget: ${budget}`);
+  } else {
+    budget = effectiveFilters.budget;
+    console.log(`💰 Using filter budget: ${budget}`);
+  }
 
   const tags: string[] = [];
   if (place.rating) tags.push(`⭐ ${place.rating}`);
@@ -77,6 +211,14 @@ const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Sugg
     lng: place.geometry.location.lng
   } : undefined;
   
+  // Extract reviews from Google Places API
+  const reviews = place.reviews ? place.reviews.slice(0, 5).map((review: any) => ({
+    author: review.author_name,
+    rating: review.rating,
+    text: review.text,
+    time: review.relative_time_description
+  })) : undefined;
+  
   const suggestion: Suggestion = {
     id: place.place_id || Math.random().toString(),
     name: place.name || 'Unknown Place',
@@ -84,49 +226,48 @@ const convertGooglePlaceToSuggestion = (place: any, effectiveFilters: any): Sugg
     images: photos,
     budget: budget as 'P' | 'PP' | 'PPP',
     tags,
-    description: `Discover this ${effectiveFilters.category === 'food' ? 'dining' : 'activity'} spot with a ${place.rating ? `${place.rating}-star rating` : 'great'} experience.`,
+    description: generateComprehensiveDescription(
+      place.name || 'Unknown Place',
+      effectiveFilters.category,
+      reviews,
+      place.rating,
+      place.user_ratings_total,
+      budget
+    ),
     category: effectiveFilters.category,
     mood: effectiveFilters.mood > 60 ? 'hype' : effectiveFilters.mood < 40 ? 'chill' : 'both',
     socialContext: [effectiveFilters.socialContext],
     timeOfDay: [effectiveFilters.timeOfDay],
-    coordinates
+    coordinates,
+    rating: place.rating,
+    reviewCount: place.user_ratings_total,
+    reviews
   };
   
   console.log('Converted suggestion:', suggestion.name, 'at coordinates:', coordinates);
   return suggestion;
 };
 
-// Helper: Map mood slider to keywords
+// Helper: Map mood slider to keywords - Simplified to be less restrictive
 const getVibeKeywords = (mood: number, category: string) => {
   if (category === 'food') {
-    if (mood > 60) return ['lively', 'party', 'trendy', 'buzzy', 'hip', 'music', 'bar'];
-    if (mood < 40) return ['cozy', 'quiet', 'relaxed', 'tranquil', 'chill', 'cafe'];
-    return ['casual', 'restaurant'];
+    if (mood > 60) return ['restaurant', 'bar', 'cafe'];
+    if (mood < 40) return ['cafe', 'restaurant'];
+    return ['restaurant'];
   } else if (category === 'activity') {
-    if (mood > 60) return ['adventure', 'energetic', 'exciting', 'active', 'fun', 'hype', 'extreme', 'outdoor', 'sports', 'amusement', 'nightlife'];
-    if (mood < 40) return ['relaxing', 'peaceful', 'calm', 'chill', 'wellness', 'spa', 'museum', 'art', 'nature', 'park'];
-    return ['activity', 'attraction', 'experience'];
+    if (mood > 60) return ['attraction', 'activity'];
+    if (mood < 40) return ['museum', 'park', 'attraction'];
+    return ['attraction'];
   } else {
-    if (mood > 60) return ['adventure', 'energetic', 'exciting', 'active', 'fun', 'hype'];
-    if (mood < 40) return ['relaxing', 'peaceful', 'calm', 'chill', 'wellness'];
+    if (mood > 60) return ['activity'];
+    if (mood < 40) return ['activity'];
     return ['activity'];
   }
 };
-// Helper: Map social context to keywords
+// Helper: Map social context to keywords - Simplified to be less restrictive
 const getSocialKeywords = (social: string, category: string) => {
-  if (category === 'food') {
-    if (social === 'with-bae') return ['romantic', 'date', 'couple'];
-    if (social === 'barkada') return ['group', 'friends', 'barkada', 'family'];
-    return ['solo', 'single', 'quiet'];
-  } else if (category === 'activity') {
-    if (social === 'with-bae') return ['for two', 'couple', 'romantic', 'date', 'duo'];
-    if (social === 'barkada') return ['group', 'friends', 'barkada', 'team', 'party', 'family', 'group activity'];
-    return ['solo', 'single', 'individual', 'self-guided', 'one person'];
-  } else {
-    if (social === 'with-bae') return ['for two', 'couple', 'romantic'];
-    if (social === 'barkada') return ['group', 'friends', 'barkada', 'team'];
-    return ['solo', 'single', 'individual'];
-  }
+  // Return minimal keywords to avoid over-filtering
+  return [];
 };
 
 // Fetch places from Google Places API directly
@@ -134,10 +275,11 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
   const radius = getDistanceRadius(effectiveFilters.distanceRange);
   const type = getCategoryType(effectiveFilters.category);
   const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
-  // Compose keyword string
+  // Compose keyword string - Simplified to be less restrictive
   const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category);
   const socialKeywords = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category);
-  const keywords = [...vibeKeywords, ...socialKeywords].join(' ');
+  // Use only the first keyword to avoid over-filtering
+  const keywords = vibeKeywords.length > 0 ? vibeKeywords[0] : '';
   // Build URL parameters for direct Google Places API
   const paramsObj: Record<string, string> = {
     location: `${userLocation.lat},${userLocation.lng}`,
@@ -168,30 +310,27 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
     const data = await response.json();
     console.log('📥 Google Places API response status:', data.status);
     
-    // After fetching, strict post-filtering
-    if (data.status === 'OK' && data.results && data.results.length > 0) {
-      let suggestions = data.results.map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters));
-      // Strict filter: mood, socialContext, budget
-      suggestions = suggestions.filter((s: Suggestion) => {
-        // Mood: must match (by tag or description)
-        const moodMatch = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
-        // Social: must match
-        const socialMatch = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category).some(k => s.tags.join(' ').toLowerCase().includes(k) || s.description.toLowerCase().includes(k));
-        // Budget: for activity, try to match on known price tags or description
-        let budgetMatch = s.budget === effectiveFilters.budget;
-        if (effectiveFilters.category === 'activity') {
-          // Try to match on tags or description for price hints
-          const budgetHints: Record<'P' | 'PP' | 'PPP', string[]> = {
-            'P': ['free', 'budget', 'cheap', 'affordable', 'low cost'],
-            'PP': ['midrange', 'moderate', 'average price', 'standard'],
-            'PPP': ['expensive', 'premium', 'luxury', 'high end', 'pricey']
-          };
-          budgetMatch = budgetHints[effectiveFilters.budget as 'P' | 'PP' | 'PPP']?.some((hint: string) => s.tags.join(' ').toLowerCase().includes(hint) || s.description.toLowerCase().includes(hint)) || s.budget === effectiveFilters.budget;
-        }
-        return moodMatch && socialMatch && budgetMatch;
-      });
-      return suggestions;
-    }
+          // After fetching, get detailed info including reviews for each place
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        // Get detailed information including reviews for each place
+        const detailedPlaces = await Promise.all(
+          data.results.slice(0, 5).map(async (place: any) => {
+            try {
+              const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,geometry,rating,user_ratings_total,photos,reviews,opening_hours,price_level&key=${GOOGLE_API_KEY}`;
+              const detailsResponse = await fetch(detailsUrl);
+              const detailsData = await detailsResponse.json();
+              return detailsData.result || place;
+            } catch (error) {
+              console.log('⚠️ Error fetching place details:', error);
+              return place;
+            }
+          })
+        );
+        
+        let suggestions = await Promise.all(detailedPlaces.map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters)));
+        // Simplified filter: just return all results
+        return suggestions;
+      }
     
     if (data.status === 'ZERO_RESULTS') {
       console.log('⚠️ Google API returned zero results for current filters');
@@ -245,26 +384,44 @@ const generateRealisticSuggestion = async (effectiveFilters: any): Promise<Sugge
   const categoryPlaces = manilaPlaces[effectiveFilters.category as keyof typeof manilaPlaces] || manilaPlaces.food;
   const selectedPlace = categoryPlaces[Math.floor(Math.random() * categoryPlaces.length)];
   
-  // Generate appropriate images based on category
+  // Generate appropriate images based on category - Enhanced with 3-8 high-quality images
   const getImages = (category: string) => {
     const imageMap = {
       food: [
-        'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop'
+        'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1551218808-b94bcde164b4?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1553621042-f6e147245754?w=800&h=600&fit=crop&q=80'
       ],
       activity: [
-        'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop'
+        'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&q=80'
       ],
       'something-new': [
-        'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop',
-        'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=300&fit=crop'
+        'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80'
       ]
     };
-    return imageMap[category as keyof typeof imageMap] || imageMap.food;
+    const images = imageMap[category as keyof typeof imageMap] || imageMap.food;
+    // Return 3-8 images randomly selected to add variety
+    const shuffled = images.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, Math.floor(Math.random() * 6) + 3); // 3-8 images
   };
   
   const mood = effectiveFilters.mood > 60 ? 'hype' : effectiveFilters.mood < 40 ? 'chill' : 'both';
@@ -298,11 +455,16 @@ const curatedNewPlaces: Suggestion[] = [
     name: 'The Newest Ramen Spot',
     location: 'Greenhills, San Juan',
     images: [
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop'
+      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&h=600&fit=crop&q=80'
     ],
     budget: 'PP',
     tags: ['Japanese', 'Ramen', 'New', 'Trendy'],
-    description: 'A just-opened ramen bar with creative broths and modern vibes.',
+    description: 'The Newest Ramen Spot is a hidden gem that locals can\'t stop talking about. With its authentic flavors and modern vibes, this spot has become a must-visit destination for food enthusiasts.',
     category: 'food',
     mood: 'both',
     socialContext: ['solo', 'with-bae', 'barkada'],
@@ -314,11 +476,16 @@ const curatedNewPlaces: Suggestion[] = [
     name: 'Escape Room X',
     location: 'BGC, Taguig',
     images: [
-      'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=300&fit=crop'
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop&q=80'
     ],
     budget: 'PP',
     tags: ['Escape Room', 'Puzzle', 'New', 'Adventure'],
-    description: 'A brand new escape room experience for groups and thrill-seekers.',
+    description: 'Escape Room X delivers with its thrilling puzzles and immersive experience. It\'s the perfect place to create unforgettable memories with friends.',
     category: 'activity',
     mood: 'hype',
     socialContext: ['barkada', 'with-bae'],
@@ -478,7 +645,7 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
           const response = await fetch(url);
           const data = await response.json();
           if (data.status === 'OK' && data.results && data.results.length > 0) {
-            let suggestions = data.results.map((place: any) => convertGooglePlaceToSuggestion(place, {...effectiveFilters, category: t === 'restaurant' ? 'food' : 'activity'}));
+            let suggestions = await Promise.all(data.results.map((place: any) => convertGooglePlaceToSuggestion(place, {...effectiveFilters, category: t === 'restaurant' ? 'food' : 'activity'})));
             // Newness: very low review count but high rating
             suggestions = suggestions.filter((s: Suggestion, idx: number) => {
               const reviews = (data.results[idx]?.user_ratings_total) || 0;

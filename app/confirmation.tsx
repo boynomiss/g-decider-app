@@ -3,8 +3,8 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle, Home } from 'lucide-react-native';
-import { useAppStore } from '@/hooks/use-app-store';
+import { Check, Home } from 'lucide-react-native';
+import { useAppStore } from '../hooks/use-app-store';
 
 export default function ConfirmationScreen() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function ConfirmationScreen() {
       
       <View style={styles.content}>
         <View style={styles.successCard}>
-          <CheckCircle size={80} color="#4CAF50" />
+          <Check size={80} color="#4CAF50" />
           
           <Text style={styles.title}>Booking Confirmed!</Text>
           

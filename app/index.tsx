@@ -2,14 +2,14 @@ import React from 'react';
 import { StyleSheet, ScrollView, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Header from '@/components/Header';
-import AdPlacement from '@/components/AdPlacement';
-import CategoryButtons from '@/components/CategoryButtons';
-import MoodSlider from '@/components/MoodSlider';
-import ActionButton from '@/components/ActionButton';
-import Footer from '@/components/Footer';
-import APIStatus from '@/components/APIStatus';
-import { useAppStore } from '@/hooks/use-app-store';
+import Header from '../components/Header';
+import AdPlacement from '../components/AdPlacement';
+import CategoryButtons from '../components/CategoryButtons';
+import MoodSlider from '../components/MoodSlider';
+import ActionButton from '../components/ActionButton';
+import Footer from '../components/Footer';
+import APIStatus from '../components/APIStatus';
+import { useAppStore } from '../hooks/use-app-store';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -29,7 +29,7 @@ export default function HomeScreen() {
       >
         <View style={styles.fixedContent}>
           <Header />
-          <APIStatus isVisible={true} />
+          <APIStatus isVisible={false} />
           <AdPlacement />
           <CategoryButtons />
           <MoodSlider />
@@ -50,7 +50,7 @@ export default function HomeScreen() {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <Header />
-        <APIStatus isVisible={true} />
+        <APIStatus isVisible={false} />
         <AdPlacement />
         <CategoryButtons />
         <MoodSlider />

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react-native';
 import Zap from 'lucide-react-native/dist/esm/icons/zap';
 import Infinity from 'lucide-react-native/dist/esm/icons/infinity';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '../hooks/use-auth';
 
 export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
