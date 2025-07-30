@@ -27,16 +27,56 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const usedSuggestions = new Set<string>();
 const MAX_USED_SUGGESTIONS = 50;
 
-// Optimized distance radius mapping
-const getDistanceRadius = (distanceRange: number): number => {
-  if (distanceRange < 1) return 1000;
-  if (distanceRange < 3) return 3000;
-  if (distanceRange < 5) return 5000;
-  if (distanceRange < 10) return 10000;
-  if (distanceRange < 15) return 15000;
-  if (distanceRange < 20) return 20000;
-  if (distanceRange < 24) return 50000;
-  return 100000;
+// Enhanced distance radius mapping with more practical ranges
+const getDistanceRadius = (distanceRange: number, attempt: number = 0): number => {
+  console.log(`🎯 Distance range input: ${distanceRange}, attempt: ${attempt}`);
+  
+  // Round the distance range to handle decimal values
+  const roundedDistance = Math.round(distanceRange);
+  console.log(`🎯 Rounded distance range: ${roundedDistance}`);
+  
+  // Base radius based on distance range
+  let baseRadius: number;
+  
+  // Special case for very close range (0-500m) - perfect for mall scenarios
+  if (roundedDistance <= 1) {
+    baseRadius = 500;
+    console.log(`📍 Very Close selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 2) {
+    baseRadius = 1000;
+    console.log(`🚶 Walking Distance selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 4) {
+    baseRadius = 2000;
+    console.log(`🚶 Walking Distance selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 6) {
+    baseRadius = 5000;
+    console.log(`🚴 Bike Distance selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 10) {
+    baseRadius = 10000;
+    console.log(`🚗 Short Trip selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 15) {
+    baseRadius = 15000;
+    console.log(`🛣️ Nearby Drive selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 20) {
+    baseRadius = 20000;
+    console.log(`🗺️ Further Out selected: ${baseRadius}m radius`);
+  } else if (roundedDistance <= 23) {
+    baseRadius = 50000;
+    console.log(`🚀 Long Drive selected: ${baseRadius}m radius`);
+  } else {
+    baseRadius = 100000;
+    console.log(`🌍 Any Distance selected: ${baseRadius}m radius`);
+  }
+  
+  // If this is a retry attempt, gradually increase the radius
+  if (attempt > 0) {
+    const multiplier = 1 + (attempt * 0.5); // Increase by 50% each attempt
+    const adjustedRadius = Math.round(baseRadius * multiplier);
+    console.log(`🔄 Attempt ${attempt}: Increasing radius to ${adjustedRadius}m`);
+    return adjustedRadius;
+  }
+  
+  return baseRadius;
 };
 
 // Optimized budget mapping
@@ -217,25 +257,25 @@ const getSocialKeywords = (social: string, category: string) => {
   }
 };
 
-// Enhanced Google Places API call with result diversification
+// Enhanced Google Places API call with prioritized filters
 const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: number, lng: number}, attempt: number = 0): Promise<Suggestion[]> => {
-  const radius = getDistanceRadius(effectiveFilters.distanceRange);
+  const radius = getDistanceRadius(effectiveFilters.distanceRange, attempt);
   const type = getCategoryType(effectiveFilters.category);
   const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
   
-  // Add variety to search parameters
-  const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category, attempt);
-  const keywords = vibeKeywords.length > 0 ? vibeKeywords[Math.floor(Math.random() * vibeKeywords.length)] : '';
+  // Use user's actual location for very close ranges (500m or less)
+  let searchLocation = { ...userLocation };
   
-  // Add random offset to location for variety
-  const locationOffset = attempt * 0.01; // 0.01 degree offset per attempt
-  const searchLocation = {
-    lat: userLocation.lat + (Math.random() - 0.5) * locationOffset,
-    lng: userLocation.lng + (Math.random() - 0.5) * locationOffset
-  };
+  if (radius > 1000) {
+    const locationOffset = attempt * 0.005;
+    searchLocation = {
+      lat: userLocation.lat + (Math.random() - 0.5) * locationOffset,
+      lng: userLocation.lng + (Math.random() - 0.5) * locationOffset
+    };
+  }
   
-  // Build cache key with attempt number
-  const cacheKey = `${searchLocation.lat},${searchLocation.lng}-${radius}-${type}-${keywords}-${priceLevel.minprice}-${priceLevel.maxprice}-${attempt}`;
+  // Build cache key with attempt number - simplified
+  const cacheKey = `${searchLocation.lat},${searchLocation.lng}-${radius}-${type}-${attempt}`;
   
   // Check cache first
   const cached = apiCache.get(cacheKey);
@@ -244,7 +284,7 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
     return cached.data;
   }
   
-  // Build URL parameters
+  // Build URL parameters with priority-based filtering
   const paramsObj: Record<string, string> = {
     location: `${searchLocation.lat},${searchLocation.lng}`,
     radius: radius.toString(),
@@ -252,14 +292,39 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
     key: GOOGLE_API_KEY,
   };
   
-  if (keywords) paramsObj['keyword'] = keywords;
-  if (priceLevel.minprice !== undefined) paramsObj['minprice'] = priceLevel.minprice.toString();
-  if (priceLevel.maxprice !== undefined) paramsObj['maxprice'] = priceLevel.maxprice.toString();
+  // Priority 1: Distance (always included - highest priority)
+  console.log(`📍 Priority 1 - Distance: ${radius}m radius`);
+  
+  // Priority 2: Budget (for food category)
+  if (effectiveFilters.category === 'food' && priceLevel.minprice !== undefined && priceLevel.maxprice !== undefined) {
+    // Only add price filter if it's not too restrictive for very close searches
+    if (radius > 1000 || (priceLevel.minprice > 0 || priceLevel.maxprice > 1)) {
+      paramsObj['minprice'] = priceLevel.minprice.toString();
+      paramsObj['maxprice'] = priceLevel.maxprice.toString();
+      console.log(`💰 Priority 2 - Budget: ${priceLevel.minprice}-${priceLevel.maxprice}`);
+    }
+  }
+  
+  // Priority 3: Mood (only if not too restrictive)
+  const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category, attempt);
+  const keywords = vibeKeywords.length > 0 ? vibeKeywords[Math.floor(Math.random() * vibeKeywords.length)] : '';
+  
+  // Only add mood keywords if this is not a retry attempt (prioritize distance over mood)
+  if (keywords && attempt === 0) {
+    paramsObj['keyword'] = keywords;
+    console.log(`🎭 Priority 3 - Mood: ${keywords}`);
+  } else if (attempt > 0) {
+    console.log(`🎯 Skipping mood (attempt ${attempt}) to prioritize distance`);
+  }
+  
+  // Priority 4 & 5: Social Context & Time of Day are handled in post-processing
+  // (These are used for filtering results after API call, not in the API call itself)
   
   const params = new URLSearchParams(paramsObj);
   const url = `${PLACES_SEARCH_URL}?${params.toString()}`;
   
-  console.log(`🔍 Fetching Google Places (attempt ${attempt}) with URL:`, url);
+  console.log(`🔍 Fetching Google Places (attempt ${attempt}) with radius: ${radius}m, location: ${searchLocation.lat},${searchLocation.lng}`);
+  console.log(`🔍 URL: ${url}`);
   
   try {
     const response = await Promise.race([
@@ -277,12 +342,59 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
     console.log('📥 Google Places API response status:', data.status);
     
     if (data.status === 'OK' && data.results && data.results.length > 0) {
+      console.log(`✅ Found ${data.results.length} places`);
+      
       // Filter out already used suggestions
-      const newResults = data.results.filter((place: any) => !usedSuggestions.has(place.place_id));
+      let newResults = data.results.filter((place: any) => !usedSuggestions.has(place.place_id));
+      
+      // Priority 4: Social Context filtering (post-processing)
+      if (effectiveFilters.socialContext && newResults.length > 0) {
+        const socialKeywords = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category);
+        const socialFiltered = newResults.filter((place: any) => {
+          const placeName = place.name?.toLowerCase() || '';
+          const placeTypes = place.types || [];
+          return socialKeywords.some(keyword => 
+            placeName.includes(keyword.toLowerCase()) || 
+            placeTypes.some((type: string) => type.toLowerCase().includes(keyword.toLowerCase()))
+          );
+        });
+        
+        if (socialFiltered.length > 0) {
+          newResults = socialFiltered;
+          console.log(`👥 Priority 4 - Social Context: ${effectiveFilters.socialContext} (filtered to ${newResults.length} places)`);
+        } else {
+          console.log(`👥 Priority 4 - Social Context: ${effectiveFilters.socialContext} (no matches, keeping all results)`);
+        }
+      }
+      
+      // Priority 5: Time of Day filtering (post-processing)
+      if (effectiveFilters.timeOfDay && newResults.length > 0) {
+        const timeKeywords = {
+          'morning': ['breakfast', 'coffee', 'cafe', 'brunch'],
+          'afternoon': ['lunch', 'dining', 'restaurant', 'cafe'],
+          'night': ['dinner', 'bar', 'nightlife', 'restaurant']
+        };
+        
+        const timeFiltered = newResults.filter((place: any) => {
+          const placeName = place.name?.toLowerCase() || '';
+          const placeTypes = place.types || [];
+          const keywords = timeKeywords[effectiveFilters.timeOfDay as keyof typeof timeKeywords] || [];
+          return keywords.some(keyword => 
+            placeName.includes(keyword) || 
+            placeTypes.some((type: string) => type.toLowerCase().includes(keyword))
+          );
+        });
+        
+        if (timeFiltered.length > 0) {
+          newResults = timeFiltered;
+          console.log(`🕐 Priority 5 - Time of Day: ${effectiveFilters.timeOfDay} (filtered to ${newResults.length} places)`);
+        } else {
+          console.log(`🕐 Priority 5 - Time of Day: ${effectiveFilters.timeOfDay} (no matches, keeping all results)`);
+        }
+      }
       
       if (newResults.length === 0 && attempt < 3) {
-        // Try again with different parameters
-        console.log('🔄 No new results, trying with different parameters...');
+        console.log('🔄 No results after priority filtering, trying with different parameters...');
         return fetchGooglePlaces(effectiveFilters, userLocation, attempt + 1);
       }
       
@@ -299,6 +411,7 @@ const fetchGooglePlaces = async (effectiveFilters: any, userLocation: {lat: numb
     if (data.status === 'ZERO_RESULTS') {
       console.log('⚠️ Google API returned zero results for current filters');
       if (attempt < 3) {
+        console.log(`🔄 No results found with ${radius}m radius, trying with larger radius and relaxed filters...`);
         return fetchGooglePlaces(effectiveFilters, userLocation, attempt + 1);
       }
       return [];
@@ -531,20 +644,26 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
     } catch (e) { /* fallback to default */ }
 
     try {
-      // Get current filters and apply randomization for unselected filters
+      // Get current filters and apply smart defaults for unselected filters
       const currentFilters = stateRef.current.filters;
       
-      // Randomize unselected filters
-      const socialContextOptions: ('solo' | 'with-bae' | 'barkada')[] = ['solo', 'with-bae', 'barkada'];
+      // Get current time for smart time of day default
+      const getCurrentTimeOfDay = (): 'morning' | 'afternoon' | 'night' => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) return 'morning';
+        if (hour >= 12 && hour < 18) return 'afternoon';
+        return 'night';
+      };
+      
+      // Smart defaults
       const budgetOptions: ('P' | 'PP' | 'PPP')[] = ['P', 'PP', 'PPP'];
-      const timeOfDayOptions: ('morning' | 'afternoon' | 'night')[] = ['morning', 'afternoon', 'night'];
       
       const effectiveFilters = {
         category: currentFilters.category,
         mood: currentFilters.mood,
-        socialContext: currentFilters.socialContext || socialContextOptions[Math.floor(Math.random() * socialContextOptions.length)],
-        timeOfDay: currentFilters.timeOfDay || timeOfDayOptions[Math.floor(Math.random() * timeOfDayOptions.length)],
-        budget: currentFilters.budget || budgetOptions[Math.floor(Math.random() * budgetOptions.length)],
+        socialContext: currentFilters.socialContext || 'solo', // Default to solo when not selected
+        timeOfDay: currentFilters.timeOfDay || getCurrentTimeOfDay(), // Default to current time of day
+        budget: currentFilters.budget || budgetOptions[Math.floor(Math.random() * budgetOptions.length)], // Randomize budget when not selected
         distanceRange: currentFilters.distanceRange || (1 + Math.random() * 23) // Random between 1-24 (full range)
       };
       

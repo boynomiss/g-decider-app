@@ -35,30 +35,30 @@ const moodLabels = {
 } as const;
 
 const distanceLabels = {
-  1: { emoji: '🚶‍♀️', text: 'Walking Distance (Less than 1 km)' },
-  2: { emoji: '🚶‍♀️', text: 'Walking Distance (Less than 1 km)' },
-  3: { emoji: '🚴', text: 'Bike Distance (Less than 3 km)' },
-  4: { emoji: '🚴', text: 'Bike Distance (Less than 3 km)' },
-  5: { emoji: '🚗', text: 'Short Trip (Up to 5 km)' },
-  6: { emoji: '🚗', text: 'Short Trip (Up to 5 km)' },
-  7: { emoji: '🚗', text: 'Short Trip (Up to 5 km)' },
-  8: { emoji: '🚗', text: 'Short Trip (Up to 5 km)' },
-  9: { emoji: '🚗', text: 'Short Trip (Up to 5 km)' },
-  10: { emoji: '🛣️', text: 'Nearby Drive (Up to 10 km)' },
-  11: { emoji: '🛣️', text: 'Nearby Drive (Up to 10 km)' },
-  12: { emoji: '🛣️', text: 'Nearby Drive (Up to 10 km)' },
-  13: { emoji: '🛣️', text: 'Nearby Drive (Up to 10 km)' },
-  14: { emoji: '🛣️', text: 'Nearby Drive (Up to 10 km)' },
-  15: { emoji: '💨', text: 'Moderate Drive (Up to 15 km)' },
-  16: { emoji: '💨', text: 'Moderate Drive (Up to 15 km)' },
-  17: { emoji: '💨', text: 'Moderate Drive (Up to 15 km)' },
-  18: { emoji: '🗺️', text: 'Further Out (Up to 20 km)' },
-  19: { emoji: '🗺️', text: 'Further Out (Up to 20 km)' },
-  20: { emoji: '🗺️', text: 'Further Out (Up to 20 km)' },
-  21: { emoji: '🚀', text: 'Long Drive (20+ km)' },
-  22: { emoji: '🚀', text: 'Long Drive (20+ km)' },
-  23: { emoji: '🚀', text: 'Long Drive (20+ km)' },
-  24: { emoji: '🌍', text: 'As Far As It Gets (Any distance)' }
+  1: { emoji: '🚶‍♀️', text: 'Very Close' },
+  2: { emoji: '🚶‍♀️', text: 'Walking Distance' },
+  3: { emoji: '🚶‍♀️', text: 'Walking Distance' },
+  4: { emoji: '🚶‍♀️', text: 'Walking Distance' },
+  5: { emoji: '🚴', text: 'Bike Distance' },
+  6: { emoji: '🚴', text: 'Bike Distance' },
+  7: { emoji: '🚗', text: 'Short Trip' },
+  8: { emoji: '🚗', text: 'Short Trip' },
+  9: { emoji: '🚗', text: 'Short Trip' },
+  10: { emoji: '🚗', text: 'Short Trip' },
+  11: { emoji: '🚗', text: 'Short Trip' },
+  12: { emoji: '🛣️', text: 'Nearby Drive' },
+  13: { emoji: '🛣️', text: 'Nearby Drive' },
+  14: { emoji: '🛣️', text: 'Nearby Drive' },
+  15: { emoji: '🛣️', text: 'Nearby Drive' },
+  16: { emoji: '🛣️', text: 'Nearby Drive' },
+  17: { emoji: '💨', text: 'Moderate Drive' },
+  18: { emoji: '💨', text: 'Moderate Drive' },
+  19: { emoji: '💨', text: 'Moderate Drive' },
+  20: { emoji: '🗺️', text: 'Further Out' },
+  21: { emoji: '🗺️', text: 'Further Out' },
+  22: { emoji: '🗺️', text: 'Further Out' },
+  23: { emoji: '🚀', text: 'Long Drive' },
+  24: { emoji: '🌍', text: 'Any Distance' }
 } as const;
 
 export default function MoodSlider() {
@@ -301,9 +301,14 @@ export default function MoodSlider() {
           <View style={styles.filterSection}>
             <View style={styles.distanceHeader}>
               <Text style={styles.filterTitle}>Distance Range:</Text>
-              <Text style={styles.distanceValue}>
-                {getCurrentDistanceLabel().text} {getCurrentDistanceLabel().emoji}
-              </Text>
+              <View style={styles.distanceValueContainer}>
+                <Text style={styles.distanceValue}>
+                  {getCurrentDistanceLabel().text}
+                </Text>
+                <Text style={styles.distanceEmoji}>
+                  {getCurrentDistanceLabel().emoji}
+                </Text>
+              </View>
             </View>
             <View style={styles.sliderTrack}>
               <Animated.View style={[styles.activeTrack, distanceTrackStyle]} />
@@ -433,16 +438,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 4,
   },
-  distanceHeader: {
+  distanceValueContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'flex-end',
+    minWidth: 120,
   },
   distanceValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#7DD3C0',
+  },
+  distanceEmoji: {
+    fontSize: 16,
+    marginLeft: 4,
+  },
+  distanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   valueDisplay: {
     position: 'absolute',
