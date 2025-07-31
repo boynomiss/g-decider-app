@@ -1,14 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Dimensions, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, RotateCcw, ThumbsUp, MapPin } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
-import { useAIDescription } from '../hooks/use-ai-description';
-import { useBookingIntegration } from '../hooks/use-booking-integration';
-import { AIDescriptionCard } from '../components/AIDescriptionCard';
-import { BookingOptionsCard } from '../components/BookingOptionsCard';
 import Footer from '../components/Footer';
 
 const { width } = Dimensions.get('window');
@@ -89,6 +85,7 @@ const ActionButtons = React.memo(({ onPass, onRestart, onBookNow, retriesLeft }:
     <TouchableOpacity 
       style={styles.actionButton} 
       onPress={onRestart}
+      disabled={retriesLeft <= 0}
     >
       <RotateCcw size={24} color="#666" />
       <Text style={styles.actionText}>Restart</Text>
@@ -195,25 +192,6 @@ export default function ResultScreen() {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
-  // AI Description hook
-  const {
-    aiDescription,
-    isLoading: aiLoading,
-    error: aiError,
-    generateDescription,
-    clearDescription
-  } = useAIDescription();
-
-  // Booking Integration hook
-  const {
-    bookingPlatforms,
-    isLoading: bookingLoading,
-    error: bookingError,
-    getBookingOptions,
-    openBooking,
-    clearBookingOptions
-  } = useBookingIntegration();
-  
   // Memoized handlers
   const handlePass = useCallback(async () => {
     console.log('🚫 Pass button pressed, generating new suggestion');
@@ -223,6 +201,12 @@ export default function ResultScreen() {
       console.error('Error generating new suggestion:', error);
     }
   }, [generateSuggestion]);
+
+  const handleRestart = useCallback(() => {
+    console.log('🔄 Restart button pressed, going back to main page');
+    resetSuggestion();
+    router.replace('/');
+  }, [resetSuggestion, router]);
 
   const handleBookNow = useCallback(() => {
     console.log('📝 Book Now button pressed, navigating to booking');
@@ -249,29 +233,6 @@ export default function ResultScreen() {
       openInMaps(currentSuggestion);
     }
   }, [currentSuggestion, openInMaps]);
-
-  // Auto-generate AI description when suggestion changes
-  useEffect(() => {
-    if (currentSuggestion && !aiDescription && !aiLoading) {
-      generateDescription(currentSuggestion);
-    }
-  }, [currentSuggestion, aiDescription, aiLoading, generateDescription]);
-
-  // Auto-load booking options when suggestion changes
-  useEffect(() => {
-    if (currentSuggestion && bookingPlatforms.length === 0 && !bookingLoading) {
-      getBookingOptions(currentSuggestion);
-    }
-  }, [currentSuggestion, bookingPlatforms.length, bookingLoading, getBookingOptions]);
-
-  // Clear AI description when restarting
-  const handleRestart = useCallback(() => {
-    console.log('🔄 Restart button pressed, going back to main page');
-    clearDescription();
-    clearBookingOptions();
-    resetSuggestion();
-    router.replace('/');
-  }, [clearDescription, clearBookingOptions, resetSuggestion, router]);
 
   // Memoized budget display
   const budgetDisplay = useMemo(() => {
@@ -329,33 +290,6 @@ export default function ResultScreen() {
           </View>
 
           <Text style={styles.description}>{currentSuggestion.description}</Text>
-
-          {/* AI Generated Description */}
-          <AIDescriptionCard
-            description={aiDescription}
-            isLoading={aiLoading}
-            error={aiError}
-            onRetry={() => currentSuggestion && generateDescription(currentSuggestion)}
-            onGenerate={() => currentSuggestion && generateDescription(currentSuggestion)}
-          />
-
-          {/* Booking Options */}
-          <BookingOptionsCard
-            platforms={bookingPlatforms}
-            isLoading={bookingLoading}
-            error={bookingError}
-            onBookingPress={(platform) => {
-              if (currentSuggestion) {
-                openBooking(platform, {
-                  restaurantName: currentSuggestion.name,
-                  location: currentSuggestion.location,
-                  budget: currentSuggestion.budget
-                });
-              }
-            }}
-            restaurantName={currentSuggestion.name}
-            location={currentSuggestion.location}
-          />
 
           {currentSuggestion.discount && (
             <View style={styles.discountContainer}>

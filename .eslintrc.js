@@ -28,7 +28,9 @@ module.exports = {
     'no-var': 'error',
   },
   env: {
-    'react-native/react-native': true,
+    browser: true,
+    es2021: true,
+    node: true,
   },
   settings: {
     react: {
