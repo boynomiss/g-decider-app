@@ -102,79 +102,45 @@ const getCategoryType = (category: 'food' | 'activity' | 'something-new'): strin
 };
 
 // Enhanced image fetching with comprehensive sourcing
-const getComprehensiveImages = async (placeName: string, placeLocation: string, category: string, existingPhotos: string[] = []): Promise<string[]> => {
-  let allImages: string[] = [];
-  
-  // Start with existing Google Places photos
-  if (existingPhotos.length > 0) {
-    allImages.push(...existingPhotos.slice(0, 4));
-  }
-  
-  // Add curated images based on category and place type
-  const curatedImageMap = {
-    food: [
-      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1551218808-b94bcde164b4?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1553621042-f6e147245754?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800&h=600&fit=crop&q=80'
-    ],
-    activity: [
-      'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1526772662000-3f88f10405ff?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&q=80'
-    ],
-    'something-new': [
-      'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=600&fit=crop&q=80'
-    ]
-  };
-  
-  const categoryImages = curatedImageMap[category as keyof typeof curatedImageMap] || curatedImageMap.food;
-  
-  // Add more variety by shuffling and selecting 6-10 images
-  const shuffledImages = categoryImages.sort(() => 0.5 - Math.random());
-  const additionalImages = shuffledImages.slice(0, Math.floor(Math.random() * 5) + 6); // 6-10 images
-  
-  allImages.push(...additionalImages);
-  
-  // Remove duplicates and limit to 10 images
-  const uniqueImages = [...new Set(allImages)];
-  return uniqueImages.slice(0, 10);
+// Import the new image sourcing function
+import { getComprehensiveImages as getComprehensiveImagesFromUtils } from '../utils/image-sourcing';
+
+const getComprehensiveImages = async (
+  placeName: string, 
+  placeLocation: string, 
+  category: string, 
+  existingPhotos: string[] = [],
+  placeId?: string,
+  coordinates?: { lat: number; lng: number }
+): Promise<string[]> => {
+  // Use the new image sourcing function that focuses on real photos
+  return await getComprehensiveImagesFromUtils(
+    placeName,
+    placeLocation,
+    category,
+    existingPhotos,
+    placeId,
+    coordinates
+  );
 };
 
 // Optimized place conversion
 const convertGooglePlaceToSuggestion = async (place: any, effectiveFilters: any): Promise<Suggestion> => {
   console.log('Converting Google Place:', place.name);
   
-  // Get optimized images
+  // Get optimized images with placeId and coordinates
   const photos = await getComprehensiveImages(
     place.name,
     place.formatted_address || '',
     effectiveFilters.category,
     place.photos?.slice(0, 3).map((photo: any) => 
       `https://maps.googleapis.com/maps/api/place/photo?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_API_KEY}`
-    ) || []
+    ) || [],
+    place.place_id,
+    place.geometry?.location ? {
+      lat: place.geometry.location.lat,
+      lng: place.geometry.location.lng
+    } : undefined
   );
   
   // Optimized budget mapping

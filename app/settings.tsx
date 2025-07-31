@@ -20,7 +20,8 @@ import {
   HelpCircle, 
   Check,
   X,
-  Edit
+  Edit,
+  Bookmark
 } from 'lucide-react-native';
 import Shield from 'lucide-react-native/dist/esm/icons/shield';
 import CreditCard from 'lucide-react-native/dist/esm/icons/credit-card';
@@ -217,6 +218,17 @@ export default function SettingsScreen() {
 
         {/* Menu Items */}
         <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => router.push('/saved-places')}
+          >
+            <View style={styles.menuLeft}>
+              <Bookmark size={20} color="#666" />
+              <Text style={styles.menuText}>Saved Places</Text>
+            </View>
+            <ChevronRight size={20} color="#ccc" />
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => router.push('/upgrade')}

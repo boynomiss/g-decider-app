@@ -71,18 +71,33 @@ export class BookingIntegrationService {
     // This would typically make an API call to check availability
     // For now, we'll simulate availability based on restaurant data
     
-    const { name, location, budget } = restaurantData;
+    const { name, location, budget, category } = restaurantData;
     
     // Simulate availability logic
     if (platform.name === 'Eatigo') {
+      // Eatigo only works for restaurants (food category)
+      if (category !== 'food') {
+        console.log(`🍽️ Eatigo filtered out for non-restaurant category: ${category}`);
+        return false;
+      }
+      
       // Eatigo typically has restaurants in Asia
-      return location.toLowerCase().includes('manila') || 
-             location.toLowerCase().includes('makati') ||
-             location.toLowerCase().includes('philippines');
+      const isAvailable = location.toLowerCase().includes('manila') || 
+                         location.toLowerCase().includes('makati') ||
+                         location.toLowerCase().includes('philippines');
+      
+      if (isAvailable) {
+        console.log(`🍽️ Eatigo available for restaurant: ${name}`);
+      } else {
+        console.log(`🍽️ Eatigo not available for location: ${location}`);
+      }
+      
+      return isAvailable;
     }
     
     if (platform.name === 'Klook') {
       // Klook has activities and some restaurants
+      console.log(`🎯 Klook available for ${category}: ${name}`);
       return true; // Klook has broader availability
     }
     

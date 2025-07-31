@@ -7,7 +7,8 @@ import { X, RotateCcw, ThumbsUp, MapPin } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
 import { useAIDescription } from '../hooks/use-ai-description';
 import { useBookingIntegration } from '../hooks/use-booking-integration';
-import { AIDescriptionCard } from '../components/AIDescriptionCard';
+import { useContact } from '../hooks/use-contact';
+import { useSavedPlaces } from '../hooks/use-saved-places';
 import { BookingOptionsCard } from '../components/BookingOptionsCard';
 import Footer from '../components/Footer';
 
@@ -74,11 +75,12 @@ const ImageGallery = React.memo(({ images, onImagePress }: {
   </View>
 ));
 
-const ActionButtons = React.memo(({ onPass, onRestart, onBookNow, retriesLeft }: {
+const ActionButtons = React.memo(({ onPass, onRestart, onSave, retriesLeft, isSaved }: {
   onPass: () => void;
   onRestart: () => void;
-  onBookNow: () => void;
+  onSave: () => void;
   retriesLeft: number;
+  isSaved: boolean;
 }) => (
   <View style={styles.bottomActions}>
     <TouchableOpacity style={styles.actionButton} onPress={onPass}>
@@ -94,9 +96,9 @@ const ActionButtons = React.memo(({ onPass, onRestart, onBookNow, retriesLeft }:
       <Text style={styles.actionText}>Restart</Text>
     </TouchableOpacity>
 
-    <TouchableOpacity style={styles.actionButton} onPress={onBookNow}>
-      <ThumbsUp size={24} color="#4CAF50" />
-      <Text style={styles.actionText}>Book Now</Text>
+    <TouchableOpacity style={styles.actionButton} onPress={onSave}>
+      <ThumbsUp size={24} color={isSaved ? "#FFD700" : "#4CAF50"} />
+      <Text style={styles.actionText}>{isSaved ? 'Saved' : 'Save'}</Text>
     </TouchableOpacity>
   </View>
 ));
@@ -213,6 +215,27 @@ export default function ResultScreen() {
     openBooking,
     clearBookingOptions
   } = useBookingIntegration();
+
+  // Contact hook
+  const {
+    contactInfo,
+    isLoading: contactLoading,
+    error: contactError,
+    getContactInfo,
+    callContact,
+    clearContactInfo
+  } = useContact();
+
+  // Saved Places hook
+  const {
+    savedPlaces,
+    isLoading: savedLoading,
+    isSaved,
+    savePlace,
+    removePlace,
+    loadSavedPlaces,
+    clearSavedPlaces
+  } = useSavedPlaces();
   
   // Memoized handlers
   const handlePass = useCallback(async () => {
@@ -224,10 +247,33 @@ export default function ResultScreen() {
     }
   }, [generateSuggestion]);
 
-  const handleBookNow = useCallback(() => {
-    console.log('📝 Book Now button pressed, navigating to booking');
-    router.push('/booking');
-  }, [router]);
+  const handleSavePlace = useCallback(async () => {
+    if (currentSuggestion) {
+      if (isSaved(currentSuggestion)) {
+        await removePlace(currentSuggestion);
+        console.log('🗑️ Removed from saved places');
+      } else {
+        await savePlace(currentSuggestion);
+        console.log('💾 Saved to saved places');
+      }
+    }
+  }, [currentSuggestion, isSaved, savePlace, removePlace]);
+
+  const handleContactThem = useCallback(async () => {
+    if (currentSuggestion && currentSuggestion.id) {
+      // Get contact info if not already loaded
+      if (!contactInfo.phoneNumber) {
+        await getContactInfo(currentSuggestion.id);
+      }
+      
+      // Call the contact if phone number is available
+      if (contactInfo.phoneNumber) {
+        await callContact(contactInfo.phoneNumber);
+      } else {
+        console.log('📞 No contact number available');
+      }
+    }
+  }, [currentSuggestion, contactInfo.phoneNumber, getContactInfo, callContact]);
 
   const handleImagePress = useCallback((index: number) => {
     setSelectedImageIndex(index);
@@ -264,14 +310,22 @@ export default function ResultScreen() {
     }
   }, [currentSuggestion, bookingPlatforms.length, bookingLoading, getBookingOptions]);
 
+  // Auto-load contact info when suggestion changes
+  useEffect(() => {
+    if (currentSuggestion && currentSuggestion.id && !contactInfo.phoneNumber && !contactLoading) {
+      getContactInfo(currentSuggestion.id);
+    }
+  }, [currentSuggestion, contactInfo.phoneNumber, contactLoading, getContactInfo]);
+
   // Clear AI description when restarting
   const handleRestart = useCallback(() => {
     console.log('🔄 Restart button pressed, going back to main page');
     clearDescription();
     clearBookingOptions();
+    clearContactInfo();
     resetSuggestion();
     router.replace('/');
-  }, [clearDescription, clearBookingOptions, resetSuggestion, router]);
+  }, [clearDescription, clearBookingOptions, clearContactInfo, resetSuggestion, router]);
 
   // Memoized budget display
   const budgetDisplay = useMemo(() => {
@@ -328,16 +382,9 @@ export default function ResultScreen() {
             ))}
           </View>
 
-          <Text style={styles.description}>{currentSuggestion.description}</Text>
-
-          {/* AI Generated Description */}
-          <AIDescriptionCard
-            description={aiDescription}
-            isLoading={aiLoading}
-            error={aiError}
-            onRetry={() => currentSuggestion && generateDescription(currentSuggestion)}
-            onGenerate={() => currentSuggestion && generateDescription(currentSuggestion)}
-          />
+          <Text style={styles.description}>
+            {aiDescription || currentSuggestion.description}
+          </Text>
 
           {/* Booking Options */}
           <BookingOptionsCard
@@ -369,16 +416,19 @@ export default function ResultScreen() {
               <Text style={styles.mapButtonText}>View in Maps</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.grabButton} onPress={handleBookNow}>
-              <Text style={styles.grabButtonText}>Grab</Text>
+            <TouchableOpacity style={styles.contactButton} onPress={handleContactThem}>
+              <Text style={styles.contactButtonText}>
+                {contactLoading ? 'Loading...' : contactInfo.phoneNumber ? 'Contact Them Now' : 'Contact Them Now'}
+              </Text>
             </TouchableOpacity>
           </View>
 
           <ActionButtons 
             onPass={handlePass}
             onRestart={handleRestart}
-            onBookNow={handleBookNow}
+            onSave={handleSavePlace}
             retriesLeft={retriesLeft}
+            isSaved={currentSuggestion ? isSaved(currentSuggestion) : false}
           />
         </View>
       </ScrollView>
@@ -547,7 +597,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 16,
-    maxHeight: 72,
     paddingHorizontal: 20,
   },
   discountContainer: {
@@ -584,15 +633,15 @@ const styles = StyleSheet.create({
     color: '#8B5FBF',
     fontWeight: '600',
   },
-  grabButton: {
+  contactButton: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FF6B35',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grabButtonText: {
+  contactButtonText: {
     fontSize: 16,
     color: '#FFF',
     fontWeight: '600',
