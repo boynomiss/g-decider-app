@@ -3,7 +3,7 @@ import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Dimensions
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Trash2, MapPin, Phone } from 'lucide-react-native';
+import { ArrowLeft, Trash, MapPin, Phone } from 'lucide-react-native';
 import { useSavedPlaces } from '../hooks/use-saved-places';
 import { useContact } from '../hooks/use-contact';
 import { contactService } from '../utils/contact-service';
@@ -145,7 +145,7 @@ export default function SavedPlacesScreen() {
                     style={styles.removeButton} 
                     onPress={() => handleRemovePlace(place)}
                   >
-                    <Trash2 size={16} color="#FF6B6B" />
+                    <Trash size={16} color="#FF6B6B" />
                     <Text style={styles.removeText}>Remove</Text>
                   </TouchableOpacity>
                 </View>

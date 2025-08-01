@@ -6,11 +6,13 @@ interface UseContactReturn {
     phoneNumber?: string;
     formattedPhoneNumber?: string;
     internationalPhoneNumber?: string;
+    website?: string;
   };
   isLoading: boolean;
   error: string | null;
-  getContactInfo: (placeId: string) => Promise<void>;
+  getContactInfo: (placeId: string, placeName?: string) => Promise<void>;
   callContact: (phoneNumber: string) => Promise<boolean>;
+  openWebsite: (website: string) => Promise<boolean>;
   clearContactInfo: () => void;
 }
 
@@ -19,22 +21,25 @@ export const useContact = (): UseContactReturn => {
     phoneNumber?: string;
     formattedPhoneNumber?: string;
     internationalPhoneNumber?: string;
+    website?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getContactInfo = useCallback(async (placeId: string) => {
+  const getContactInfo = useCallback(async (placeId: string, placeName?: string) => {
     if (!placeId) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const info = await contactService.getContactInfo(placeId);
+      const info = await contactService.getContactInfo(placeId, placeName);
       setContactInfo(info);
       
       if (info.phoneNumber) {
         console.log('📞 Found contact info:', info.phoneNumber);
+      } else if (info.website) {
+        console.log('🌐 Found website:', info.website);
       } else {
         console.log('📞 No contact info available');
       }
@@ -58,6 +63,17 @@ export const useContact = (): UseContactReturn => {
     }
   }, []);
 
+  const openWebsite = useCallback(async (website: string): Promise<boolean> => {
+    try {
+      const success = await contactService.openWebsite(website);
+      return success;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to open website';
+      console.error('❌ Website open failed:', errorMessage);
+      return false;
+    }
+  }, []);
+
   const clearContactInfo = useCallback(() => {
     setContactInfo({});
     setError(null);
@@ -69,6 +85,7 @@ export const useContact = (): UseContactReturn => {
     error,
     getContactInfo,
     callContact,
+    openWebsite,
     clearContactInfo
   };
 }; 

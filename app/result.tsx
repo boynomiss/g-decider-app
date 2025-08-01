@@ -1,16 +1,19 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Dimensions, Modal } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Image, Dimensions, Modal, TouchableWithoutFeedback } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, RotateCcw, ThumbsUp, MapPin } from 'lucide-react-native';
+import { X, RotateCcw, ThumbsUp, MapPin, Phone, Globe, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
 import { useAIDescription } from '../hooks/use-ai-description';
 import { useBookingIntegration } from '../hooks/use-booking-integration';
 import { useContact } from '../hooks/use-contact';
 import { useSavedPlaces } from '../hooks/use-saved-places';
+import { useDiscounts } from '../hooks/use-discounts';
 import { BookingOptionsCard } from '../components/BookingOptionsCard';
+import { ActiveDiscountsCard } from '../components/ActiveDiscountsCard';
 import Footer from '../components/Footer';
+import { FilteringProgress } from '../components/FilteringProgress';
 
 const { width } = Dimensions.get('window');
 
@@ -46,34 +49,101 @@ const LoadingState = React.memo(() => (
   </LinearGradient>
 ));
 
+// Enhanced loading state with filtering progress
+const EnhancedLoadingState = React.memo(({ filters }: { filters: any }) => (
+  <FilteringProgress filters={filters} />
+));
+
+// Distance expansion loading state
+const DistanceExpansionLoadingState = React.memo(({ 
+  currentRadius, 
+  targetRadius, 
+  originalDistance 
+}: { 
+  currentRadius: number; 
+  targetRadius: number; 
+  originalDistance: number; 
+}) => (
+  <LinearGradient
+    colors={['#C8A8E9', '#B19CD9']}
+    style={styles.loadingContainer}
+  >
+    <Stack.Screen options={{ headerShown: false }} />
+    <View style={styles.distanceExpansionContainer}>
+      <Text style={styles.distanceExpansionTitle}>
+        No places found within {originalDistance <= 1 ? `${originalDistance * 1000}m` : `${originalDistance}km`}
+      </Text>
+      <Text style={styles.distanceExpansionSubtitle}>
+        We're expanding the search radius to find great places near you
+      </Text>
+      <View style={styles.radiusProgressContainer}>
+        <Text style={styles.radiusProgressText}>
+          Searching within {currentRadius < 1000 ? `${currentRadius}m` : `${Math.round(currentRadius / 1000)}km`}...
+        </Text>
+        <View style={styles.radiusProgressBar}>
+          <View 
+            style={[
+              styles.radiusProgressFill, 
+              { width: `${Math.min((currentRadius / targetRadius) * 100, 100)}%` }
+            ]} 
+          />
+        </View>
+      </View>
+      <Text style={styles.distanceExpansionNote}>
+        Don't worry, we'll find something amazing for you! 🌟
+      </Text>
+    </View>
+  </LinearGradient>
+));
+
 const ImageGallery = React.memo(({ images, onImagePress }: { 
   images: string[]; 
   onImagePress: (index: number) => void; 
-}) => (
-  <View style={styles.imageContainer}>
-    <ScrollView 
-      horizontal 
-      pagingEnabled 
-      showsHorizontalScrollIndicator={false}
-      style={styles.imageScroll}
-    >
-      {images.map((image, index) => (
-        <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
-          <Image
-            source={{ uri: image }}
-            style={styles.image}
-            resizeMode="cover"
+}) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const handleScroll = (event: any) => {
+    const contentOffset = event.nativeEvent.contentOffset;
+    const index = Math.round(contentOffset.x / (width - 32));
+    setCurrentImageIndex(index);
+  };
+
+  return (
+    <View style={styles.imageContainer}>
+      <ScrollView 
+        horizontal 
+        pagingEnabled 
+        showsHorizontalScrollIndicator={false}
+        style={styles.imageScroll}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {images.map((image, index) => (
+          <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
+            <Image
+              source={{ uri: image }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <View style={styles.imageIndicator}>
+        {images.map((_, index) => (
+          <View 
+            key={index} 
+            style={[
+              styles.dot, 
+              { 
+                opacity: index === currentImageIndex ? 1 : 0.5 
+              }
+            ]} 
           />
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-    <View style={styles.imageIndicator}>
-      {images.map((_, index) => (
-        <View key={index} style={styles.dot} />
-      ))}
+        ))}
+      </View>
     </View>
-  </View>
-));
+  );
+});
 
 const ActionButtons = React.memo(({ onPass, onRestart, onSave, retriesLeft, isSaved }: {
   onPass: () => void;
@@ -115,32 +185,54 @@ const ImageModal = React.memo(({
   selectedIndex: number;
   onClose: () => void;
   reviews?: any[];
-}) => (
-  <Modal
-    visible={visible}
-    transparent={true}
-    animationType="fade"
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalContainer}>
-      <TouchableOpacity style={styles.modalOverlay} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <ScrollView 
-            horizontal 
-            pagingEnabled 
-            showsHorizontalScrollIndicator={false}
-            style={styles.modalImageScroll}
-            contentOffset={{ x: selectedIndex * width, y: 0 }}
-          >
-            {images.map((image, index) => (
-              <Image
-                key={index}
-                source={{ uri: image }}
-                style={styles.modalImage}
-                resizeMode="contain"
-              />
-            ))}
-          </ScrollView>
+}) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(selectedIndex);
+
+  const handleScroll = (event: any) => {
+    const contentOffset = event.nativeEvent.contentOffset;
+    const index = Math.round(contentOffset.x / width);
+    setCurrentImageIndex(index);
+  };
+
+  const handleOverlayPress = (event: any) => {
+    // Only close if the press is on the overlay, not on the image area
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalContainer}>
+        <TouchableOpacity style={styles.modalOverlay} onPress={handleOverlayPress}>
+          <View style={styles.modalContent}>
+            <ScrollView 
+              horizontal 
+              pagingEnabled 
+              showsHorizontalScrollIndicator={false}
+              style={styles.modalImageScroll}
+              contentOffset={{ x: selectedIndex * width, y: 0 }}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              scrollEnabled={true}
+            >
+              {images.map((image, index) => (
+                <TouchableWithoutFeedback key={index}>
+                  <View style={styles.modalImageContainer}>
+                    <Image
+                      source={{ uri: image }}
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </TouchableWithoutFeedback>
+              ))}
+            </ScrollView>
           
           {reviews && reviews.length > 0 && (
             <View style={styles.reviewsContainer}>
@@ -179,7 +271,8 @@ const ImageModal = React.memo(({
       </TouchableOpacity>
     </View>
   </Modal>
-));
+  );
+});
 
 export default function ResultScreen() {
   const { 
@@ -190,12 +283,23 @@ export default function ResultScreen() {
     isLoading, 
     effectiveFilters, 
     openInMaps, 
-    updateFilters 
+    updateFilters,
+    getPoolStats
   } = useAppStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [distanceExpansion, setDistanceExpansion] = useState<{
+    isExpanding: boolean;
+    currentRadius: number;
+    targetRadius: number;
+    originalDistance: number;
+    startTime: number;
+  } | null>(null);
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const [minimumLoadingTime] = useState(3000); // 3 seconds minimum
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   
   // AI Description hook
   const {
@@ -223,6 +327,7 @@ export default function ResultScreen() {
     error: contactError,
     getContactInfo,
     callContact,
+    openWebsite,
     clearContactInfo
   } = useContact();
 
@@ -236,16 +341,50 @@ export default function ResultScreen() {
     loadSavedPlaces,
     clearSavedPlaces
   } = useSavedPlaces();
+
+  // Discounts hook
+  const {
+    discounts,
+    isLoading: discountLoading,
+    error: discountError,
+    searchDiscounts,
+    openDiscount,
+    clearDiscounts
+  } = useDiscounts();
   
   // Memoized handlers
   const handlePass = useCallback(async () => {
     console.log('🚫 Pass button pressed, generating new suggestion');
     try {
-      await generateSuggestion();
+      // Create progress callback
+      const onProgress = (step: number, status: string, resultsCount?: number, distanceInfo?: any) => {
+        // Handle distance expansion tracking
+        if (distanceInfo && distanceInfo.isExpanding) {
+          setDistanceExpansion({
+            isExpanding: true,
+            currentRadius: distanceInfo.currentRadius,
+            targetRadius: distanceInfo.targetRadius,
+            originalDistance: distanceInfo.originalDistance,
+            startTime: Date.now()
+          });
+        } else if (distanceInfo && !distanceInfo.isExpanding) {
+          setDistanceExpansion(null);
+        }
+      };
+      
+      // Log pool statistics before generating new suggestion
+      const poolStats = getPoolStats();
+      console.log('📊 Pool stats before generating new suggestion:', poolStats);
+      
+      await generateSuggestion(onProgress);
+      
+      // Log pool statistics after generating new suggestion
+      const updatedPoolStats = getPoolStats();
+      console.log('📊 Pool stats after generating new suggestion:', updatedPoolStats);
     } catch (error) {
       console.error('Error generating new suggestion:', error);
     }
-  }, [generateSuggestion]);
+  }, [generateSuggestion, getPoolStats]);
 
   const handleSavePlace = useCallback(async () => {
     if (currentSuggestion) {
@@ -262,18 +401,26 @@ export default function ResultScreen() {
   const handleContactThem = useCallback(async () => {
     if (currentSuggestion && currentSuggestion.id) {
       // Get contact info if not already loaded
-      if (!contactInfo.phoneNumber) {
-        await getContactInfo(currentSuggestion.id);
+      if (!contactInfo.phoneNumber && !contactInfo.website) {
+        await getContactInfo(currentSuggestion.id, currentSuggestion.name);
       }
       
       // Call the contact if phone number is available
       if (contactInfo.phoneNumber) {
         await callContact(contactInfo.phoneNumber);
-      } else {
-        console.log('📞 No contact number available');
+      } 
+      // Open website if no phone number but website is available
+      else if (contactInfo.website) {
+        await openWebsite(contactInfo.website);
+      } 
+      // If neither phone nor website is available, show feedback
+      else {
+        console.log('📞 No contact info available');
+        // You could add a toast or alert here to inform the user
+        // For now, we'll just log it
       }
     }
-  }, [currentSuggestion, contactInfo.phoneNumber, getContactInfo, callContact]);
+  }, [currentSuggestion, contactInfo.phoneNumber, contactInfo.website, getContactInfo, callContact, openWebsite]);
 
   const handleImagePress = useCallback((index: number) => {
     setSelectedImageIndex(index);
@@ -282,7 +429,27 @@ export default function ResultScreen() {
 
   const handleBroadenSearch = useCallback(async () => {
     updateFilters({ budget: null, mood: 50 });
-    await generateSuggestion();
+    
+    // Reset distance expansion
+    setDistanceExpansion(null);
+    
+    // Create progress callback
+    const onProgress = (step: number, status: string, resultsCount?: number, distanceInfo?: any) => {
+      // Handle distance expansion tracking
+      if (distanceInfo && distanceInfo.isExpanding) {
+        setDistanceExpansion({
+          isExpanding: true,
+          currentRadius: distanceInfo.currentRadius,
+          targetRadius: distanceInfo.targetRadius,
+          originalDistance: distanceInfo.originalDistance,
+          startTime: Date.now()
+        });
+      } else if (distanceInfo && !distanceInfo.isExpanding) {
+        setDistanceExpansion(null);
+      }
+    };
+    
+    await generateSuggestion(onProgress);
   }, [updateFilters, generateSuggestion]);
 
   const handleGoHome = useCallback(() => {
@@ -301,6 +468,8 @@ export default function ResultScreen() {
     if (currentSuggestion && !aiDescription && !aiLoading) {
       generateDescription(currentSuggestion);
     }
+    // Reset description expansion when suggestion changes
+    setIsDescriptionExpanded(false);
   }, [currentSuggestion, aiDescription, aiLoading, generateDescription]);
 
   // Auto-load booking options when suggestion changes
@@ -312,10 +481,36 @@ export default function ResultScreen() {
 
   // Auto-load contact info when suggestion changes
   useEffect(() => {
-    if (currentSuggestion && currentSuggestion.id && !contactInfo.phoneNumber && !contactLoading) {
-      getContactInfo(currentSuggestion.id);
+    if (currentSuggestion && currentSuggestion.id && !contactInfo.phoneNumber && !contactInfo.website && !contactLoading) {
+      getContactInfo(currentSuggestion.id, currentSuggestion.name);
     }
-  }, [currentSuggestion, contactInfo.phoneNumber, contactLoading, getContactInfo]);
+  }, [currentSuggestion, contactInfo.phoneNumber, contactInfo.website, contactLoading, getContactInfo]);
+
+  // Auto-search discounts when suggestion changes
+  useEffect(() => {
+    if (currentSuggestion && discounts.length === 0 && !discountLoading) {
+      searchDiscounts(currentSuggestion);
+    }
+  }, [currentSuggestion, discounts.length, discountLoading, searchDiscounts]);
+
+  // Set loading start time when suggestion generation begins or when no suggestion exists
+  useEffect(() => {
+    if ((isLoading || !currentSuggestion) && !loadingStartTime) {
+      setLoadingStartTime(Date.now());
+      console.log('🔄 Loading started at:', new Date().toISOString(), {
+        isLoading,
+        hasSuggestion: !!currentSuggestion
+      });
+    }
+  }, [isLoading, currentSuggestion, loadingStartTime]);
+
+  // Auto-generate suggestion when component mounts if no suggestion exists
+  useEffect(() => {
+    if (!currentSuggestion && !isLoading) {
+      console.log('🚀 Auto-generating suggestion on mount...');
+      generateSuggestion();
+    }
+  }, [currentSuggestion, isLoading, generateSuggestion]);
 
   // Clear AI description when restarting
   const handleRestart = useCallback(() => {
@@ -323,9 +518,25 @@ export default function ResultScreen() {
     clearDescription();
     clearBookingOptions();
     clearContactInfo();
+    clearDiscounts();
     resetSuggestion();
     router.replace('/');
-  }, [clearDescription, clearBookingOptions, clearContactInfo, resetSuggestion, router]);
+  }, [clearDescription, clearBookingOptions, clearContactInfo, clearDiscounts, resetSuggestion, router]);
+
+  // Helper function to get first sentence without period
+  const getFirstSentence = useCallback((text: string): string => {
+    if (!text || text.trim().length === 0) return '';
+    
+    // Split by sentence endings and filter out empty sentences
+    const sentences = text.split(/[.!?]+/).filter(sentence => sentence.trim().length > 0);
+    
+    if (sentences.length === 0) return text;
+    
+    // Get the first sentence without punctuation
+    const firstSentence = sentences[0].trim();
+    
+    return firstSentence;
+  }, []);
 
   // Memoized budget display
   const budgetDisplay = useMemo(() => {
@@ -343,14 +554,84 @@ export default function ResultScreen() {
     return <ErrorState onBroadenSearch={handleBroadenSearch} onGoHome={handleGoHome} />;
   }
 
-  // Show loading if still generating suggestion
-  if (isLoading || !currentSuggestion) {
-    return <LoadingState />;
+  // Priority 1: Show distance expansion loading if we're expanding the search radius
+  if (distanceExpansion && distanceExpansion.isExpanding) {
+    // Check if minimum loading time has passed for distance expansion
+    const elapsed = Date.now() - distanceExpansion.startTime;
+    const shouldShowDistanceLoading = elapsed < minimumLoadingTime;
+    
+    if (shouldShowDistanceLoading) {
+      return (
+        <DistanceExpansionLoadingState 
+          currentRadius={distanceExpansion.currentRadius}
+          targetRadius={distanceExpansion.targetRadius}
+          originalDistance={distanceExpansion.originalDistance}
+        />
+      );
+    }
+  }
+
+  // Check if all data is ready (comprehensive loading state)
+  const isAllDataReady = useMemo(() => {
+    if (!currentSuggestion) return false;
+    
+    // Check if all individual loading states are complete
+    const isDescriptionReady = !aiLoading && (aiDescription || currentSuggestion.description);
+    const isContactReady = !contactLoading && (contactInfo.phoneNumber || contactInfo.website);
+    const isDiscountReady = !discountLoading;
+    const isBookingReady = !bookingLoading;
+    
+    // Debug logging
+    console.log('🔍 Loading states:', {
+      hasSuggestion: !!currentSuggestion,
+      isDescriptionReady,
+      isContactReady,
+      isDiscountReady,
+      isBookingReady,
+      aiLoading,
+      contactLoading,
+      discountLoading,
+      bookingLoading
+    });
+    
+    // All data should be ready
+    return isDescriptionReady && isContactReady && isDiscountReady && isBookingReady;
+  }, [currentSuggestion, aiLoading, aiDescription, contactLoading, contactInfo, discountLoading, bookingLoading]);
+
+  // Priority 2: Show simplified loading if still generating suggestion or data not ready
+  // Show loading screen immediately when no suggestion exists (initial state)
+  if (!currentSuggestion || isLoading || !isAllDataReady) {
+    // Set loading start time if not already set
+    if (!loadingStartTime) {
+      setLoadingStartTime(Date.now());
+      console.log('🔄 Loading screen started at:', new Date().toISOString());
+    }
+    
+    // Check if minimum loading time has passed
+    const elapsed = loadingStartTime ? Date.now() - loadingStartTime : 0;
+    const shouldShowLoading = !currentSuggestion || isLoading || !isAllDataReady || elapsed < minimumLoadingTime;
+    
+    if (shouldShowLoading) {
+      console.log('🔄 Showing loading screen:', {
+        hasSuggestion: !!currentSuggestion,
+        isLoading,
+        isAllDataReady,
+        elapsed,
+        minimumLoadingTime
+      });
+      return <EnhancedLoadingState filters={effectiveFilters || {}} />;
+    }
+  } else if (currentSuggestion && !isLoading && isAllDataReady) {
+    // Reset loading start time when not loading and all data is ready
+    if (loadingStartTime) {
+      console.log('✅ Loading complete, hiding loading screen');
+      setLoadingStartTime(null);
+    }
   }
 
   const containerStyle = {
     ...styles.container,
-    paddingTop: insets.top + 8,
+    paddingTop: insets.top + 2, // Reduced to 2px
   };
 
   return (
@@ -382,26 +663,44 @@ export default function ResultScreen() {
             ))}
           </View>
 
-          <Text style={styles.description}>
-            {aiDescription || currentSuggestion.description}
-          </Text>
-
-          {/* Booking Options */}
-          <BookingOptionsCard
-            platforms={bookingPlatforms}
-            isLoading={bookingLoading}
-            error={bookingError}
-            onBookingPress={(platform) => {
-              if (currentSuggestion) {
-                openBooking(platform, {
-                  restaurantName: currentSuggestion.name,
-                  location: currentSuggestion.location,
-                  budget: currentSuggestion.budget
-                });
+          <View style={styles.descriptionContainer}>
+            <Text style={styles.description}>
+              {isDescriptionExpanded 
+                ? (aiDescription || currentSuggestion.description)
+                : (
+                  <>
+                    {getFirstSentence(aiDescription || currentSuggestion.description)}
+                    {(aiDescription || currentSuggestion.description).split(/[.!?]+/).filter(sentence => sentence.trim().length > 0).length > 1 && (
+                      <TouchableOpacity 
+                        onPress={() => setIsDescriptionExpanded(true)}
+                        style={styles.inlineReadMore}
+                      >
+                        <Text style={styles.readMoreText}> ...</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )
               }
-            }}
-            restaurantName={currentSuggestion.name}
-            location={currentSuggestion.location}
+            </Text>
+            {isDescriptionExpanded && (
+              <TouchableOpacity 
+                style={styles.readMoreButton} 
+                onPress={() => setIsDescriptionExpanded(false)}
+              >
+                <ChevronUp size={20} color="#8B5FBF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Active Discounts */}
+          <ActiveDiscountsCard
+            discounts={discounts}
+            isLoading={discountLoading}
+            error={discountError}
+            onDiscountPress={openDiscount}
+            placeType={currentSuggestion.category}
+            tags={currentSuggestion.tags}
+            description={aiDescription || currentSuggestion.description}
           />
 
           {currentSuggestion.discount && (
@@ -410,17 +709,39 @@ export default function ResultScreen() {
             </View>
           )}
 
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.mapButton} onPress={handleOpenMaps}>
-              <MapPin size={20} color="#8B5FBF" />
-              <Text style={styles.mapButtonText}>View in Maps</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.contactButton} onPress={handleContactThem}>
-              <Text style={styles.contactButtonText}>
-                {contactLoading ? 'Loading...' : contactInfo.phoneNumber ? 'Contact Them Now' : 'Contact Them Now'}
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.actionButtonsContainer}>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={[
+                  styles.mapButton, 
+                  (!contactInfo.phoneNumber && !contactInfo.website && !contactLoading) && styles.fullWidthMapButton
+                ]} 
+                onPress={handleOpenMaps}
+              >
+                <MapPin size={20} color="#8B5FBF" />
+                <Text style={styles.mapButtonText}>View in Maps</Text>
+              </TouchableOpacity>
+              
+              {((contactInfo.phoneNumber || contactInfo.website) || contactLoading) && (
+                <TouchableOpacity style={styles.contactButton} onPress={handleContactThem}>
+                  {contactLoading ? (
+                    <Text style={styles.contactButtonText}>Loading...</Text>
+                  ) : contactInfo.phoneNumber ? (
+                    <>
+                      <Phone size={16} color="#FFF" />
+                      <Text style={styles.contactButtonText}>Call Now</Text>
+                    </>
+                  ) : contactInfo.website ? (
+                    <>
+                      <Globe size={16} color="#FFF" />
+                      <Text style={styles.contactButtonText}>Visit Website</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.contactButtonText}>Contact Them Now</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           <ActionButtons 
@@ -507,10 +828,57 @@ const styles = StyleSheet.create({
     fontSize: 18, 
     marginBottom: 20 
   },
+  // Distance expansion loading state styles
+  distanceExpansionContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+  },
+  distanceExpansionTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  distanceExpansionSubtitle: {
+    color: '#FFF',
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  radiusProgressContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  radiusProgressText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  radiusProgressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  radiusProgressFill: {
+    height: '100%',
+    backgroundColor: '#FFF',
+    borderRadius: 4,
+  },
+  distanceExpansionNote: {
+    color: '#FFF',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   // Image gallery styles
   imageContainer: {
-    height: 300,
-    marginTop: 20,
+    height: 262, // Reduced by 25% from 350px to 262px
+    marginTop: 2, // Increased to 2px
     marginHorizontal: 16,
     borderRadius: 20,
     overflow: 'hidden',
@@ -521,22 +889,25 @@ const styles = StyleSheet.create({
   },
   image: {
     width: width - 32,
-    height: 300,
+    height: 262, // Reduced by 25% from 350px to 262px
   },
   imageIndicator: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 24,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 16,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    width: 7.5, // Reduced by 25% from 10px to 7.5px
+    height: 7.5, // Reduced by 25% from 10px to 7.5px
+    borderRadius: 3.75, // Reduced by 25% from 5px to 3.75px
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.3)',
   },
   // Content card styles
   contentCard: {
@@ -544,7 +915,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     margin: 16,
     padding: 24,
-    marginTop: -20,
+    marginTop: -10,
     opacity: 1,
   },
   name: {
@@ -596,8 +967,25 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: 8,
     paddingHorizontal: 20,
+  },
+  descriptionContainer: {
+    marginBottom: 8,
+  },
+  readMoreButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  inlineReadMore: {
+    marginLeft: 2,
+    alignSelf: 'center',
+  },
+  readMoreText: {
+    fontSize: 16,
+    color: '#8B5FBF',
+    fontWeight: '600',
+    lineHeight: 16,
   },
   discountContainer: {
     backgroundColor: '#FFF3CD',
@@ -610,6 +998,9 @@ const styles = StyleSheet.create({
     color: '#856404',
     textAlign: 'center',
     fontWeight: '600',
+  },
+  actionButtonsContainer: {
+    marginTop: 16,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -628,6 +1019,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
   },
+  fullWidthMapButton: {
+    flex: 1,
+    width: '100%',
+  },
   mapButtonText: {
     fontSize: 16,
     color: '#8B5FBF',
@@ -640,6 +1035,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   contactButtonText: {
     fontSize: 16,
@@ -686,6 +1083,14 @@ const styles = StyleSheet.create({
   modalImageScroll: {
     flex: 1,
     width: '100%',
+  },
+  modalImageContainer: {
+    width: width,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Prevent any visual feedback on touch
+    opacity: 1,
   },
   modalImage: {
     width: width,

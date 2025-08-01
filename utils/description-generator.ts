@@ -1,7 +1,7 @@
 // Description Generator
 // Creates engaging, concise descriptions from reviews and blog posts
 
-import { Review } from '@/types/app';
+import { Review } from '../types/app';
 
 // Helper: Convert budget level to readable text
 const getBudgetText = (budget: 'P' | 'PP' | 'PPP'): string => {

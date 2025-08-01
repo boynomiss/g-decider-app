@@ -8,6 +8,9 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const descriptionCache = new Map<string, { description: string; timestamp: number }>();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
+// Clear cache to force regeneration with new prompt format
+descriptionCache.clear();
+
 interface RestaurantData {
   name: string;
   location: string;
@@ -158,8 +161,6 @@ export class AIDescriptionService {
 
     return `You are a helpful assistant that describes restaurants. Generate a concise, engaging 2-3 sentence description for the following restaurant, emphasizing aspects that align with a '${moodContext}' vibe.
 
-Restaurant Name: ${name}
-Location: ${location}
 Cuisine: ${cuisineTags.join(', ')}
 Price Level: ${this.getBudgetText(budget)}
 Key Features: ${features.join(', ')}
@@ -172,14 +173,14 @@ Context:
 
 ${reviewHighlights ? `Sample Reviews (for ambiance/vibe hints):\n${reviewHighlights}\n` : ''}
 
-Please create a description that highlights the ambiance, cuisine, and what makes this place special. Focus on the experience and atmosphere that would appeal to someone looking for a ${moodContext} experience. Keep it to 2-3 sentences maximum.`;
+Please create a description that highlights the ambiance, cuisine, and what makes this place special. Focus on the experience and atmosphere that would appeal to someone looking for a ${moodContext} experience. DO NOT mention the restaurant name or location as these are already displayed elsewhere. Keep it to 2-3 sentences maximum.`;
   }
 
   /**
    * Generate a fallback description when AI fails
    */
   private generateFallbackDescription(restaurantData: RestaurantData): string {
-    const { name, tags, budget, location, mood } = restaurantData;
+    const { tags, budget, mood } = restaurantData;
     
     const budgetText = this.getBudgetText(budget);
     const cuisineTags = tags.filter(tag => 
@@ -190,7 +191,7 @@ Please create a description that highlights the ambiance, cuisine, and what make
     
     const moodContext = this.getMoodContext(mood);
     
-    return `${name} offers a delightful dining experience in ${location}. With ${budgetText} pricing and ${cuisineTags.join(', ')} options, this establishment provides a ${moodContext} atmosphere perfect for all guests.`;
+    return `This establishment offers a delightful dining experience with ${budgetText} pricing and ${cuisineTags.join(', ')} options. It provides a ${moodContext} atmosphere perfect for all guests.`;
   }
 
   /**

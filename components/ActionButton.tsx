@@ -63,19 +63,13 @@ export default function ActionButton() {
     }
 
     try {
-      console.log('🚀 Starting suggestion generation...');
+      console.log('🚀 Navigating to result screen immediately...');
       
-      // Generate suggestion first, then navigate
-      await generateSuggestion();
-      
-      console.log('✅ Suggestion generated, navigating to result...');
-      // Navigate to result page after suggestion is ready
+      // Navigate to result screen immediately, let it handle suggestion generation
       router.push('/result');
       
     } catch (error) {
-      console.error('❌ Error generating suggestion:', error);
-      // Still navigate to show error state
-      router.push('/result');
+      console.error('❌ Error navigating to result:', error);
     }
   };
 

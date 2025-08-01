@@ -209,7 +209,7 @@ export const getComprehensiveImages = async (
   }
   
   // Remove duplicates and cap at 6 images maximum
-  const uniquePhotos = [...new Set(photos)];
+  const uniquePhotos = Array.from(new Set(photos));
   const finalPhotos = uniquePhotos.slice(0, 6);
   
   console.log(`📸 Final image count for ${placeName}: ${finalPhotos.length} images`);

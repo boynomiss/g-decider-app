@@ -1,34 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Calendar, Clock, Users, ExternalLink } from 'lucide-react-native';
+import { ExternalLink, Clock, AlertCircle, Star } from 'lucide-react-native';
+import { DiscountInfo } from '../utils/discount-service';
 
-interface BookingPlatform {
-  name: string;
-  deepLinkBase: string;
-  webUrlBase: string;
-  affiliateId?: string;
-  apiKey?: string;
-}
-
-interface BookingOptionsCardProps {
-  platforms: BookingPlatform[];
+interface ActiveDiscountsCardProps {
+  discounts: DiscountInfo[];
   isLoading: boolean;
   error: string | null;
-  onBookingPress: (platform: BookingPlatform) => void;
-  restaurantName: string;
-  location: string;
+  onDiscountPress: (discount: DiscountInfo) => void;
   placeType: 'food' | 'activity' | 'something-new';
   tags?: string[];
   description?: string;
 }
 
-export const BookingOptionsCard: React.FC<BookingOptionsCardProps> = ({
-  platforms,
+export const ActiveDiscountsCard: React.FC<ActiveDiscountsCardProps> = ({
+  discounts,
   isLoading,
   error,
-  onBookingPress,
-  restaurantName,
-  location,
+  onDiscountPress,
   placeType,
   tags = [],
   description = ''
@@ -49,7 +38,7 @@ export const BookingOptionsCard: React.FC<BookingOptionsCardProps> = ({
 
   // Helper function to analyze place type for 'something-new' category
   const analyzePlaceType = (): string => {
-    const allText = `${restaurantName} ${location} ${tags.join(' ')} ${description}`.toLowerCase();
+    const allText = `${description} ${tags.join(' ')}`.toLowerCase();
     
     // Check for restaurant-related keywords
     const restaurantKeywords = [
@@ -89,11 +78,11 @@ export const BookingOptionsCard: React.FC<BookingOptionsCardProps> = ({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Calendar size={16} color="#8B5FBF" />
-          <Text style={styles.title}>Booking Options</Text>
+          <Star size={16} color="#8B5FBF" />
+          <Text style={styles.title}>{getBookingTitle(placeType)}</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Checking booking availability...</Text>
+          <Text style={styles.loadingText}>Searching for discounts...</Text>
         </View>
       </View>
     );
@@ -103,85 +92,71 @@ export const BookingOptionsCard: React.FC<BookingOptionsCardProps> = ({
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Calendar size={16} color="#FF6B6B" />
-          <Text style={styles.title}>Booking Options</Text>
+          <AlertCircle size={16} color="#FF6B6B" />
+          <Text style={styles.title}>{getBookingTitle(placeType)}</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Unable to load booking options</Text>
+          <Text style={styles.errorText}>Unable to load discounts</Text>
           <Text style={styles.errorSubtext}>{error}</Text>
         </View>
       </View>
     );
   }
 
-  if (platforms.length === 0) {
-    // Don't show anything when no booking platforms are available
-    return null;
+  if (discounts.length === 0) {
+    return null; // Don't show anything if no discounts
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Calendar size={16} color="#8B5FBF" />
+        <Star size={16} color="#8B5FBF" />
         <Text style={styles.title}>{getBookingTitle(placeType)}</Text>
       </View>
       
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        style={styles.platformsScroll}
+        style={styles.discountsScroll}
       >
-        {platforms.map((platform, index) => {
-          const style = getPlatformStyle(platform);
-          
-          return (
-            <TouchableOpacity
-              key={index}
-              style={[styles.platformButton, { backgroundColor: style.backgroundColor }]}
-              onPress={() => onBookingPress(platform)}
-            >
-              <View style={styles.platformContent}>
-                <Text style={[styles.platformName, { color: style.color }]}>
-                  {platform.name}
-                </Text>
-                <Text style={styles.platformSubtext}>
-                  {restaurantName}
-                </Text>
-                <Text style={styles.platformLocation}>
-                  {location}
-                </Text>
-                <View style={styles.platformIcon}>
-                  <ExternalLink size={12} color={style.color} />
-                </View>
+        {discounts.map((discount, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.discountCard}
+            onPress={() => onDiscountPress(discount)}
+          >
+            <View style={styles.discountContent}>
+              <View style={styles.discountHeader}>
+                <Text style={styles.discountText}>{discount.discount}</Text>
+                <Text style={styles.platformText}>{discount.platform}</Text>
               </View>
-            </TouchableOpacity>
-          );
-        })}
+              
+              {discount.originalPrice && discount.discountedPrice && (
+                <View style={styles.priceContainer}>
+                  <Text style={styles.originalPrice}>{discount.originalPrice}</Text>
+                  <Text style={styles.discountedPrice}>{discount.discountedPrice}</Text>
+                </View>
+              )}
+              
+              {discount.validUntil && (
+                <View style={styles.validUntilContainer}>
+                  <Clock size={12} color="#666" />
+                  <Text style={styles.validUntilText}>
+                    Valid until {new Date(discount.validUntil).toLocaleDateString()}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.actionContainer}>
+                <Text style={styles.actionText}>Tap to claim</Text>
+                <ExternalLink size={12} color="#8B5FBF" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
-      
-      <View style={styles.infoContainer}>
-        <View style={styles.infoRow}>
-          <Clock size={12} color="#666" />
-          <Text style={styles.infoText}>Tap to open booking platform</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Users size={12} color="#666" />
-          <Text style={styles.infoText}>You'll be redirected to complete booking</Text>
-        </View>
-      </View>
     </View>
   );
-};
-
-const getPlatformStyle = (platform: BookingPlatform): { color: string; backgroundColor: string } => {
-  switch (platform.name) {
-    case 'Eatigo':
-      return { color: '#FF6B35', backgroundColor: '#FFF5F2' };
-    case 'Klook':
-      return { color: '#00B4D8', backgroundColor: '#F0F9FF' };
-    default:
-      return { color: '#8B5FBF', backgroundColor: '#F8F5FF' };
-  }
 };
 
 const styles = StyleSheet.create({
@@ -189,7 +164,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    marginVertical: 8,
+    marginVertical: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -208,88 +183,91 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   loadingContainer: {
-    alignItems: 'center',
     paddingVertical: 20,
+    alignItems: 'center',
   },
   loadingText: {
     fontSize: 14,
     color: '#666',
   },
   errorContainer: {
-    alignItems: 'center',
     paddingVertical: 20,
+    alignItems: 'center',
   },
   errorText: {
     fontSize: 14,
     color: '#FF6B6B',
-    marginBottom: 4,
+    fontWeight: '500',
   },
   errorSubtext: {
     fontSize: 12,
     color: '#999',
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  emptySubtext: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  platformsScroll: {
-    marginBottom: 12,
-  },
-  platformButton: {
-    marginRight: 12,
-    borderRadius: 8,
-    padding: 12,
-    minWidth: 120,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  platformContent: {
-    alignItems: 'center',
-  },
-  platformName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  platformSubtext: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  platformLocation: {
-    fontSize: 10,
-    color: '#999',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  platformIcon: {
     marginTop: 4,
   },
-  infoContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 12,
+  discountsScroll: {
+    flexGrow: 0,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+  discountCard: {
+    backgroundColor: '#FFF5F2',
+    borderRadius: 8,
+    padding: 12,
+    marginRight: 12,
+    minWidth: 200,
+    maxWidth: 250,
+    borderWidth: 1,
+    borderColor: '#FFE4D6',
   },
-  infoText: {
+  discountContent: {
+    flex: 1,
+  },
+  discountHeader: {
+    marginBottom: 8,
+  },
+  discountText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF6B35',
+    marginBottom: 2,
+  },
+  platformText: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 6,
+    fontWeight: '500',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginRight: 8,
+  },
+  discountedPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B35',
+  },
+  validUntilContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  validUntilText: {
+    fontSize: 11,
+    color: '#666',
+    marginLeft: 4,
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  actionText: {
+    fontSize: 12,
+    color: '#8B5FBF',
+    fontWeight: '500',
   },
 }); 

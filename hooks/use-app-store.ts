@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
 import { useAuth } from './use-auth';
 import * as Location from 'expo-location';
-import { getCuratedImages } from '../utils/image-sourcing';
+
 import { generateComprehensiveDescription } from '../utils/description-generator';
 
 // Google Places API configuration
@@ -21,11 +21,108 @@ const DEFAULT_LOCATION = {
 
 // Cache for API responses to avoid repeated calls
 const apiCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes (was 5)
+
+// Cost optimization config
+const COST_OPTIMIZATION = {
+  USE_FALLBACK_MORE: true,
+  FALLBACK_THRESHOLD: 10,
+  MAX_ATTEMPTS: 3
+};
 
 // Track used suggestions to avoid repetition
 const usedSuggestions = new Set<string>();
 const MAX_USED_SUGGESTIONS = 50;
+
+// Enhanced bulk filtering system variables
+const filteredResultsPool = new Map<string, Suggestion[]>();
+const MIN_POOL_SIZE = 50;
+const TARGET_GATHER_SIZE = 100; // Reduced from 200
+const POOL_RESET_THRESHOLD = 5; // Reset earlier to save costs
+
+// Smart ranking system functions
+const rankResultsByRating = (suggestions: Suggestion[]): Suggestion[] => {
+  return suggestions.sort((a, b) => {
+    const ratingA = a.rating || 0;
+    const ratingB = b.rating || 0;
+    const reviewCountA = a.reviewCount || 0;
+    const reviewCountB = b.reviewCount || 0;
+    
+    // Primary sort by rating, secondary by review count
+    if (ratingA !== ratingB) {
+      return ratingB - ratingA; // Higher rating first
+    }
+    return reviewCountB - reviewCountA; // More reviews first
+  });
+};
+
+// Randomly select sets of 5 from all suggestions
+const randomlySelectSetsOfFive = (suggestions: Suggestion[]): Suggestion[][] => {
+  const groups: Suggestion[][] = [];
+  const shuffledSuggestions = [...suggestions].sort(() => Math.random() - 0.5); // Shuffle first
+  
+  // Group into sets of 5
+  for (let i = 0; i < shuffledSuggestions.length; i += 5) {
+    const group = shuffledSuggestions.slice(i, i + 5);
+    if (group.length > 0) {
+      // Rank within each group (top to bottom)
+      const rankedGroup = rankResultsByRating(group);
+      groups.push(rankedGroup);
+    }
+  }
+  
+  return groups;
+};
+
+// Enhanced pool structure with ranking info
+const enhancedPool = new Map<string, {
+  suggestions: Suggestion[];
+  rankedGroups: Suggestion[][];
+  currentGroupIndex: number;
+  lastUsedTime: number;
+}>();
+
+// Store ranked results in pool
+const storeRankedResultsInPool = (filterKey: string, suggestions: Suggestion[]) => {
+  const groups = randomlySelectSetsOfFive(suggestions);
+  
+  enhancedPool.set(filterKey, {
+    suggestions: suggestions, // Keep original for reference
+    rankedGroups: groups,
+    currentGroupIndex: 0,
+    lastUsedTime: Date.now()
+  });
+  
+  console.log(`🏆 Stored ${suggestions.length} suggestions in ${groups.length} randomly selected groups (each ranked internally)`);
+};
+
+// Smart selection that prioritizes top-rated results
+const selectSmartSuggestion = (filterKey: string): Suggestion | null => {
+  const poolData = enhancedPool.get(filterKey);
+  if (!poolData) return null;
+  
+  const { rankedGroups, currentGroupIndex } = poolData;
+  
+  // If we've used all groups, reset to first group
+  if (currentGroupIndex >= rankedGroups.length) {
+    poolData.currentGroupIndex = 0;
+    console.log('🔄 Reset to first group for variety');
+  }
+  
+  // Select from current group
+  const currentGroup = rankedGroups[poolData.currentGroupIndex] || [];
+  if (currentGroup.length === 0) return null;
+  
+  const randomIndex = Math.floor(Math.random() * currentGroup.length);
+  const selectedSuggestion = currentGroup[randomIndex];
+  
+  // Move to next group for next selection
+  poolData.currentGroupIndex++;
+  
+  console.log(`🏆 Selected from group ${poolData.currentGroupIndex - 1} (rating: ${selectedSuggestion.rating}, reviews: ${selectedSuggestion.reviewCount})`);
+  
+  return selectedSuggestion;
+};
 
 // Enhanced distance radius mapping with more practical ranges
 const getDistanceRadius = (distanceRange: number, attempt: number = 0): number => {
@@ -585,7 +682,7 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
     }));
   }, []);
 
-  const generateSuggestion = useCallback(async () => {
+  const generateSuggestion = useCallback(async (onProgress?: (step: number, status: string, resultsCount?: number, distanceInfo?: any) => void) => {
     console.log('generateSuggestion called');
     
     // Use ref to get current state without dependency
@@ -646,14 +743,14 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
       }
       
       if (effectiveFilters.category === 'something-new') {
-        // Enhanced something-new logic with diversification
+        // Enhanced something-new logic with bulk filtering
         const types = ['restaurant', 'tourist_attraction'];
         let allSuggestions: Suggestion[] = [];
         const newRetries = currentState.retriesLeft === -1 ? -1 : currentState.retriesLeft - 1;
         
         for (const t of types) {
           const modifiedFilters = { ...effectiveFilters, category: t === 'restaurant' ? 'food' : 'activity' };
-          const typeSuggestions = await fetchGooglePlaces(modifiedFilters, userLocation);
+          const typeSuggestions = await enhancedBulkFetchAndFilter(modifiedFilters, userLocation, onProgress as any);
           allSuggestions = allSuggestions.concat(typeSuggestions);
         }
         
@@ -671,8 +768,10 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
             ? unusedSuggestions[Math.floor(Math.random() * unusedSuggestions.length)]
             : newSuggestions[Math.floor(Math.random() * newSuggestions.length)];
           
-          // Mark as used
+          // Mark as used and remove from pool
           usedSuggestions.add(selectedSuggestion.id);
+          const filterKey = getFilterKey(effectiveFilters);
+          removeFromPool(selectedSuggestion.id, filterKey);
           
           setState(prev => ({
             ...prev,
@@ -707,51 +806,52 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
           return;
         }
       } else {
-        // Normal food/activity with enhanced diversification
-        suggestions = await fetchGooglePlaces(effectiveFilters, userLocation);
+        // Normal food/activity with enhanced bulk filtering
+        suggestions = await enhancedBulkFetchAndFilter(effectiveFilters, userLocation, onProgress as any);
         
         if (suggestions.length > 0) {
-          // Select a suggestion that hasn't been used
-          const unusedSuggestions = suggestions.filter(s => !usedSuggestions.has(s.id));
-          const selectedSuggestion = unusedSuggestions.length > 0 
-            ? unusedSuggestions[Math.floor(Math.random() * unusedSuggestions.length)]
-            : suggestions[Math.floor(Math.random() * suggestions.length)];
+          // Use smart selection that prioritizes top-rated results
+          const filterKey = getFilterKey(effectiveFilters);
+          const selectedSuggestion = selectSmartSuggestion(filterKey);
           
-          // Mark as used
-          usedSuggestions.add(selectedSuggestion.id);
-          
-          setState(prev => ({
-            ...prev,
-            currentSuggestion: selectedSuggestion,
-            retriesLeft: newRetriesNormal,
-            isLoading: false,
-            effectiveFilters: {
-              budget: effectiveFilters.budget,
-              timeOfDay: effectiveFilters.timeOfDay,
-              socialContext: effectiveFilters.socialContext,
-              distanceRange: effectiveFilters.distanceRange
-            }
-          }));
-          return;
-        } else {
-          // Fallback to curated suggestions
-          const fallbackSuggestion = await generateRealisticSuggestion(effectiveFilters);
-          usedSuggestions.add(fallbackSuggestion.id);
-          
-          setState(prev => ({
-            ...prev,
-            currentSuggestion: fallbackSuggestion,
-            retriesLeft: newRetriesNormal,
-            isLoading: false,
-            effectiveFilters: {
-              budget: effectiveFilters.budget,
-              timeOfDay: effectiveFilters.timeOfDay,
-              socialContext: effectiveFilters.socialContext,
-              distanceRange: effectiveFilters.distanceRange
-            }
-          }));
-          return;
+          if (selectedSuggestion) {
+            // Mark as used and remove from pool
+            usedSuggestions.add(selectedSuggestion.id);
+            removeFromPool(selectedSuggestion.id, filterKey);
+            
+            setState(prev => ({
+              ...prev,
+              currentSuggestion: selectedSuggestion,
+              retriesLeft: newRetriesNormal,
+              isLoading: false,
+              effectiveFilters: {
+                budget: effectiveFilters.budget,
+                timeOfDay: effectiveFilters.timeOfDay,
+                socialContext: effectiveFilters.socialContext,
+                distanceRange: effectiveFilters.distanceRange
+              }
+            }));
+            return;
+          }
         }
+        
+        // Fallback to curated suggestions if smart selection fails
+        const fallbackSuggestion = await generateRealisticSuggestion(effectiveFilters);
+        usedSuggestions.add(fallbackSuggestion.id);
+        
+        setState(prev => ({
+          ...prev,
+          currentSuggestion: fallbackSuggestion,
+          retriesLeft: newRetriesNormal,
+          isLoading: false,
+          effectiveFilters: {
+            budget: effectiveFilters.budget,
+            timeOfDay: effectiveFilters.timeOfDay,
+            socialContext: effectiveFilters.socialContext,
+            distanceRange: effectiveFilters.distanceRange
+          }
+        }));
+        return;
       }
     } catch (error) {
       console.error('❌ Error generating suggestion:', error);
@@ -765,6 +865,10 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
   }, []);
 
   const resetSuggestion = useCallback(() => {
+    // Clear the filtered results pool when resetting
+    filteredResultsPool.clear();
+    console.log('🔄 Cleared filtered results pool on reset');
+    
     setState(prev => ({
       ...prev,
       currentSuggestion: null,
@@ -848,6 +952,486 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
       });
   }, []);
 
+  // Enhanced step-by-step filtering system
+  const enhancedFetchGooglePlaces = async (
+    effectiveFilters: any, 
+    userLocation: {lat: number, lng: number}, 
+    attempt: number = 0,
+    onProgress?: (step: number, status: string, resultsCount?: number, distanceInfo?: any) => void
+  ): Promise<Suggestion[]> => {
+    console.log('🚀 Starting enhanced step-by-step filtering process...');
+    
+    // Step 1: Gather all places within radius based on "looking for" category
+    onProgress?.(1, 'in-progress');
+    console.log('📍 Step 1: Gathering all places within radius...');
+    const radius = getDistanceRadius(effectiveFilters.distanceRange, attempt);
+    const type = getCategoryType(effectiveFilters.category);
+    
+    // Check if we're expanding the radius beyond the original
+    const originalDistance = effectiveFilters.distanceRange;
+    const originalRadius = getDistanceRadius(originalDistance, 0);
+    if (attempt > 0 && radius > originalRadius) {
+      const targetRadius = getDistanceRadius(originalDistance, 3); // Max 3 attempts
+      onProgress?.(1, 'in-progress', 0, {
+        isExpanding: true,
+        currentRadius: radius,
+        targetRadius: targetRadius,
+        originalDistance: originalDistance
+      });
+    }
+    
+    // Use user's actual location for very close ranges (500m or less)
+    let searchLocation = { ...userLocation };
+    
+    if (radius > 1000) {
+      const locationOffset = attempt * 0.005;
+      searchLocation = {
+        lat: userLocation.lat + (Math.random() - 0.5) * locationOffset,
+        lng: userLocation.lng + (Math.random() - 0.5) * locationOffset
+      };
+    }
+    
+    // Build cache key for initial gathering
+    const cacheKey = `${searchLocation.lat},${searchLocation.lng}-${radius}-${type}-initial-${attempt}`;
+    
+    // Check cache first
+    const cached = apiCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log('📦 Using cached initial results');
+      onProgress?.(1, 'completed', cached.data.length);
+      return cached.data;
+    }
+    
+    // Step 1: Initial API call - only filter by distance and category
+    const initialParams = {
+      location: `${searchLocation.lat},${searchLocation.lng}`,
+      radius: radius.toString(),
+      type,
+      key: GOOGLE_API_KEY,
+    };
+    
+    const initialUrl = `${PLACES_SEARCH_URL}?${new URLSearchParams(initialParams).toString()}`;
+    console.log(`🔍 Step 1: Fetching all places within ${radius}m radius for ${type}`);
+    
+    try {
+      const response = await Promise.race([
+        fetch(initialUrl),
+        new Promise<Response>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 15000)
+        )
+      ]);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('📥 Initial API response status:', data.status);
+      
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        console.log(`✅ Step 1: Found ${data.results.length} initial places`);
+        onProgress?.(1, 'completed', data.results.length);
+        
+        // Convert all places to suggestions
+        let allSuggestions = await Promise.all(
+          data.results.map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters))
+        );
+        
+        // Filter out already used suggestions
+        allSuggestions = allSuggestions.filter((suggestion: Suggestion) => !usedSuggestions.has(suggestion.id));
+        
+        console.log(`✅ Step 1: ${allSuggestions.length} unique places available for filtering`);
+        
+        // Step 2: Filter by mood
+        onProgress?.(2, 'in-progress');
+        console.log('🎭 Step 2: Filtering by mood...');
+        let moodFiltered = allSuggestions;
+        if (effectiveFilters.mood !== undefined) {
+          const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category, attempt);
+          if (vibeKeywords.length > 0) {
+                    moodFiltered = allSuggestions.filter((suggestion: Suggestion) => {
+          const placeName = suggestion.name.toLowerCase();
+          const placeTags = suggestion.tags || [];
+          return vibeKeywords.some(keyword => 
+            placeName.includes(keyword.toLowerCase()) || 
+            placeTags.some((tag: string) => tag.toLowerCase().includes(keyword.toLowerCase()))
+          );
+        });
+            console.log(`🎭 Step 2: Mood filtering reduced to ${moodFiltered.length} places`);
+          }
+        }
+        onProgress?.(2, 'completed', moodFiltered.length);
+        
+        // Step 3: Filter by budget
+        onProgress?.(3, 'in-progress');
+        console.log('💰 Step 3: Filtering by budget...');
+        let budgetFiltered = moodFiltered;
+        if (effectiveFilters.budget && effectiveFilters.category === 'food') {
+          const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
+                  budgetFiltered = moodFiltered.filter((suggestion: Suggestion) => {
+          // Map budget string to price level for comparison
+          const budgetToPriceLevel = { 'P': 1, 'PP': 2, 'PPP': 3 };
+          const suggestionPriceLevel = budgetToPriceLevel[suggestion.budget] || 2;
+          return suggestionPriceLevel >= (priceLevel.minprice || 0) && 
+                 suggestionPriceLevel <= (priceLevel.maxprice || 4);
+        });
+          console.log(`💰 Step 3: Budget filtering reduced to ${budgetFiltered.length} places`);
+        }
+        onProgress?.(3, 'completed', budgetFiltered.length);
+        
+        // Step 4: Filter by social context
+        onProgress?.(4, 'in-progress');
+        console.log('👥 Step 4: Filtering by social context...');
+        let socialFiltered = budgetFiltered;
+        if (effectiveFilters.socialContext) {
+          const socialKeywords = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category);
+                  socialFiltered = budgetFiltered.filter((suggestion: Suggestion) => {
+          const placeName = suggestion.name.toLowerCase();
+          const placeTags = suggestion.tags || [];
+          return socialKeywords.some(keyword => 
+            placeName.includes(keyword.toLowerCase()) || 
+            placeTags.some((tag: string) => tag.toLowerCase().includes(keyword.toLowerCase()))
+          );
+        });
+          console.log(`👥 Step 4: Social context filtering reduced to ${socialFiltered.length} places`);
+        }
+        onProgress?.(4, 'completed', socialFiltered.length);
+        
+        // Step 5: Filter by time of day
+        onProgress?.(5, 'in-progress');
+        console.log('🕐 Step 5: Filtering by time of day...');
+        let timeFiltered = socialFiltered;
+        if (effectiveFilters.timeOfDay) {
+          const timeKeywords = {
+            'morning': ['breakfast', 'coffee', 'cafe', 'brunch', 'bakery'],
+            'afternoon': ['lunch', 'dining', 'restaurant', 'cafe', 'food'],
+            'night': ['dinner', 'bar', 'nightlife', 'restaurant', 'pub']
+          };
+          
+          timeFiltered = socialFiltered.filter((suggestion: Suggestion) => {
+            const placeName = suggestion.name.toLowerCase();
+            const placeTags = suggestion.tags || [];
+            const keywords = timeKeywords[effectiveFilters.timeOfDay as keyof typeof timeKeywords] || [];
+            return keywords.some(keyword => 
+              placeName.includes(keyword) || 
+              placeTags.some((tag: string) => tag.toLowerCase().includes(keyword))
+            );
+          });
+          console.log(`🕐 Step 5: Time of day filtering reduced to ${timeFiltered.length} places`);
+        }
+        onProgress?.(5, 'completed', timeFiltered.length);
+        
+        // Final result
+        const finalResults = timeFiltered;
+        console.log(`🎯 Final filtering result: ${finalResults.length} places after all steps`);
+        
+        // If no results after all filtering, try with relaxed filters
+        if (finalResults.length === 0 && attempt < 3) {
+          console.log('🔄 No results after comprehensive filtering, trying with relaxed filters...');
+          return enhancedFetchGooglePlaces(effectiveFilters, userLocation, attempt + 1, onProgress);
+        }
+        
+        // Cache the result
+        apiCache.set(cacheKey, { data: finalResults, timestamp: Date.now() });
+        
+        // Clear distance expansion state if we were expanding
+        if (attempt > 0) {
+          onProgress?.(1, 'completed', finalResults.length, { isExpanding: false });
+        }
+        
+        return finalResults;
+      }
+      
+      if (data.status === 'ZERO_RESULTS') {
+        console.log('⚠️ Google API returned zero results for current filters');
+        onProgress?.(1, 'failed');
+        if (attempt < 3) {
+          console.log(`🔄 No results found with ${radius}m radius, trying with larger radius...`);
+          return enhancedFetchGooglePlaces(effectiveFilters, userLocation, attempt + 1, onProgress);
+        }
+        return [];
+      }
+      
+      throw new Error(`Google Places API error: ${data.status}`);
+      
+    } catch (error) {
+      console.error('❌ Enhanced filtering API request failed:', error);
+      onProgress?.(1, 'failed');
+      if (attempt < 3) {
+        return enhancedFetchGooglePlaces(effectiveFilters, userLocation, attempt + 1, onProgress);
+      }
+      throw error;
+    }
+  };
+
+  // Enhanced bulk filtering system that gathers 200+ places and maintains a pool of 50 filtered results
+  const enhancedBulkFetchAndFilter = async (
+    effectiveFilters: any,
+    userLocation: {lat: number, lng: number},
+    onProgress?: (step: number, status: string, resultsCount?: number, distanceInfo?: any) => void
+  ): Promise<Suggestion[]> => {
+    console.log('🚀 Starting enhanced bulk filtering system...');
+    
+    // Create a unique key for this filter combination
+    const filterKey = JSON.stringify({
+      category: effectiveFilters.category,
+      mood: effectiveFilters.mood,
+      socialContext: effectiveFilters.socialContext,
+      timeOfDay: effectiveFilters.timeOfDay,
+      budget: effectiveFilters.budget,
+      distanceRange: effectiveFilters.distanceRange
+    });
+    
+    // Check if we have a sufficient pool for this filter combination
+    const currentPool = enhancedPool.get(filterKey);
+    console.log(`📊 Current pool size for filter combination: ${currentPool?.suggestions?.length || 0}`);
+    
+    // If pool is sufficient, return from pool
+    if (currentPool && currentPool.suggestions.length >= MIN_POOL_SIZE) {
+      console.log(`✅ Pool has ${currentPool.suggestions.length} results, using from pool`);
+      onProgress?.(1, 'completed', currentPool.suggestions.length);
+      return currentPool.suggestions;
+    }
+    
+    // If pool is too small, reset and gather new places
+    if (currentPool && currentPool.suggestions.length < POOL_RESET_THRESHOLD) {
+      console.log('🔄 Pool too small, resetting and gathering new places...');
+      enhancedPool.delete(filterKey);
+    }
+    
+    // Step 1: Gather all places (target 100+ places)
+    onProgress?.(1, 'in-progress');
+    console.log('📍 Step 1: Gathering all places (target: 100+)...');
+    
+    let allPlaces: Suggestion[] = [];
+    let attempt = 0;
+    const maxAttempts = COST_OPTIMIZATION.MAX_ATTEMPTS; // Use cost-optimized attempts
+    const originalDistance = effectiveFilters.distanceRange;
+    const originalRadius = getDistanceRadius(originalDistance, 0);
+    let isExpandingRadius = false;
+    
+    while (allPlaces.length < TARGET_GATHER_SIZE && attempt < maxAttempts) {
+      const radius = getDistanceRadius(effectiveFilters.distanceRange, attempt);
+      const type = getCategoryType(effectiveFilters.category);
+      
+      // Check if we're expanding the radius beyond the original
+      if (attempt > 0 && radius > originalRadius) {
+        isExpandingRadius = true;
+        const targetRadius = getDistanceRadius(originalDistance, maxAttempts - 1);
+        onProgress?.(1, 'in-progress', allPlaces.length, {
+          isExpanding: true,
+          currentRadius: radius,
+          targetRadius: targetRadius,
+          originalDistance: originalDistance
+        });
+      }
+      
+      // Use different search locations to gather more places
+      let searchLocation = { ...userLocation };
+      if (attempt > 0) {
+        const locationOffset = attempt * 0.01; // 1km offset per attempt
+        searchLocation = {
+          lat: userLocation.lat + (Math.random() - 0.5) * locationOffset,
+          lng: userLocation.lng + (Math.random() - 0.5) * locationOffset
+        };
+      }
+      
+      // Build cache key for this attempt
+      const cacheKey = `${searchLocation.lat},${searchLocation.lng}-${radius}-${type}-bulk-${attempt}`;
+      
+      // Check cache first
+      const cached = apiCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log(`📦 Using cached results for attempt ${attempt}`);
+        allPlaces = allPlaces.concat(cached.data);
+        attempt++;
+        continue;
+      }
+      
+      // API call for this attempt
+      const params = {
+        location: `${searchLocation.lat},${searchLocation.lng}`,
+        radius: radius.toString(),
+        type,
+        key: GOOGLE_API_KEY,
+      };
+      
+      const url = `${PLACES_SEARCH_URL}?${new URLSearchParams(params).toString()}`;
+      console.log(`🔍 Attempt ${attempt}: Fetching places within ${radius}m radius`);
+      
+      try {
+        const response = await Promise.race([
+          fetch(url),
+          new Promise<Response>((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), 15000)
+          )
+        ]);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`📥 Attempt ${attempt} API response status:`, data.status);
+        
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+          // Convert places to suggestions
+          const newPlaces = await Promise.all(
+            data.results.map((place: any) => convertGooglePlaceToSuggestion(place, effectiveFilters))
+          );
+          
+          // Filter out duplicates and already used suggestions
+          const uniquePlaces = newPlaces.filter((place: Suggestion) => {
+            const isDuplicate = allPlaces.some(existing => existing.id === place.id);
+            const isUsed = usedSuggestions.has(place.id);
+            return !isDuplicate && !isUsed;
+          });
+          
+          allPlaces = allPlaces.concat(uniquePlaces);
+          console.log(`✅ Attempt ${attempt}: Added ${uniquePlaces.length} unique places. Total: ${allPlaces.length}`);
+          
+          // Cache the results
+          apiCache.set(cacheKey, { data: newPlaces, timestamp: Date.now() });
+        }
+        
+        attempt++;
+        
+      } catch (error) {
+        console.error(`❌ Attempt ${attempt} failed:`, error);
+        attempt++;
+      }
+    }
+    
+    console.log(`🎯 Total places gathered: ${allPlaces.length}`);
+    onProgress?.(1, 'completed', allPlaces.length);
+    
+    // Clear distance expansion state if we were expanding
+    if (isExpandingRadius) {
+      onProgress?.(1, 'completed', allPlaces.length, { isExpanding: false });
+    }
+    
+    // Step 2: Apply all filters to get filtered results
+    onProgress?.(2, 'in-progress');
+    console.log('🔍 Step 2: Applying all filters...');
+    
+    let filteredResults = allPlaces;
+    
+    // Filter by mood
+    if (effectiveFilters.mood !== undefined) {
+      const vibeKeywords = getVibeKeywords(effectiveFilters.mood, effectiveFilters.category, 0);
+      if (vibeKeywords.length > 0) {
+        filteredResults = filteredResults.filter((suggestion: Suggestion) => {
+          const placeName = suggestion.name.toLowerCase();
+          const placeTags = suggestion.tags || [];
+          return vibeKeywords.some(keyword => 
+            placeName.includes(keyword.toLowerCase()) || 
+            placeTags.some((tag: string) => tag.toLowerCase().includes(keyword.toLowerCase()))
+          );
+        });
+        console.log(`🎭 Mood filtering: ${filteredResults.length} places remaining`);
+      }
+    }
+    
+    // Filter by budget
+    if (effectiveFilters.budget && effectiveFilters.category === 'food') {
+      const priceLevel = getBudgetPriceLevel(effectiveFilters.budget, effectiveFilters.category);
+      filteredResults = filteredResults.filter((suggestion: Suggestion) => {
+        const budgetToPriceLevel = { 'P': 1, 'PP': 2, 'PPP': 3 };
+        const suggestionPriceLevel = budgetToPriceLevel[suggestion.budget] || 2;
+        return suggestionPriceLevel >= (priceLevel.minprice || 0) && 
+               suggestionPriceLevel <= (priceLevel.maxprice || 4);
+      });
+      console.log(`💰 Budget filtering: ${filteredResults.length} places remaining`);
+    }
+    
+    // Filter by social context
+    if (effectiveFilters.socialContext) {
+      const socialKeywords = getSocialKeywords(effectiveFilters.socialContext, effectiveFilters.category);
+      filteredResults = filteredResults.filter((suggestion: Suggestion) => {
+        const placeName = suggestion.name.toLowerCase();
+        const placeTags = suggestion.tags || [];
+        return socialKeywords.some(keyword => 
+          placeName.includes(keyword.toLowerCase()) || 
+          placeTags.some((tag: string) => tag.toLowerCase().includes(keyword.toLowerCase()))
+        );
+      });
+      console.log(`👥 Social context filtering: ${filteredResults.length} places remaining`);
+    }
+    
+    // Filter by time of day
+    if (effectiveFilters.timeOfDay) {
+      const timeKeywords = {
+        'morning': ['breakfast', 'coffee', 'cafe', 'brunch', 'bakery'],
+        'afternoon': ['lunch', 'dining', 'restaurant', 'cafe', 'food'],
+        'night': ['dinner', 'bar', 'nightlife', 'restaurant', 'pub']
+      };
+      
+      filteredResults = filteredResults.filter((suggestion: Suggestion) => {
+        const placeName = suggestion.name.toLowerCase();
+        const placeTags = suggestion.tags || [];
+        const keywords = timeKeywords[effectiveFilters.timeOfDay as keyof typeof timeKeywords] || [];
+        return keywords.some(keyword => 
+          placeName.includes(keyword) || 
+          placeTags.some((tag: string) => tag.toLowerCase().includes(keyword))
+        );
+      });
+      console.log(`🕐 Time of day filtering: ${filteredResults.length} places remaining`);
+    }
+    
+    console.log(`🎯 Final filtered results: ${filteredResults.length} places`);
+    onProgress?.(2, 'completed', filteredResults.length);
+    
+    // Cost optimization: Use fallback if too few results
+    if (COST_OPTIMIZATION.USE_FALLBACK_MORE && filteredResults.length < COST_OPTIMIZATION.FALLBACK_THRESHOLD) {
+      console.log('💰 Too few results after filtering, using fallback to save API costs');
+      return [];
+    }
+    
+    // Store the filtered results in the pool using smart ranking
+    storeRankedResultsInPool(filterKey, filteredResults);
+    
+    return filteredResults;
+  };
+
+  // Function to remove a used suggestion from the pool
+  const removeFromPool = (suggestionId: string, filterKey: string) => {
+    const currentPool = enhancedPool.get(filterKey);
+    if (currentPool) {
+      const updatedPool = currentPool.suggestions.filter(suggestion => suggestion.id !== suggestionId);
+      enhancedPool.set(filterKey, { ...currentPool, suggestions: updatedPool });
+      console.log(`🗑️ Removed suggestion ${suggestionId} from pool. Pool size: ${updatedPool.length}`);
+    }
+  };
+
+  // Function to get filter key for a suggestion
+  const getFilterKey = (effectiveFilters: any): string => {
+    return JSON.stringify({
+      category: effectiveFilters.category,
+      mood: effectiveFilters.mood,
+      socialContext: effectiveFilters.socialContext,
+      timeOfDay: effectiveFilters.timeOfDay,
+      budget: effectiveFilters.budget,
+      distanceRange: effectiveFilters.distanceRange
+    });
+  };
+
+  // Function to get pool statistics
+  const getPoolStats = () => {
+    const stats = {
+      totalPools: enhancedPool.size,
+      totalSuggestions: 0,
+      poolDetails: [] as Array<{ key: string; size: number }>
+    };
+    
+    enhancedPool.forEach((pool, key) => {
+      stats.totalSuggestions += pool.suggestions.length;
+      stats.poolDetails.push({ key, size: pool.suggestions.length });
+    });
+    
+    console.log('📊 Pool Statistics:', stats);
+    return stats;
+  };
+
   return {
     ...state,
     updateFilters,
@@ -855,6 +1439,14 @@ export const [AppProvider, useAppStore] = createContextHook(() => {
     resetSuggestion,
     restartSession,
     toggleMoreFilters,
-    openInMaps
+    openInMaps,
+    enhancedBulkFetchAndFilter,
+    removeFromPool,
+    getFilterKey,
+    getPoolStats,
+    selectSmartSuggestion,
+    storeRankedResultsInPool,
+    rankResultsByRating,
+    randomlySelectSetsOfFive
   };
 });

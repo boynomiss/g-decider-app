@@ -35,6 +35,7 @@ export interface Suggestion {
   rating?: number;
   reviewCount?: number;
   reviews?: Review[];
+  website?: string;
 }
 
 export interface User {

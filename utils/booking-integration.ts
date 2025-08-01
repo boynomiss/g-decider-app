@@ -71,7 +71,7 @@ export class BookingIntegrationService {
     // This would typically make an API call to check availability
     // For now, we'll simulate availability based on restaurant data
     
-    const { name, location, budget, category } = restaurantData;
+    const { name, location, budget, category, tags } = restaurantData;
     
     // Simulate availability logic
     if (platform.name === 'Eatigo') {
@@ -81,24 +81,75 @@ export class BookingIntegrationService {
         return false;
       }
       
-      // Eatigo typically has restaurants in Asia
-      const isAvailable = location.toLowerCase().includes('manila') || 
-                         location.toLowerCase().includes('makati') ||
-                         location.toLowerCase().includes('philippines');
+      // Eatigo typically has restaurants in major Asian cities
+      const supportedLocations = [
+        'manila', 'makati', 'quezon city', 'taguig', 'pasig', 'mandaluyong',
+        'philippines', 'singapore', 'bangkok', 'jakarta', 'kuala lumpur'
+      ];
       
-      if (isAvailable) {
-        console.log(`🍽️ Eatigo available for restaurant: ${name}`);
+      const isLocationSupported = supportedLocations.some(supported => 
+        location.toLowerCase().includes(supported)
+      );
+      
+      if (isLocationSupported) {
+        console.log(`🍽️ Eatigo available for restaurant: ${name} in ${location}`);
+        return true;
       } else {
         console.log(`🍽️ Eatigo not available for location: ${location}`);
+        return false;
       }
-      
-      return isAvailable;
     }
     
     if (platform.name === 'Klook') {
       // Klook has activities and some restaurants
-      console.log(`🎯 Klook available for ${category}: ${name}`);
-      return true; // Klook has broader availability
+      if (category === 'activity') {
+        console.log(`🎯 Klook available for activity: ${name}`);
+        return true;
+      }
+      
+      // For restaurants, check if it's a tourist-friendly location
+      if (category === 'food') {
+        const touristLocations = [
+          'manila', 'makati', 'quezon city', 'taguig', 'pasig', 'mandaluyong',
+          'philippines', 'singapore', 'bangkok', 'jakarta', 'kuala lumpur',
+          'tokyo', 'seoul', 'taipei', 'hong kong'
+        ];
+        
+        const isTouristLocation = touristLocations.some(tourist => 
+          location.toLowerCase().includes(tourist)
+        );
+        
+        if (isTouristLocation) {
+          console.log(`🎯 Klook available for restaurant in tourist area: ${name}`);
+          return true;
+        } else {
+          console.log(`🎯 Klook not available for restaurant location: ${location}`);
+          return false;
+        }
+      }
+      
+      // For something-new, check if it has activity-like tags
+      if (category === 'something-new') {
+        const activityTags = [
+          'tour', 'experience', 'workshop', 'class', 'lesson', 'adventure',
+          'museum', 'theater', 'cinema', 'concert', 'show', 'exhibition',
+          'gallery', 'spa', 'massage', 'wellness', 'outdoor', 'hiking'
+        ];
+        
+        const hasActivityTags = tags?.some((tag: string) => 
+          activityTags.some(activityTag => 
+            tag.toLowerCase().includes(activityTag)
+          )
+        );
+        
+        if (hasActivityTags) {
+          console.log(`🎯 Klook available for activity-like place: ${name}`);
+          return true;
+        } else {
+          console.log(`🎯 Klook not available for non-activity place: ${name}`);
+          return false;
+        }
+      }
     }
     
     return false;
