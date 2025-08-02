@@ -109,27 +109,27 @@ const ImageGallery = React.memo(({ images, onImagePress }: {
   };
 
   return (
-    <View style={styles.imageContainer}>
-      <ScrollView 
-        horizontal 
-        pagingEnabled 
-        showsHorizontalScrollIndicator={false}
-        style={styles.imageScroll}
+  <View style={styles.imageContainer}>
+    <ScrollView 
+      horizontal 
+      pagingEnabled 
+      showsHorizontalScrollIndicator={false}
+      style={styles.imageScroll}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-      >
-        {images.map((image, index) => (
-          <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
-            <Image
-              source={{ uri: image }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <View style={styles.imageIndicator}>
-        {images.map((_, index) => (
+    >
+      {images.map((image, index) => (
+        <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
+          <Image
+            source={{ uri: image }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+    <View style={styles.imageIndicator}>
+      {images.map((_, index) => (
           <View 
             key={index} 
             style={[
@@ -139,9 +139,9 @@ const ImageGallery = React.memo(({ images, onImagePress }: {
               }
             ]} 
           />
-        ))}
-      </View>
+      ))}
     </View>
+  </View>
   );
 });
 
@@ -202,37 +202,37 @@ const ImageModal = React.memo(({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalContainer}>
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalContainer}>
         <TouchableOpacity style={styles.modalOverlay} onPress={handleOverlayPress}>
-          <View style={styles.modalContent}>
-            <ScrollView 
-              horizontal 
-              pagingEnabled 
-              showsHorizontalScrollIndicator={false}
-              style={styles.modalImageScroll}
-              contentOffset={{ x: selectedIndex * width, y: 0 }}
+        <View style={styles.modalContent}>
+          <ScrollView 
+            horizontal 
+            pagingEnabled 
+            showsHorizontalScrollIndicator={false}
+            style={styles.modalImageScroll}
+            contentOffset={{ x: selectedIndex * width, y: 0 }}
               onScroll={handleScroll}
               scrollEventThrottle={16}
               scrollEnabled={true}
-            >
-              {images.map((image, index) => (
+          >
+            {images.map((image, index) => (
                 <TouchableWithoutFeedback key={index}>
                   <View style={styles.modalImageContainer}>
-                    <Image
-                      source={{ uri: image }}
-                      style={styles.modalImage}
-                      resizeMode="contain"
-                    />
+              <Image
+                source={{ uri: image }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
                   </View>
                 </TouchableWithoutFeedback>
-              ))}
-            </ScrollView>
+            ))}
+          </ScrollView>
           
           {reviews && reviews.length > 0 && (
             <View style={styles.reviewsContainer}>
@@ -664,7 +664,7 @@ export default function ResultScreen() {
           </View>
 
           <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>
+          <Text style={styles.description}>
               {isDescriptionExpanded 
                 ? (aiDescription || currentSuggestion.description)
                 : (
@@ -681,7 +681,7 @@ export default function ResultScreen() {
                   </>
                 )
               }
-            </Text>
+          </Text>
             {isDescriptionExpanded && (
               <TouchableOpacity 
                 style={styles.readMoreButton} 
@@ -710,7 +710,7 @@ export default function ResultScreen() {
           )}
 
           <View style={styles.actionButtonsContainer}>
-            <View style={styles.actionButtons}>
+          <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={[
                   styles.mapButton, 
@@ -718,12 +718,12 @@ export default function ResultScreen() {
                 ]} 
                 onPress={handleOpenMaps}
               >
-                <MapPin size={20} color="#8B5FBF" />
-                <Text style={styles.mapButtonText}>View in Maps</Text>
-              </TouchableOpacity>
-              
+              <MapPin size={20} color="#8B5FBF" />
+              <Text style={styles.mapButtonText}>View in Maps</Text>
+            </TouchableOpacity>
+            
               {((contactInfo.phoneNumber || contactInfo.website) || contactLoading) && (
-                <TouchableOpacity style={styles.contactButton} onPress={handleContactThem}>
+            <TouchableOpacity style={styles.contactButton} onPress={handleContactThem}>
                   {contactLoading ? (
                     <Text style={styles.contactButtonText}>Loading...</Text>
                   ) : contactInfo.phoneNumber ? (
@@ -739,7 +739,7 @@ export default function ResultScreen() {
                   ) : (
                     <Text style={styles.contactButtonText}>Contact Them Now</Text>
                   )}
-                </TouchableOpacity>
+            </TouchableOpacity>
               )}
             </View>
           </View>

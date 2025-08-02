@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Image, Alert } from 'react-native';
-import { useAppStore } from '@/hooks/use-app-store';
-import { useAuth } from '@/hooks/use-auth';
+import { useAppStore } from '../hooks/use-app-store';
 import { useRouter } from 'expo-router';
 
 export default function ActionButton() {
   const { filters, retriesLeft, isLoading, generateSuggestion } = useAppStore();
-  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const shakeAnimation = React.useRef(new Animated.Value(0)).current;
   const [isRouterReady, setIsRouterReady] = useState(false);
@@ -38,14 +36,12 @@ export default function ActionButton() {
       console.log('❌ No retries left, showing upgrade prompt');
       Alert.alert(
         'No Tries Left',
-        isAuthenticated 
-          ? 'Upgrade to Premium for unlimited tries!' 
-          : 'Sign up to get more tries and unlock unlimited suggestions!',
+        'Sign up to get more tries and unlock unlimited suggestions!',
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: isAuthenticated ? 'Upgrade' : 'Sign Up', 
-            onPress: () => router.push(isAuthenticated ? '/upgrade' : '/auth')
+            text: 'Sign Up', 
+            onPress: () => router.push('/auth')
           }
         ]
       );
