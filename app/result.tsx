@@ -96,17 +96,30 @@ const DistanceExpansionLoadingState = React.memo(({
   </LinearGradient>
 ));
 
-const ImageGallery = React.memo(({ images, onImagePress }: { 
+const ImageGallery = React.memo(({ images, onImagePress, placeName }: { 
   images: string[]; 
   onImagePress: (index: number) => void; 
+  placeName?: string;
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
 
   const handleScroll = (event: any) => {
     const contentOffset = event.nativeEvent.contentOffset;
     const index = Math.round(contentOffset.x / (width - 32));
     setCurrentImageIndex(index);
   };
+
+  const handleImageError = (index: number) => {
+    console.warn(`❌ Image failed to load at index ${index}:`, images[index]);
+    setImageErrors(prev => new Set([...prev, index]));
+  };
+
+  // Fallback placeholder when no images or all images fail
+  const fallbackImage = `https://via.placeholder.com/800x600/C8A8E9/FFFFFF?text=${encodeURIComponent(placeName || 'No Image')}`;
+  
+  // Filter out failed images and add fallback if needed
+  const validImages = images.length > 0 ? images : [fallbackImage];
 
   return (
   <View style={styles.imageContainer}>
@@ -118,18 +131,19 @@ const ImageGallery = React.memo(({ images, onImagePress }: {
         onScroll={handleScroll}
         scrollEventThrottle={16}
     >
-      {images.map((image, index) => (
+      {validImages.map((image, index) => (
         <TouchableOpacity key={index} onPress={() => onImagePress(index)}>
           <Image
-            source={{ uri: image }}
+            source={{ uri: imageErrors.has(index) ? fallbackImage : image }}
             style={styles.image}
             resizeMode="cover"
+            onError={() => handleImageError(index)}
           />
         </TouchableOpacity>
       ))}
     </ScrollView>
     <View style={styles.imageIndicator}>
-      {images.map((_, index) => (
+      {validImages.map((_, index) => (
           <View 
             key={index} 
             style={[
@@ -352,51 +366,87 @@ export default function ResultScreen() {
     clearDiscounts
   } = useDiscounts();
   
-  // Memoized handlers
+  // Optimized pass handler - uses pool for instant results
   const handlePass = useCallback(async () => {
-    console.log('🚫 Pass button pressed, generating new suggestion');
+    console.log('🚫 Pass button pressed, getting next suggestion from pool');
     try {
-      // Create progress callback
-      const onProgress = (step: number, status: string, resultsCount?: number, distanceInfo?: any) => {
-        // Handle distance expansion tracking
-        if (distanceInfo && distanceInfo.isExpanding) {
-          setDistanceExpansion({
-            isExpanding: true,
-            currentRadius: distanceInfo.currentRadius,
-            targetRadius: distanceInfo.targetRadius,
-            originalDistance: distanceInfo.originalDistance,
-            startTime: Date.now()
-          });
-        } else if (distanceInfo && !distanceInfo.isExpanding) {
-          setDistanceExpansion(null);
-        }
-      };
+      // Check if we have more places in the pool for instant results
+      const { hasMore, getNextBatch } = useAppStore();
       
-      // Log pool statistics before generating new suggestion
-      const poolStats = getPoolStats();
-      console.log('📊 Pool stats before generating new suggestion:', poolStats);
+      if (hasMore) {
+        // Use pool for instant results - no loading screen needed
+        console.log('⚡ Using pool for instant next suggestion');
+        await getNextBatch();
+      } else {
+        // Only show loading if we need to fetch more places
+        console.log('🔄 Pool empty, fetching more places...');
+        
+        // Create progress callback for expansion tracking
+        const onProgress = (step: number, status: string, resultsCount?: number, distanceInfo?: any) => {
+          if (distanceInfo && distanceInfo.isExpanding) {
+            setDistanceExpansion({
+              isExpanding: true,
+              currentRadius: distanceInfo.currentRadius,
+              targetRadius: distanceInfo.targetRadius,
+              originalDistance: distanceInfo.originalDistance,
+              startTime: Date.now()
+            });
+          } else if (distanceInfo && !distanceInfo.isExpanding) {
+            setDistanceExpansion(null);
+          }
+        };
+        
+        await generateSuggestion(onProgress);
+      }
       
-      await generateSuggestion(onProgress);
-      
-      // Log pool statistics after generating new suggestion
-      const updatedPoolStats = getPoolStats();
-      console.log('📊 Pool stats after generating new suggestion:', updatedPoolStats);
     } catch (error) {
-      console.error('Error generating new suggestion:', error);
+      console.error('❌ Error getting next suggestion:', error);
     }
-  }, [generateSuggestion, getPoolStats]);
+  }, [generateSuggestion]);
 
+  // Enhanced save functionality with user feedback
   const handleSavePlace = useCallback(async () => {
-    if (currentSuggestion) {
-      if (isSaved(currentSuggestion)) {
+    if (!currentSuggestion) return;
+    
+    try {
+      const isCurrentlySaved = isSaved(currentSuggestion);
+      
+      if (isCurrentlySaved) {
         await removePlace(currentSuggestion);
-        console.log('🗑️ Removed from saved places');
+        console.log('🗑️ Removed from saved places:', currentSuggestion.name);
+        
+        // Optional: Show success feedback
+        Alert.alert(
+          'Removed from Saved Places',
+          `${currentSuggestion.name} has been removed from your saved places.`,
+          [{ text: 'OK' }]
+        );
       } else {
         await savePlace(currentSuggestion);
-        console.log('💾 Saved to saved places');
+        console.log('💾 Saved to saved places:', currentSuggestion.name);
+        
+        // Show success feedback with option to view saved places
+        Alert.alert(
+          'Saved Successfully!',
+          `${currentSuggestion.name} has been added to your saved places.`,
+          [
+            { text: 'OK' },
+            { 
+              text: 'View Saved Places', 
+              onPress: () => router.push('/saved-places')
+            }
+          ]
+        );
       }
+    } catch (error) {
+      console.error('❌ Error saving/removing place:', error);
+      Alert.alert(
+        'Error',
+        'Failed to save place. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
-  }, [currentSuggestion, isSaved, savePlace, removePlace]);
+  }, [currentSuggestion, isSaved, savePlace, removePlace, router]);
 
   const handleContactThem = useCallback(async () => {
     if (currentSuggestion && currentSuggestion.id) {
@@ -512,14 +562,18 @@ export default function ResultScreen() {
     }
   }, [currentSuggestion, isLoading, generateSuggestion]);
 
-  // Clear AI description when restarting
+  // Optimized restart handler - direct navigation to main page
   const handleRestart = useCallback(() => {
-    console.log('🔄 Restart button pressed, going back to main page');
+    console.log('🔄 Restart button pressed, navigating to main page');
+    
+    // Clear all data and navigate immediately - no confirmation dialog
     clearDescription();
     clearBookingOptions();
     clearContactInfo();
     clearDiscounts();
     resetSuggestion();
+    
+    // Navigate directly to main page
     router.replace('/');
   }, [clearDescription, clearBookingOptions, clearContactInfo, clearDiscounts, resetSuggestion, router]);
 
@@ -538,40 +592,7 @@ export default function ResultScreen() {
     return firstSentence;
   }, []);
 
-  // Memoized budget display
-  const budgetDisplay = useMemo(() => {
-    const budgetMap = {
-      'P': '₱',
-      'PP': '₱₱', 
-      'PPP': '₱₱₱'
-    };
-    const budgetToShow = effectiveFilters?.budget || currentSuggestion?.budget || 'PP';
-    return budgetMap[budgetToShow];
-  }, [effectiveFilters?.budget, currentSuggestion?.budget]);
-
-  // Show error state if no suggestion and not loading
-  if (!currentSuggestion && !isLoading) {
-    return <ErrorState onBroadenSearch={handleBroadenSearch} onGoHome={handleGoHome} />;
-  }
-
-  // Priority 1: Show distance expansion loading if we're expanding the search radius
-  if (distanceExpansion && distanceExpansion.isExpanding) {
-    // Check if minimum loading time has passed for distance expansion
-    const elapsed = Date.now() - distanceExpansion.startTime;
-    const shouldShowDistanceLoading = elapsed < minimumLoadingTime;
-    
-    if (shouldShowDistanceLoading) {
-      return (
-        <DistanceExpansionLoadingState 
-          currentRadius={distanceExpansion.currentRadius}
-          targetRadius={distanceExpansion.targetRadius}
-          originalDistance={distanceExpansion.originalDistance}
-        />
-      );
-    }
-  }
-
-  // Check if all data is ready (comprehensive loading state)
+  // Check if all data is ready (comprehensive loading state) - MOVED BEFORE EARLY RETURNS
   const isAllDataReady = useMemo(() => {
     if (!currentSuggestion) return false;
     
@@ -598,15 +619,70 @@ export default function ResultScreen() {
     return isDescriptionReady && isContactReady && isDiscountReady && isBookingReady;
   }, [currentSuggestion, aiLoading, aiDescription, contactLoading, contactInfo, discountLoading, bookingLoading]);
 
-  // Priority 2: Show simplified loading if still generating suggestion or data not ready
-  // Show loading screen immediately when no suggestion exists (initial state)
-  if (!currentSuggestion || isLoading || !isAllDataReady) {
-    // Set loading start time if not already set
-    if (!loadingStartTime) {
+  // Handle loading start time with useEffect to avoid conditional setState calls - MOVED BEFORE EARLY RETURNS
+  useEffect(() => {
+    const shouldBeLoading = !currentSuggestion || isLoading || !isAllDataReady;
+    
+    if (shouldBeLoading && !loadingStartTime) {
+      // Set loading start time if not already set
       setLoadingStartTime(Date.now());
       console.log('🔄 Loading screen started at:', new Date().toISOString());
+    } else if (!shouldBeLoading && loadingStartTime) {
+      // Reset loading start time when not loading and all data is ready
+      console.log('✅ Loading complete, hiding loading screen');
+      setLoadingStartTime(null);
     }
+  }, [currentSuggestion, isLoading, isAllDataReady, loadingStartTime]);
+
+  // Enhanced budget display logic
+  const budgetDisplay = useMemo(() => {
+    const budgetMap = {
+      'P': '₱',
+      'PP': '₱₱', 
+      'PPP': '₱₱₱'
+    };
     
+    // Priority: 1) User's chosen filter, 2) Place's actual budget, 3) Default
+    const { filters } = useAppStore();
+    const chosenBudget = filters?.budget;
+    const placeBudget = currentSuggestion?.budget;
+    
+    const budgetToShow = chosenBudget || placeBudget || 'PP';
+    
+    console.log('💰 Budget display:', {
+      chosenBudget,
+      placeBudget,
+      finalBudget: budgetToShow
+    });
+    
+    return budgetMap[budgetToShow] || '₱₱';
+  }, [currentSuggestion?.budget]);
+
+  // Show error state if no suggestion and not loading
+  if (!currentSuggestion && !isLoading) {
+    return <ErrorState onBroadenSearch={handleBroadenSearch} onGoHome={handleGoHome} />;
+  }
+
+  // Priority 1: Show distance expansion loading if we're expanding the search radius
+  if (distanceExpansion && distanceExpansion.isExpanding) {
+    // Check if minimum loading time has passed for distance expansion
+    const elapsed = Date.now() - distanceExpansion.startTime;
+    const shouldShowDistanceLoading = elapsed < minimumLoadingTime;
+    
+    if (shouldShowDistanceLoading) {
+      return (
+        <DistanceExpansionLoadingState 
+          currentRadius={distanceExpansion.currentRadius}
+          targetRadius={distanceExpansion.targetRadius}
+          originalDistance={distanceExpansion.originalDistance}
+        />
+      );
+    }
+  }
+
+  // Priority 2: Show simplified loading if still generating suggestion or data not ready
+  // Show loading screen immediately when no suggestion exists (initial state)
+  if (!currentSuggestion || isLoading || !isAllDataReady) {    
     // Check if minimum loading time has passed
     const elapsed = loadingStartTime ? Date.now() - loadingStartTime : 0;
     const shouldShowLoading = !currentSuggestion || isLoading || !isAllDataReady || elapsed < minimumLoadingTime;
@@ -620,12 +696,6 @@ export default function ResultScreen() {
         minimumLoadingTime
       });
       return <EnhancedLoadingState filters={effectiveFilters || {}} />;
-    }
-  } else if (currentSuggestion && !isLoading && isAllDataReady) {
-    // Reset loading start time when not loading and all data is ready
-    if (loadingStartTime) {
-      console.log('✅ Loading complete, hiding loading screen');
-      setLoadingStartTime(null);
     }
   }
 
@@ -644,7 +714,8 @@ export default function ResultScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ImageGallery 
           images={currentSuggestion.images} 
-          onImagePress={handleImagePress} 
+          onImagePress={handleImagePress}
+          placeName={currentSuggestion.name}
         />
 
         <View style={styles.contentCard}>

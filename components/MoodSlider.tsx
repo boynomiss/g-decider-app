@@ -1,24 +1,88 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
+import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming } from 'react-native-reanimated';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '@/hooks/use-app-store';
+import { FilterApiBridge } from '@/utils/filter-api-bridge';
 
-const budgetOptions = [
-  { display: '₱', value: 'P' as const },
-  { display: '₱₱', value: 'PP' as const },
-  { display: '₱₱₱', value: 'PPP' as const }
+export const budgetOptions = [
+  { 
+    display: '₱', 
+    value: 'P' as const,
+    label: 'Budget-Friendly',
+    priceRange: { min: 0, max: 500 },
+    googlePriceLevel: 1
+  },
+  { 
+    display: '₱₱', 
+    value: 'PP' as const,
+    label: 'Moderate',
+    priceRange: { min: 500, max: 1500 },
+    googlePriceLevel: 2
+  },
+  { 
+    display: '₱₱₱', 
+    value: 'PPP' as const,
+    label: 'Premium',
+    priceRange: { min: 1500, max: 5000 },
+    googlePriceLevel: 3
+  }
 ];
-const timeOptions = [
-  { id: 'morning', label: 'Morning' },
-  { id: 'afternoon', label: 'Afternoon' },
-  { id: 'night', label: 'Night' },
+export const timeOptions = [
+  { 
+    id: 'morning', 
+    label: 'Morning',
+    timeRange: { start: '04:00', end: '12:00' },
+    googleOpeningHours: {
+      periods: [{ open: { day: 0, time: '0400' }, close: { day: 0, time: '1200' } }]
+    },
+    description: 'Early morning activities and breakfast spots'
+  },
+  { 
+    id: 'afternoon', 
+    label: 'Afternoon',
+    timeRange: { start: '12:00', end: '18:00' },
+    googleOpeningHours: {
+      periods: [{ open: { day: 0, time: '1200' }, close: { day: 0, time: '1800' } }]
+    },
+    description: 'Lunch, shopping, and daytime activities'
+  },
+  { 
+    id: 'night', 
+    label: 'Night',
+    timeRange: { start: '18:00', end: '04:00' },
+    googleOpeningHours: {
+      periods: [{ open: { day: 0, time: '1800' }, close: { day: 1, time: '0400' } }]
+    },
+    description: 'Dinner, nightlife, and evening entertainment'
+  },
 ] as const;
-const socialOptions = [
-  { id: 'solo', label: 'Solo', icon: '🧍' },
-  { id: 'with-bae', label: 'With Bae', icon: '❤️' },
-  { id: 'barkada', label: 'Barkada', icon: '🎉' },
+export const socialOptions = [
+  { 
+    id: 'solo', 
+    label: 'Solo', 
+    icon: '🧍',
+    groupSize: 1,
+    placeTypes: ['library', 'cafe', 'park', 'museum', 'gym'],
+    description: 'Individual activities and quiet spaces'
+  },
+  { 
+    id: 'with-bae', 
+    label: 'With Bae', 
+    icon: '❤️',
+    groupSize: 2,
+    placeTypes: ['restaurant', 'cafe', 'movie_theater', 'park', 'spa'],
+    description: 'Romantic activities for couples'
+  },
+  { 
+    id: 'barkada', 
+    label: 'Barkada', 
+    icon: '🎉',
+    groupSize: { min: 3, max: 8 },
+    placeTypes: ['restaurant', 'bar', 'bowling_alley', 'karaoke', 'amusement_park'],
+    description: 'Group activities and social gatherings'
+  },
 ] as const;
 
 const moodLabels = {
@@ -34,43 +98,63 @@ const moodLabels = {
   10: { emoji: '🔥', text: 'Hype' }
 } as const;
 
-const distanceLabels = {
-  1: { emoji: '🚶‍♀️', text: 'Very Close' },
-  2: { emoji: '🚶‍♀️', text: 'Walking Distance' },
-  3: { emoji: '🚶‍♀️', text: 'Walking Distance' },
-  4: { emoji: '🚶‍♀️', text: 'Walking Distance' },
-  5: { emoji: '🚴', text: 'Bike Distance' },
-  6: { emoji: '🚴', text: 'Bike Distance' },
-  7: { emoji: '🚗', text: 'Short Trip' },
-  8: { emoji: '🚗', text: 'Short Trip' },
-  9: { emoji: '🚗', text: 'Short Trip' },
-  10: { emoji: '🚗', text: 'Short Trip' },
-  11: { emoji: '🚗', text: 'Short Trip' },
-  12: { emoji: '🛣️', text: 'Nearby Drive' },
-  13: { emoji: '🛣️', text: 'Nearby Drive' },
-  14: { emoji: '🛣️', text: 'Nearby Drive' },
-  15: { emoji: '🛣️', text: 'Nearby Drive' },
-  16: { emoji: '🛣️', text: 'Nearby Drive' },
-  17: { emoji: '💨', text: 'Moderate Drive' },
-  18: { emoji: '💨', text: 'Moderate Drive' },
-  19: { emoji: '💨', text: 'Moderate Drive' },
-  20: { emoji: '🗺️', text: 'Further Out' },
-  21: { emoji: '🗺️', text: 'Further Out' },
-  22: { emoji: '🗺️', text: 'Further Out' },
-  23: { emoji: '🚀', text: 'Long Drive' },
-  24: { emoji: '🌍', text: 'Any Distance' }
-} as const;
+export const distanceCategories = [
+  { 
+    emoji: '📍', 
+    text: 'Very Close', 
+    range: [0, 20], 
+    distanceMeters: { min: 0, max: 250 },
+    distanceKm: { min: 0, max: 0.25 }
+  },
+  { 
+    emoji: '🚶‍♀️', 
+    text: 'Walking Distance', 
+    range: [20, 40], 
+    distanceMeters: { min: 250, max: 1000 },
+    distanceKm: { min: 0.25, max: 1 }
+  },
+  { 
+    emoji: '🚗', 
+    text: 'Short Car Ride', 
+    range: [40, 60], 
+    distanceMeters: { min: 1000, max: 5000 },
+    distanceKm: { min: 1, max: 5 }
+  },
+  { 
+    emoji: '🛣️', 
+    text: 'Long Car Ride', 
+    range: [60, 80], 
+    distanceMeters: { min: 5000, max: 10000 },
+    distanceKm: { min: 5, max: 10 }
+  },
+  { 
+    emoji: '🚀', 
+    text: 'As Far as It Gets', 
+    range: [80, 100], 
+    distanceMeters: { min: 10000, max: 20000 },
+    distanceKm: { min: 10, max: 20 }
+  }
+] as const;
 
 export default function MoodSlider() {
   const { filters, updateFilters, showMoreFilters, toggleMoreFilters } = useAppStore();
   const [isDragging, setIsDragging] = useState(false);
   const translateX = useSharedValue((filters.mood / 100) * 280);
-  const distanceTranslateX = useSharedValue(filters.distanceRange ? (((filters.distanceRange - 1) / 23) * 280) : 140);
+  const distanceTranslateX = useSharedValue(filters.distanceRange ? ((filters.distanceRange / 100) * 280) : 140);
+  
+  // Animation values for the expand button
+  const buttonScale = useSharedValue(1);
+  const buttonOpacity = useSharedValue(1);
+  const chevronRotation = useSharedValue(0);
   
   const updateMood = (value: number) => {
     const newMood = Math.max(0, Math.min(100, value));
-    console.log('Updating mood to:', newMood);
-    updateFilters({ mood: newMood });
+    // Enhanced logging with API-ready data (null-safe)
+    const filterData = FilterApiBridge.logMoodSelection(newMood);
+    updateFilters({ 
+      mood: newMood,
+      _moodApiData: filterData // Store API-ready data (may be null)
+    });
   };
 
   const setDraggingState = (dragging: boolean) => {
@@ -81,50 +165,111 @@ export default function MoodSlider() {
     return Math.max(1, Math.min(10, Math.round((moodValue / 100) * 10) || 1));
   };
 
+  // New function to convert 10-level mood to 3-level mood
+  const getSimplifiedMood = (moodValue: number): 'chill' | 'neutral' | 'hype' => {
+    const level = getMoodLevel(moodValue);
+    if (level <= 3) return 'chill';
+    if (level <= 7) return 'neutral';
+    return 'hype';
+  };
+
   const getCurrentMoodLabel = () => {
     const level = getMoodLevel(filters.mood);
     return moodLabels[level as keyof typeof moodLabels];
   };
 
+  const getDistanceCategory = (value: number) => {
+    const normalizedValue = Math.max(0, Math.min(100, value));
+    return distanceCategories.find(category => 
+      normalizedValue >= category.range[0] && normalizedValue <= category.range[1]
+    ) || distanceCategories[0];
+  };
+
   const getCurrentDistanceLabel = () => {
-    const distance = filters.distanceRange || 12;
-    const roundedDistance = Math.max(1, Math.min(24, Math.round(distance)));
-    return distanceLabels[roundedDistance as keyof typeof distanceLabels];
+    const distance = filters.distanceRange || 50;
+    return getDistanceCategory(distance);
   };
 
   const updateDistance = (value: number) => {
-    const newDistance = Math.max(1, Math.min(24, value));
-    console.log('Updating distance to:', newDistance);
-    updateFilters({ distanceRange: newDistance });
+    const newDistance = Math.max(0, Math.min(100, value));
+    // Enhanced logging with API-ready data (null-safe)
+    const filterData = FilterApiBridge.logDistanceSelection(newDistance);
+    updateFilters({ 
+      distanceRange: newDistance,
+      _distanceApiData: filterData // Store API-ready data (may be null)
+    });
+  };
+
+  // Animation functions for the expand button
+  const animateButtonPress = () => {
+    // Scale down animation
+    buttonScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+    buttonOpacity.value = withTiming(0.8, { duration: 100 });
+    
+    // Reset after a short delay
+    setTimeout(() => {
+      buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      buttonOpacity.value = withTiming(1, { duration: 100 });
+    }, 150);
+  };
+
+  const animateChevron = () => {
+    const targetRotation = showMoreFilters ? 0 : 180;
+    chevronRotation.value = withSpring(targetRotation, { damping: 15, stiffness: 300 });
+  };
+
+  const handleExpandPress = () => {
+    animateButtonPress();
+    animateChevron();
+    toggleMoreFilters();
   };
 
   const handleSocialContextPress = (socialId: 'solo' | 'with-bae' | 'barkada') => {
+    const selectedSocial = socialOptions.find(option => option.id === socialId);
+    
     if (filters.socialContext === socialId) {
-      // Deselect if already selected
-      updateFilters({ socialContext: null });
+      // Deselecting
+      console.log('Social context deselected');
+      updateFilters({ socialContext: null, _socialApiData: null });
     } else {
-      // Select the new option
-      updateFilters({ socialContext: socialId });
+      // Enhanced logging with API-ready data (null-safe)
+      const filterData = FilterApiBridge.logSocialContextSelection(socialId);
+      updateFilters({ 
+        socialContext: socialId,
+        _socialApiData: filterData // Store API-ready data (may be null)
+      });
     }
   };
 
   const handleBudgetPress = (budgetValue: 'P' | 'PP' | 'PPP') => {
     if (filters.budget === budgetValue) {
-      // Deselect if already selected
-      updateFilters({ budget: null });
+      // Deselecting
+      console.log('Budget deselected');
+      updateFilters({ budget: null, _budgetApiData: null });
     } else {
-      // Select the new option
-      updateFilters({ budget: budgetValue });
+      // Enhanced logging with API-ready data (null-safe)
+      const filterData = FilterApiBridge.logBudgetSelection(budgetValue);
+      updateFilters({ 
+        budget: budgetValue,
+        _budgetApiData: filterData // Store API-ready data (may be null)
+      });
     }
   };
 
   const handleTimeOfDayPress = (timeId: 'morning' | 'afternoon' | 'night') => {
+    const selectedTime = timeOptions.find(option => option.id === timeId);
+    
     if (filters.timeOfDay === timeId) {
-      // Deselect if already selected
-      updateFilters({ timeOfDay: null });
+      // Deselecting
+      console.log('Time of day deselected');
+      updateFilters({ timeOfDay: null, _timeApiData: null });
     } else {
-      // Select the new option
-      updateFilters({ timeOfDay: timeId });
+      // Enhanced logging with API-ready data (null-safe)
+      const filterData = FilterApiBridge.logTimeOfDaySelection(timeId);
+      updateFilters({ 
+        timeOfDay: timeId,
+        _timeApiData: filterData // Store API-ready data (may be null)
+      });
     }
   };
 
@@ -153,7 +298,7 @@ export default function MoodSlider() {
       const startX = context.startX ?? 0;
       const newX = Math.max(0, Math.min(280, startX + event.translationX));
       distanceTranslateX.value = newX;
-      const newValue = 1 + (newX / 280) * 23;
+      const newValue = (newX / 280) * 100;
       runOnJS(updateDistance)(newValue);
     },
   });
@@ -179,6 +324,42 @@ export default function MoodSlider() {
   const distanceTrackStyle = useAnimatedStyle(() => {
     return {
       width: distanceTranslateX.value + 10,
+    };
+  });
+
+  // Animated styles for the expand button
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }],
+      opacity: buttonOpacity.value,
+    };
+  });
+
+  const chevronAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${chevronRotation.value}deg` }],
+    };
+  });
+
+  // Animation for expanded filters
+  const expandedFiltersOpacity = useSharedValue(0);
+  const expandedFiltersHeight = useSharedValue(0);
+
+  React.useEffect(() => {
+    if (showMoreFilters) {
+      expandedFiltersOpacity.value = withTiming(1, { duration: 300 });
+      expandedFiltersHeight.value = withSpring(1, { damping: 15, stiffness: 300 });
+    } else {
+      expandedFiltersOpacity.value = withTiming(0, { duration: 200 });
+      expandedFiltersHeight.value = withSpring(0, { damping: 15, stiffness: 300 });
+    }
+  }, [showMoreFilters]);
+
+  const expandedFiltersAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: expandedFiltersOpacity.value,
+      maxHeight: expandedFiltersHeight.value === 0 ? 0 : 1000,
+      overflow: 'hidden',
     };
   });
 
@@ -208,117 +389,132 @@ export default function MoodSlider() {
         </View>
       </View>
 
-      <TouchableOpacity 
-        style={styles.expandButton}
-        onPress={toggleMoreFilters}
-      >
-        <Text style={styles.expandText}>
-          {showMoreFilters ? 'View less filters' : 'View more filters'}
-        </Text>
-        {showMoreFilters ? (
-          <ChevronUp size={16} color="#7DD3C0" />
-        ) : (
-          <ChevronDown size={16} color="#7DD3C0" />
-        )}
-      </TouchableOpacity>
+      {!showMoreFilters && (
+        <Animated.View style={buttonAnimatedStyle}>
+          <TouchableOpacity 
+            style={styles.expandButton}
+            onPress={handleExpandPress}
+            activeOpacity={1}
+          >
+            <Text style={styles.expandText}>
+              View more filters
+            </Text>
+            <Animated.View style={chevronAnimatedStyle}>
+              <ChevronDown size={16} color="#7DD3C0" />
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
-      {showMoreFilters && (
-        <View style={styles.expandedFilters}>
-          {/* Social Context */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Social Context:</Text>
-            <View style={styles.optionsRow}>
-              {socialOptions.map((social) => (
-                <TouchableOpacity
-                  key={social.id}
-                  style={[
-                    styles.optionButton,
-                    filters.socialContext === social.id && styles.activeOption
-                  ]}
-                  onPress={() => handleSocialContextPress(social.id)}
-                >
-                  <Text style={styles.optionIcon}>{social.icon}</Text>
-                  <Text style={[
-                    styles.optionText,
-                    filters.socialContext === social.id && styles.activeOptionText
-                  ]}>
-                    {social.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Budget */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Budget:</Text>
-            <View style={styles.optionsRow}>
-              {budgetOptions.map((budget) => (
-                <TouchableOpacity
-                  key={budget.value}
-                  style={[
-                    styles.optionButton,
-                    filters.budget === budget.value && styles.activeOption
-                  ]}
-                  onPress={() => handleBudgetPress(budget.value)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    filters.budget === budget.value && styles.activeOptionText
-                  ]}>
-                    {budget.display}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Time of Day */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Time of Day:</Text>
-            <View style={styles.optionsRow}>
-              {timeOptions.map((time) => (
-                <TouchableOpacity
-                  key={time.id}
-                  style={[
-                    styles.optionButton,
-                    filters.timeOfDay === time.id && styles.activeOption
-                  ]}
-                  onPress={() => handleTimeOfDayPress(time.id)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    filters.timeOfDay === time.id && styles.activeOptionText
-                  ]}>
-                    {time.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Distance Range */}
-          <View style={styles.filterSection}>
-            <View style={styles.distanceHeader}>
-              <Text style={styles.filterTitle}>Distance Range:</Text>
-              <View style={styles.distanceValueContainer}>
-                <Text style={styles.distanceValue}>
-                  {getCurrentDistanceLabel().text}
+            <Animated.View style={expandedFiltersAnimatedStyle}>
+        {/* Social Context */}
+        <View style={[styles.filterSection, styles.firstFilterSection]}>
+          <Text style={styles.filterTitle}>Social Context:</Text>
+          <View style={styles.optionsRow}>
+            {socialOptions.map((social) => (
+              <TouchableOpacity
+                key={social.id}
+                style={[
+                  styles.optionButton,
+                  filters.socialContext === social.id && styles.activeOption
+                ]}
+                onPress={() => handleSocialContextPress(social.id)}
+              >
+                <Text style={styles.optionIcon}>{social.icon}</Text>
+                <Text style={[
+                  styles.optionText,
+                  filters.socialContext === social.id && styles.activeOptionText
+                ]}>
+                  {social.label}
                 </Text>
-                <Text style={styles.distanceEmoji}>
-                  {getCurrentDistanceLabel().emoji}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.sliderTrack}>
-              <Animated.View style={[styles.activeTrack, distanceTrackStyle]} />
-              <PanGestureHandler onGestureEvent={distanceGestureHandler}>
-                <Animated.View style={[styles.thumb, distanceThumbStyle]} />
-              </PanGestureHandler>
-            </View>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-      )}
+
+        {/* Budget */}
+        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+          <Text style={styles.filterTitle}>Budget:</Text>
+          <View style={styles.optionsRow}>
+            {budgetOptions.map((budget) => (
+              <TouchableOpacity
+                key={budget.value}
+                style={[
+                  styles.optionButton,
+                  filters.budget === budget.value && styles.activeOption
+                ]}
+                onPress={() => handleBudgetPress(budget.value)}
+              >
+                <Text style={[
+                  styles.optionText,
+                  filters.budget === budget.value && styles.activeOptionText
+                ]}>
+                  {budget.display}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Time of Day */}
+        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+          <Text style={styles.filterTitle}>Time of Day:</Text>
+          <View style={styles.optionsRow}>
+            {timeOptions.map((time) => (
+              <TouchableOpacity
+                key={time.id}
+                style={[
+                  styles.optionButton,
+                  filters.timeOfDay === time.id && styles.activeOption
+                ]}
+                onPress={() => handleTimeOfDayPress(time.id)}
+              >
+                <Text style={[
+                  styles.optionText,
+                  filters.timeOfDay === time.id && styles.activeOptionText
+                ]}>
+                  {time.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Distance Range */}
+        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+          <View style={styles.distanceHeader}>
+            <Text style={[styles.filterTitle, styles.distanceTitle]}>Distance Range:</Text>
+            <View style={styles.distanceValueContainer}>
+              <Text style={styles.distanceValue}>
+                {getCurrentDistanceLabel().text}
+              </Text>
+              <Text style={styles.distanceEmoji}>
+                {getCurrentDistanceLabel().emoji}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.sliderTrack}>
+            <Animated.View style={[styles.activeTrack, distanceTrackStyle]} />
+            <PanGestureHandler onGestureEvent={distanceGestureHandler}>
+              <Animated.View style={[styles.thumb, distanceThumbStyle]} />
+            </PanGestureHandler>
+          </View>
+        </View>
+
+        {/* View Less Filters Button at Bottom */}
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity 
+            style={styles.collapseButton}
+            onPress={handleExpandPress}
+            activeOpacity={1}
+          >
+            <Text style={styles.collapseText}>
+              View less filters
+            </Text>
+            <ChevronUp size={16} color="#7DD3C0" />
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -329,7 +525,9 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
-    padding: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 4,
     marginHorizontal: 16,
     marginBottom: SECTION_SPACING,
   },
@@ -385,7 +583,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 12,
     paddingVertical: 8,
   },
   expandText: {
@@ -396,19 +594,47 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   expandedFilters: {
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    paddingTop: 7.5,
+  },
+  bottomButtonContainer: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    marginTop: 16,
+  },
+  collapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  collapseText: {
+    fontSize: 14,
+    color: '#7DD3C0',
+    fontWeight: '500',
+    marginRight: 4,
+    textDecorationLine: 'underline',
   },
   filterSection: {
     marginBottom: 12,
+  },
+  firstFilterSection: {
+    marginTop: 24,
+  },
+  subsequentFilterSection: {
+    marginTop: 6,
   },
   filterTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#4A4A4A',
     marginBottom: 12,
+  },
+  distanceTitle: {
+    marginBottom: 0,
   },
   optionsRow: {
     flexDirection: 'row',
@@ -418,10 +644,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F0F0F0',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
-    minHeight: 50,
     justifyContent: 'center',
+    minHeight: 56, // Reduced by 30% from 80
   },
   activeOption: {
     backgroundColor: '#7DD3C0',

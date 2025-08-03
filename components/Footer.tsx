@@ -17,7 +17,7 @@ export default function Footer() {
   };
 
   const getRetriesText = () => {
-    if (isAuthenticated && user?.isPremium) {
+    if (isAuthenticated && user && user.isPremium) {
       return 'Unlimited tries';
     }
     if (retriesLeft === -1) {
@@ -30,7 +30,7 @@ export default function Footer() {
   };
 
   const getUpgradeText = () => {
-    if (isAuthenticated && user?.isPremium) {
+    if (isAuthenticated && user && user.isPremium) {
       return 'Premium Active';
     }
     if (isAuthenticated) {
@@ -50,7 +50,7 @@ export default function Footer() {
       <TouchableOpacity onPress={handleUpgradePress}>
         <Text style={[
           styles.upgradeText,
-          isAuthenticated && user?.isPremium && styles.premiumText
+          isAuthenticated && user && user.isPremium && styles.premiumText
         ]}>
           {getUpgradeText()}
         </Text>

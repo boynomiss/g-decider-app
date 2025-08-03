@@ -8,7 +8,7 @@ export default function Header() {
   const { user, isAuthenticated } = useAuth();
 
   const handleAvatarPress = () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       router.push('/settings');
     } else {
       router.push('/auth');
@@ -22,7 +22,7 @@ export default function Header() {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.avatar} onPress={handleAvatarPress}>
-        {isAuthenticated && user?.name ? (
+        {isAuthenticated && user && user.name ? (
           <Text style={styles.avatarText}>
             {user.name.charAt(0).toUpperCase()}
           </Text>
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
     marginHorizontal: 16,
@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   logo: {
-    width: 40,
-    height: 40,
+    width: 46,
+    height: 46,
   },
   settingsButton: {
     width: 40,

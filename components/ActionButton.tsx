@@ -18,54 +18,65 @@ export default function ActionButton() {
   }, []);
 
   const handlePress = async () => {
-    console.log('🎯 Action button pressed. Category:', filters.category, 'Retries:', retriesLeft, 'Loading:', isLoading);
-    
-    if (!filters.category) {
-      console.log('❌ No category selected, showing shake animation');
-      // Gentle shake animation to indicate category selection is needed
-      Animated.sequence([
-        Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
-        Animated.timing(shakeAnimation, { toValue: -5, duration: 100, useNativeDriver: true }),
-        Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
-        Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true }),
-      ]).start();
-      return;
-    }
-    
-    if (retriesLeft === 0) {
-      console.log('❌ No retries left, showing upgrade prompt');
-      Alert.alert(
-        'No Tries Left',
-        'Sign up to get more tries and unlock unlimited suggestions!',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Sign Up', 
-            onPress: () => router.push('/auth')
-          }
-        ]
-      );
-      return;
-    }
-    
-    if (isLoading) {
-      console.log('❌ Action blocked: isLoading =', isLoading);
-      return;
-    }
-    
-    if (!isRouterReady) {
-      console.log('⏳ Router not ready yet, waiting...');
-      return;
-    }
-
     try {
+      console.log('🎯 Action button pressed. Category:', filters.category, 'Retries:', retriesLeft, 'Loading:', isLoading);
+      
+      if (!filters.category) {
+        console.log('❌ No category selected, showing shake animation');
+        // Gentle shake animation to indicate category selection is needed
+        Animated.sequence([
+          Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
+          Animated.timing(shakeAnimation, { toValue: -5, duration: 100, useNativeDriver: true }),
+          Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
+          Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true }),
+        ]).start();
+        return;
+      }
+      
+      if (retriesLeft === 0) {
+        console.log('❌ No retries left, showing upgrade prompt');
+        Alert.alert(
+          'No Tries Left',
+          'Sign up to get more tries and unlock unlimited suggestions!',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign Up', 
+              onPress: () => {
+                try {
+                  router.push('/auth');
+                } catch (error) {
+                  console.error('❌ Error navigating to auth:', error);
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      if (isLoading) {
+        console.log('❌ Action blocked: isLoading =', isLoading);
+        return;
+      }
+      
+      if (!isRouterReady) {
+        console.log('⏳ Router not ready yet, waiting...');
+        return;
+      }
+
       console.log('🚀 Navigating to result screen immediately...');
       
       // Navigate to result screen immediately, let it handle suggestion generation
       router.push('/result');
       
     } catch (error) {
-      console.error('❌ Error navigating to result:', error);
+      console.error('❌ Error in handlePress:', error);
+      Alert.alert(
+        'Error',
+        'Something went wrong. Please try again.',
+        [{ text: 'OK', style: 'default' }]
+      );
     }
   };
 

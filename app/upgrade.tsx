@@ -91,7 +91,7 @@ export default function UpgradeScreen() {
     }
   ];
 
-  if (user?.isPremium) {
+  if (user && user.isPremium) {
     return (
       <LinearGradient
         colors={['#C8A8E9', '#B19CD9']}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
+import { FilterApiBridge } from '@/utils/filter-api-bridge';
 
 const categories = [
   { id: 'food', label: 'Food', icon: '🍔' },
@@ -24,8 +25,12 @@ export default function CategoryButtons() {
               filters.category === category.id && styles.activeButton
             ]}
             onPress={() => {
-              console.log('Category selected:', category.id);
-              updateFilters({ category: category.id });
+              // Enhanced logging with API-ready data (null-safe)
+              const filterData = FilterApiBridge.logCategorySelection(category.id);
+              updateFilters({ 
+                category: category.id,
+                _categoryApiData: filterData // Store API-ready data (may be null)
+              });
             }}
           >
             <Text style={styles.icon}>{category.icon}</Text>
@@ -67,16 +72,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F0F0F0',
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    aspectRatio: 1, // Makes buttons square (1x1)
     minHeight: 80,
   },
   activeButton: {
     backgroundColor: '#7DD3C0',
   },
   icon: {
-    fontSize: 24,
+    fontSize: 28.8,
     marginBottom: 8,
   },
   label: {

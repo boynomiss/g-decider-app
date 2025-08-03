@@ -74,8 +74,8 @@ export default function BookingScreen() {
   // Pre-populate form data when component mounts
   useEffect(() => {
     setFormData({
-      name: (isAuthenticated && user?.name) ? user.name : '',
-      phone: (isAuthenticated && user?.phone) ? user.phone : '',
+      name: (isAuthenticated && user && user.name) ? user.name : '',
+      phone: (isAuthenticated && user && user.phone) ? user.phone : '',
       partySize: effectiveFilters ? getPartySizeFromSocialContext(effectiveFilters.socialContext) : 'For two',
       eta: '',
     });

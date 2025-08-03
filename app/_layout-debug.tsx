@@ -12,6 +12,22 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// Debug: Log all imports to see which one is undefined
+console.log('🔍 Debug imports:');
+console.log('QueryClient:', typeof QueryClient);
+console.log('QueryClientProvider:', typeof QueryClientProvider);
+console.log('Stack:', typeof Stack);
+console.log('SplashScreen:', typeof SplashScreen);
+console.log('React:', typeof React);
+console.log('useEffect:', typeof useEffect);
+console.log('createContext:', typeof createContext);
+console.log('useContext:', typeof useContext);
+console.log('GestureHandlerRootView:', typeof GestureHandlerRootView);
+console.log('SafeAreaProvider:', typeof SafeAreaProvider);
+console.log('AppProvider:', typeof AppProvider);
+console.log('AuthProvider:', typeof AuthProvider);
+console.log('colors:', typeof colors);
+
 // Create a ThemeContext for colors
 const ThemeContext = createContext<typeof colors.light | undefined>(undefined);
 
@@ -50,6 +66,7 @@ export default function RootLayout() {
     SplashScreen.hideAsync();
   }, []);
 
+  // Simplified version to test step by step
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
