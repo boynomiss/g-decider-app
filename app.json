@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "G! Decider App Clone 4",
-    "slug": "g-decider-app-31jqvnsg-u1n9rc5w",
+    "name": "g-decider-app",
+    "slug": "g-decider-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.g-decider-app-31jqvnsg-u1n9rc5w"
+      "bundleIdentifier": "app.rork.g-decider-app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.g-decider-app-31jqvnsg-u1n9rc5w"
+      "package": "app.rork.g-decider-app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

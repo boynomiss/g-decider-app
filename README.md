@@ -1,2 +1,4 @@
-# rork-g--decider-app-clone-4
-Created by Rork
+# g-decider-app
+Created by boynomiss
+
+A modern decision-making app built with React Native and Expo.
