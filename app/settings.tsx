@@ -27,11 +27,11 @@ import Shield from 'lucide-react-native/dist/esm/icons/shield';
 import CreditCard from 'lucide-react-native/dist/esm/icons/credit-card';
 import LogOut from 'lucide-react-native/dist/esm/icons/log-out';
 import ChevronRight from 'lucide-react-native/dist/esm/icons/chevron-right';
-import { useAuth } from '../hooks/use-auth';
+
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, signOut, updateProfile } = useAuth();
+    const { user, isAuthenticated, signOut, updateProfile } = { user: null, isAuthenticated: false, signOut: () => {}, updateProfile: () => {} };
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState({

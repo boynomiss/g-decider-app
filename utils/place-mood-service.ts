@@ -1,4 +1,5 @@
 // React Native compatible implementation - using REST API instead of SDK
+import { googlePlacesClient, googleNaturalLanguageClient } from './google-api-clients';
 
 // Types for the enhanced place discovery system
 export interface PlaceData {
@@ -13,7 +14,14 @@ export interface PlaceData {
   current_busyness?: number;
   mood_score?: number;
   final_mood?: string;
-  // Enhanced image data - ensures minimum 4 high-quality images
+  // Enhanced image data - structured for frontend consumption
+  photos?: {
+    thumbnail: string[];
+    medium: string[];
+    large: string[];
+    count: number;
+  };
+  // Legacy support
   images?: {
     urls: string[];
     metadata?: {
@@ -31,9 +39,29 @@ export interface PlaceData {
   photos?: any[];
   price_level?: number;
   website?: string;
+  phone?: string;
   opening_hours?: any;
   geometry?: any;
   description?: string;
+  // Enhanced contact information - structured for frontend consumption
+  contact?: {
+    website?: string;
+    phone?: string;
+    formattedPhone?: string;
+    internationalPhone?: string;
+    email?: string;
+    hasContact: boolean;
+  };
+  // Contact actions for frontend
+  contactActions?: {
+    canCall: boolean;
+    canVisitWebsite: boolean;
+    callUrl?: string;
+    websiteUrl?: string;
+  };
+  // Additional enhanced fields
+  business_status?: string;
+  editorial_summary?: string;
 }
 
 export interface Review {
@@ -196,24 +224,10 @@ export class PlaceMoodService {
    */
   private async getCorePlaceData(placeId: string): Promise<Partial<PlaceData>> {
     try {
-      const response = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': this.googlePlacesApiKey,
-            'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,userRatingCount,rating,reviews'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Google Places API (New) error: ${response.status} - ${errorText}`);
-      }
-      
-      const place = await response.json();
+      // Use the centralized Google Places client
+      const place = await googlePlacesClient.getPlace(placeId, [
+        'id', 'displayName', 'formattedAddress', 'types', 'userRatingCount', 'rating', 'reviews'
+      ]);
       
       return {
         place_id: place.id,
@@ -302,37 +316,13 @@ export class PlaceMoodService {
         };
       }
 
-      // Use Google Natural Language REST API
-      const sentimentUrl = `https://language.googleapis.com/v1/documents:analyzeSentiment?key=${this.googleNaturalLanguageApiKey}`;
-      const entitiesUrl = `https://language.googleapis.com/v1/documents:analyzeEntities?key=${this.googleNaturalLanguageApiKey}`;
-
-      const document = {
-        content: recentReviews,
-        type: 'PLAIN_TEXT'
-      };
-
-      // Analyze sentiment
-      const sentimentResponse = await fetch(sentimentUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ document })
-      });
-
-      const sentimentData = await sentimentResponse.json();
+      // Use the centralized Google Natural Language client
+      const sentimentData = await googleNaturalLanguageClient.analyzeSentiment(recentReviews);
 
       // Analyze entities (optional, can fail gracefully)
       let entities: any[] = [];
       try {
-        const entitiesResponse = await fetch(entitiesUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ document })
-        });
-        const entitiesData = await entitiesResponse.json();
+        const entitiesData = await googleNaturalLanguageClient.analyzeEntities(recentReviews);
         entities = entitiesData.entities || [];
       } catch (entityError) {
         console.warn('Entity analysis failed, continuing without entities:', entityError);

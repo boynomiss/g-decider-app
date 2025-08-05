@@ -20,11 +20,11 @@ import {
 } from 'lucide-react-native';
 import Zap from 'lucide-react-native/dist/esm/icons/zap';
 import Infinity from 'lucide-react-native/dist/esm/icons/infinity';
-import { useAuth } from '../hooks/use-auth';
+
 
 export default function UpgradeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, upgradeToPremium } = useAuth();
+  const { user, isAuthenticated, upgradeToPremium } = { user: null, isAuthenticated: false, upgradeToPremium: () => {} };
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   const handleUpgrade = async () => {

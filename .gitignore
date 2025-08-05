@@ -30,8 +30,14 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
 .vercel
+google-cloud-credentials.json
+*-credentials.json
+
+# Firebase Admin SDK
+firebase-adminsdk.json

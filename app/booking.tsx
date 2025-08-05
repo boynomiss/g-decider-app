@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../hooks/use-app-store';
-import { useAuth } from '../hooks/use-auth';
+
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -50,7 +50,6 @@ const ActionButtons = React.memo(({ onCancel, onConfirm }: {
 
 export default function BookingScreen() {
   const { currentSuggestion, effectiveFilters } = useAppStore();
-  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
@@ -74,12 +73,12 @@ export default function BookingScreen() {
   // Pre-populate form data when component mounts
   useEffect(() => {
     setFormData({
-      name: (isAuthenticated && user && user.name) ? user.name : '',
-      phone: (isAuthenticated && user && user.phone) ? user.phone : '',
+      name: '',
+      phone: '',
       partySize: effectiveFilters ? getPartySizeFromSocialContext(effectiveFilters.socialContext) : 'For two',
       eta: '',
     });
-  }, [isAuthenticated, user, effectiveFilters, getPartySizeFromSocialContext]);
+  }, [effectiveFilters, getPartySizeFromSocialContext]);
 
   // Memoized handlers
   const handleConfirm = useCallback(() => {

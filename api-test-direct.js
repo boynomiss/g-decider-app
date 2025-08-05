@@ -1,38 +1,59 @@
-// Test direct Google Places API
-const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
-const PLACES_SEARCH_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+// Test direct Google Places API (New)
+const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 async function testDirectGooglePlacesAPI() {
-  console.log('🧪 Testing Direct Google Places API...');
+  console.log('🧪 Testing Direct Google Places API (New)...');
   
-  const params = new URLSearchParams({
-    location: '14.5995,120.9842', // Manila coordinates
-    radius: '5000',
-    type: 'restaurant',
-    key: GOOGLE_API_KEY
-  });
+  const requestBody = {
+    locationRestriction: {
+      circle: {
+        center: {
+          latitude: 14.5995,
+          longitude: 120.9842
+        },
+        radius: 5000.0
+      }
+    },
+    rankPreference: "DISTANCE",
+    maxResultCount: 10,
+    includedTypes: ["restaurant"]
+  };
 
-  const url = `${PLACES_SEARCH_URL}?${params.toString()}`;
+  const url = `${PLACES_SEARCH_URL}?key=${GOOGLE_API_KEY}`;
   console.log('📡 Requesting:', url);
+  console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_API_KEY,
+        'X-Goog-FieldMask': 'places.displayName,places.location,places.rating,places.userRatingCount,places.types,places.photos'
+      },
+      body: JSON.stringify(requestBody)
+    });
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
     }
 
     const data = await response.json();
-    console.log('✅ API Response Status:', data.status);
-    console.log('📊 Results found:', data.results ? data.results.length : 0);
+    console.log('✅ API Response Status:', response.status);
+    console.log('📊 Results found:', data.places ? data.places.length : 0);
     
-    if (data.results && data.results.length > 0) {
-      console.log('🎉 SUCCESS: Direct API is working! Found places:');
-      data.results.slice(0, 3).forEach((place, index) => {
-        console.log(`  ${index + 1}. ${place.name} - ${place.vicinity}`);
+    if (data.places && data.places.length > 0) {
+      console.log('🎉 SUCCESS: New Places API is working! Found places:');
+      data.places.slice(0, 3).forEach((place, index) => {
+        const name = place.displayName?.text || 'Unknown';
+        const rating = place.rating || 'No rating';
+        console.log(`  ${index + 1}. ${name} - Rating: ${rating}`);
       });
     } else {
       console.log('⚠️ No results found, but API is responding');
+      console.log('📄 Full response:', JSON.stringify(data, null, 2));
     }
     
   } catch (error) {

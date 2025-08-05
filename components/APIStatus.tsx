@@ -13,7 +13,7 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
 
     const checkAPIStatus = async () => {
       try {
-        const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
+        const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
         const params = new URLSearchParams({
           location: '14.5995,120.9842',
           radius: '5000',

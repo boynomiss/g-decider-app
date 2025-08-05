@@ -15,11 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Lock, User, Phone } from 'lucide-react-native';
 import Mail from 'lucide-react-native/dist/esm/icons/mail';
-import { useAuth } from '../hooks/use-auth';
+
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, isLoading } = useAuth();
+  const { signIn, signUp, isLoading } = { signIn: () => {}, signUp: () => {}, isLoading: false };
   
   const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({

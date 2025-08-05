@@ -16,11 +16,22 @@
     "test-error-free-filters": "node test-error-free-filters.js",
     "test-migration": "node test-migration.js",
     "test-hook-order-fix": "node test-hook-order-fix.js",
+    "test-google-api-clients": "node test-google-api-clients.js",
+    "test-google-auth": "node utils/google-auth-server.js",
+    "test-refactored-filtering": "node test-refactored-filtering.js",
+    "test-photo-contact": "node test-photo-contact-enhancement.js",
+    "test-frontend": "node test-frontend-enhancements.js",
+    "test-firebase-admin": "node test-firebase-admin.js",
+    "test-firebase-admin-quick": "node test-firebase-admin-quick.js",
+    "test-firebase-cache": "node test-firebase-cache-system.js",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test-firebase-function": "node test-firebase-function.js",
+    "test-server-filtering": "node test-server-filtering.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@googlemaps/places": "^2.1.0",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/slider": "4.5.6",
@@ -43,6 +54,7 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.10",
     "expo-web-browser": "~14.2.0",
+    "firebase-admin": "^13.4.0",
     "i18next": "^25.3.2",
     "lucide-react-native": "^0.533.0",
     "nativewind": "^4.1.23",
@@ -56,8 +68,7 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
-    "zustand": "^5.0.2",
-    "@google-cloud/language": "^6.1.0"
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

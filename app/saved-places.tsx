@@ -79,6 +79,15 @@ export default function SavedPlacesScreen() {
         )}
       </View>
 
+      {/* Saved Places Count */}
+      {savedPlaces.length > 0 && (
+        <View style={styles.countContainer}>
+          <Text style={styles.countText}>
+            {savedPlaces.length} {savedPlaces.length === 1 ? 'place' : 'places'} saved
+          </Text>
+        </View>
+      )}
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -299,5 +308,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FF6B6B',
     fontWeight: '500',
+  },
+  countContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  countText: {
+    color: '#FFF',
+    fontSize: 14,
+    opacity: 0.9,
   },
 }); 

@@ -1,0 +1,11 @@
+[
+  {
+    "name": "delete-old-images",
+    "action": {
+      "type": "DELETE"
+    },
+    "condition": {
+      "olderThan": "2592000s"
+    }
+  }
+] 

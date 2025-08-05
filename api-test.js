@@ -1,5 +1,5 @@
 // Simple API test to verify Google Places API is working
-const GOOGLE_API_KEY = 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
+const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const PLACES_PROXY_URL = 'https://toolkit.rork.com/places/search';
 
 async function testGooglePlacesAPI() {

@@ -1,12 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { aiDescriptionService } from '../utils/ai-description-service';
 import { Suggestion } from '../types/app';
+import { PlaceData } from '../utils/place-mood-service';
+
+type DescriptionInput = Suggestion | PlaceData;
 
 interface UseAIDescriptionReturn {
   aiDescription: string | null;
   isLoading: boolean;
   error: string | null;
-  generateDescription: (suggestion: Suggestion) => Promise<void>;
+  generateDescription: (input: DescriptionInput) => Promise<void>;
   clearDescription: () => void;
 }
 
@@ -15,31 +18,48 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateDescription = useCallback(async (suggestion: Suggestion) => {
-    if (!suggestion) return;
+  const generateDescription = useCallback(async (input: DescriptionInput) => {
+    if (!input) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // Convert suggestion to restaurant data format
-      const restaurantData = {
-        name: suggestion.name,
-        location: suggestion.location,
-        budget: suggestion.budget,
-        tags: suggestion.tags,
-        description: suggestion.description,
-        reviews: suggestion.reviews,
-        images: suggestion.images,
-        category: suggestion.category,
-        mood: getMoodNumber(suggestion.mood), // Convert string to number
-        socialContext: suggestion.socialContext.join(', '), // Convert array to string
-        timeOfDay: suggestion.timeOfDay.join(', ') // Convert array to string
-      };
+      let restaurantData;
+      if ('id' in input) {
+        // Suggestion
+        restaurantData = {
+          name: input.name,
+          location: input.location,
+          budget: input.budget,
+          tags: input.tags,
+          description: input.description,
+          reviews: input.reviews,
+          images: input.images,
+          category: input.category,
+          mood: getMoodNumber(input.mood),
+          socialContext: input.socialContext.join(', '),
+          timeOfDay: input.timeOfDay.join(', ')
+        };
+      } else {
+        // PlaceData
+        restaurantData = {
+          name: input.name,
+          location: input.address || input.vicinity || input.formatted_address || 'Unknown location',
+          budget: input.price_level === 1 ? 'P' : input.price_level === 2 ? 'PP' : 'PPP',
+          tags: input.types || [],
+          description: input.description,
+          reviews: input.reviews,
+          images: input.photos?.medium || input.images?.urls || [],
+          category: input.category,
+          mood: getMoodNumber(input.final_mood || 'both'),
+          socialContext: 'solo, with-bae, barkada',
+          timeOfDay: 'morning, afternoon, night'
+        };
+      }
 
       const description = await aiDescriptionService.generateDescription(restaurantData);
       setAiDescription(description);
-      
       console.log('🤖 AI description generated successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate AI description';
@@ -55,10 +75,8 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
     setError(null);
   }, []);
 
-  // Auto-generate description when suggestion changes
   useEffect(() => {
     return () => {
-      // Cleanup on unmount
       clearDescription();
     };
   }, [clearDescription]);
@@ -72,7 +90,6 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
   };
 };
 
-// Helper function to convert mood string to number
 function getMoodNumber(mood: string): number {
   switch (mood) {
     case 'chill':
@@ -81,7 +98,9 @@ function getMoodNumber(mood: string): number {
       return 2;
     case 'both':
       return 3;
+    case 'neutral':
+      return 2;
     default:
-      return 1; // Default to chill
+      return 1;
   }
 } 

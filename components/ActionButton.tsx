@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Image, Alert } from 'react-native';
 import { useAppStore } from '../hooks/use-app-store';
+import { useServerFiltering } from '../hooks/use-server-filtering';
 import { useRouter } from 'expo-router';
 
 export default function ActionButton() {
-  const { filters, retriesLeft, isLoading, generateSuggestion } = useAppStore();
+  const { filters, retriesLeft, showMoreFilters } = useAppStore();
+  const { isLoading, error, filterPlaces } = useServerFiltering();
   const router = useRouter();
   const shakeAnimation = React.useRef(new Animated.Value(0)).current;
   const [isRouterReady, setIsRouterReady] = useState(false);
@@ -65,9 +67,12 @@ export default function ActionButton() {
         return;
       }
 
-      console.log('🚀 Navigating to result screen immediately...');
+      console.log('🚀 Starting server-side filtering...');
       
-      // Navigate to result screen immediately, let it handle suggestion generation
+      // Call server-side filtering
+      await filterPlaces(filters, 5, true);
+      
+      // Navigate to result screen to display the results
       router.push('/result');
       
     } catch (error) {

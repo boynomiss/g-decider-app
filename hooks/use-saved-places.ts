@@ -1,24 +1,51 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Suggestion } from '../types/app';
+import { PlaceData } from '../utils/place-mood-service';
+
+type SaveablePlace = Suggestion | PlaceData;
 
 interface UseSavedPlacesReturn {
   savedPlaces: Suggestion[];
   isLoading: boolean;
-  isSaved: (suggestion: Suggestion) => boolean;
-  savePlace: (suggestion: Suggestion) => Promise<void>;
-  removePlace: (suggestion: Suggestion) => Promise<void>;
+  isSaved: (place: SaveablePlace) => boolean;
+  savePlace: (place: SaveablePlace) => Promise<void>;
+  removePlace: (place: SaveablePlace) => Promise<void>;
   loadSavedPlaces: () => Promise<void>;
   clearSavedPlaces: () => Promise<void>;
 }
 
 const SAVED_PLACES_KEY = '@saved_places';
 
+function toSuggestion(place: SaveablePlace): Suggestion {
+  if ('id' in place) return place;
+  // Convert PlaceData to Suggestion
+  return {
+    id: place.place_id,
+    name: place.name,
+    location: place.address || place.vicinity || place.formatted_address || 'Unknown location',
+    images: place.photos?.medium || place.images?.urls || [],
+    budget: place.price_level === 1 ? 'P' : place.price_level === 2 ? 'PP' : 'PPP',
+    tags: place.types || [],
+    description: place.description || `${place.name} is a great place to visit.`,
+    openHours: place.opening_hours ? 'Open' : undefined,
+    discount: undefined,
+    category: place.category as any || 'food',
+    mood: (place.final_mood as any) || 'both',
+    socialContext: ['solo', 'with-bae', 'barkada'],
+    timeOfDay: ['morning', 'afternoon', 'night'],
+    coordinates: place.location,
+    rating: place.rating,
+    reviewCount: place.user_ratings_total,
+    reviews: place.reviews || [],
+    website: place.website
+  };
+}
+
 export const useSavedPlaces = (): UseSavedPlacesReturn => {
   const [savedPlaces, setSavedPlaces] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load saved places on mount
   useEffect(() => {
     loadSavedPlaces();
   }, []);
@@ -39,8 +66,9 @@ export const useSavedPlaces = (): UseSavedPlacesReturn => {
     }
   }, []);
 
-  const savePlace = useCallback(async (suggestion: Suggestion) => {
+  const savePlace = useCallback(async (place: SaveablePlace) => {
     try {
+      const suggestion = toSuggestion(place);
       const updated = [...savedPlaces, suggestion];
       await AsyncStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(updated));
       setSavedPlaces(updated);
@@ -50,9 +78,10 @@ export const useSavedPlaces = (): UseSavedPlacesReturn => {
     }
   }, [savedPlaces]);
 
-  const removePlace = useCallback(async (suggestion: Suggestion) => {
+  const removePlace = useCallback(async (place: SaveablePlace) => {
     try {
-      const updated = savedPlaces.filter(place => place.id !== suggestion.id);
+      const suggestion = toSuggestion(place);
+      const updated = savedPlaces.filter(p => p.id !== suggestion.id);
       await AsyncStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(updated));
       setSavedPlaces(updated);
       console.log('🗑️ Removed place:', suggestion.name);
@@ -61,8 +90,9 @@ export const useSavedPlaces = (): UseSavedPlacesReturn => {
     }
   }, [savedPlaces]);
 
-  const isSaved = useCallback((suggestion: Suggestion): boolean => {
-    return savedPlaces.some(place => place.id === suggestion.id);
+  const isSaved = useCallback((place: SaveablePlace): boolean => {
+    const suggestion = toSuggestion(place);
+    return savedPlaces.some(p => p.id === suggestion.id);
   }, [savedPlaces]);
 
   const clearSavedPlaces = useCallback(async () => {

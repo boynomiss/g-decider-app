@@ -8,8 +8,9 @@
  */
 
 // Get API keys from environment
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
-const BLOGGER_API_KEY = process.env.EXPO_PUBLIC_BLOGGER_API_KEY || '';
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+const BLOGGER_API_KEY = process.env.BLOGGER_API_KEY || '';
+
 
 export interface PhotoReference {
   photo_reference: string;
@@ -33,7 +34,7 @@ export interface PlacePhoto {
 
 export interface AuthenticPhotoResult {
   url: string;
-  source: 'google_places' | 'blogger_verified' | 'fallback';
+  source: 'google_places' | 'fallback';
   isAuthentic: boolean;
   attribution?: string;
   confidence: number; // 0-100, how confident we are this is the actual place
@@ -48,11 +49,15 @@ export interface AuthenticPhotoResult {
   };
 }
 
-export interface BloggerPhotoSearch {
+export interface PlacePhotoSearch {
   placeName: string;
   placeAddress?: string;
   placeTypes?: string[];
   coordinates?: { lat: number; lng: number };
+}
+
+interface BloggerPhotoSearch extends PlacePhotoSearch {
+  // Extended interface for blogger-specific searches
 }
 
 /**
@@ -90,12 +95,73 @@ export function generatePhotoUrl(
 }
 
 /**
+ * Dedicated utility function for creating photo URLs that frontend can use directly in <img> tags
+ * Handles different image sizes and provides clean URLs ready for consumption
+ */
+export function createFrontendPhotoUrls(
+  photos: PlacePhoto[] | undefined,
+  options: {
+    thumbnail?: { width: number; height: number };
+    medium?: { width: number; height: number };
+    large?: { width: number; height: number };
+    maxPhotos?: number;
+  } = {}
+): {
+  thumbnail: string[];
+  medium: string[];
+  large: string[];
+  count: number;
+} {
+  const {
+    thumbnail = { width: 150, height: 150 },
+    medium = { width: 400, height: 300 },
+    large = { width: 800, height: 600 },
+    maxPhotos = 8
+  } = options;
+
+  if (!photos || photos.length === 0) {
+    // Return fallback images for different sizes
+    return {
+      thumbnail: [generateFallbackImageUrl('restaurant', thumbnail.width, thumbnail.height)],
+      medium: [generateFallbackImageUrl('restaurant', medium.width, medium.height)],
+      large: [generateFallbackImageUrl('restaurant', large.width, large.height)],
+      count: 1
+    };
+  }
+
+  // Filter and sort photos by quality
+  const qualityPhotos = photos
+    .filter(photo => isGooglePlacesPhotoValid(photo))
+    .sort((a, b) => calculatePhotoQualityScore(b) - calculatePhotoQualityScore(a))
+    .slice(0, maxPhotos);
+
+  const thumbnailUrls = qualityPhotos.map(photo => 
+    generatePhotoUrl(photo, thumbnail.width, thumbnail.height)
+  );
+  
+  const mediumUrls = qualityPhotos.map(photo => 
+    generatePhotoUrl(photo, medium.width, medium.height)
+  );
+  
+  const largeUrls = qualityPhotos.map(photo => 
+    generatePhotoUrl(photo, large.width, large.height)
+  );
+
+  return {
+    thumbnail: thumbnailUrls.length > 0 ? thumbnailUrls : [generateFallbackImageUrl('restaurant', thumbnail.width, thumbnail.height)],
+    medium: mediumUrls.length > 0 ? mediumUrls : [generateFallbackImageUrl('restaurant', medium.width, medium.height)],
+    large: largeUrls.length > 0 ? largeUrls : [generateFallbackImageUrl('restaurant', large.width, large.height)],
+    count: qualityPhotos.length
+  };
+}
+
+/**
  * Generates authentic photo URLs with verification and Blogger API enhancement
  * ENSURES MINIMUM 4 HIGH-QUALITY IMAGES per place with high review confidence
  */
 export async function generateAuthenticPhotoUrls(
   photos: PlacePhoto[] | undefined,
-  placeInfo: BloggerPhotoSearch,
+  placeInfo: PlacePhotoSearch,
   maxWidth: number = 800,
   maxHeight: number = 600,
   minPhotos: number = 4,
@@ -109,7 +175,6 @@ export async function generateAuthenticPhotoUrls(
   if (photos && photos.length > 0) {
     console.log(`📸 Processing ${photos.length} Google Places photos for ${placeInfo.placeName}`);
     
-    // Sort photos by quality indicators (dimensions, attribution)
     const sortedPhotos = photos
       .filter(photo => isHighQualityPhoto(photo))
       .sort((a, b) => calculatePhotoQualityScore(b) - calculatePhotoQualityScore(a))
@@ -117,27 +182,13 @@ export async function generateAuthenticPhotoUrls(
     
     for (const photo of sortedPhotos) {
       const authenticPhoto = await validateGooglePlacesPhoto(photo, placeInfo, maxWidth, maxHeight);
-      if (authenticPhoto && authenticPhoto.confidence >= 80) { // Only high-confidence photos
+      if (authenticPhoto && authenticPhoto.confidence >= 80) {
         results.push(authenticPhoto);
       }
     }
   }
 
-  // Step 2: Enhance with Blogger API photos - search more aggressively if below minimum
-  const remainingNeeded = Math.max(minPhotos - results.length, 0);
-  if (remainingNeeded > 0 && BLOGGER_API_KEY) {
-    console.log(`📚 Need ${remainingNeeded} more photos - searching Blogger API for ${placeInfo.placeName}`);
-    try {
-      const bloggerPhotos = await searchBloggerPhotos(placeInfo, Math.max(remainingNeeded, 6));
-      // Only add high-confidence blogger photos
-      const highQualityBloggerPhotos = bloggerPhotos.filter(photo => photo.confidence >= 75);
-      results.push(...highQualityBloggerPhotos);
-    } catch (error) {
-      console.warn('Blogger photo search failed:', error);
-    }
-  }
-
-  // Step 3: Use Google Maps Street View for additional authentic images if still below minimum
+  // Step 2: Use Google Maps Street View for additional authentic images if still below minimum
   const stillNeeded = Math.max(minPhotos - results.length, 0);
   if (stillNeeded > 0 && placeInfo.coordinates) {
     console.log(`📍 Need ${stillNeeded} more photos - adding Street View images`);
@@ -145,7 +196,7 @@ export async function generateAuthenticPhotoUrls(
     results.push(...streetViewPhotos);
   }
 
-  // Step 4: Search for additional Google Places photos from nearby similar places
+  // Step 3: Search for additional Google Places photos from nearby similar places
   const finalNeeded = Math.max(minPhotos - results.length, 0);
   if (finalNeeded > 0) {
     console.log(`🔍 Need ${finalNeeded} more photos - searching similar places nearby`);
@@ -153,7 +204,7 @@ export async function generateAuthenticPhotoUrls(
     results.push(...similarPlacePhotos);
   }
 
-  // Step 5: Only add fallback if we still don't have minimum photos
+  // Step 4: Only add fallback if we still don't have minimum photos
   if (results.length < minPhotos) {
     console.warn(`⚠️ Only found ${results.length} authentic photos for ${placeInfo.placeName}, adding quality fallbacks`);
     const fallbacksNeeded = minPhotos - results.length;
@@ -168,7 +219,6 @@ export async function generateAuthenticPhotoUrls(
     }
   }
 
-  // Ensure we have exactly the minimum required photos
   const finalResults = results.slice(0, maxPhotos);
   console.log(`✅ Generated ${finalResults.length} high-quality photos for ${placeInfo.placeName} (${finalResults.filter(r => r.isAuthentic).length} authentic)`);
   
@@ -265,7 +315,7 @@ export function getOptimizedPhotoUrls(
  */
 async function validateGooglePlacesPhoto(
   photo: PlacePhoto,
-  placeInfo: BloggerPhotoSearch,
+  placeInfo: PlacePhotoSearch,
   maxWidth: number,
   maxHeight: number
 ): Promise<AuthenticPhotoResult | null> {
@@ -333,54 +383,9 @@ async function searchBloggerPhotos(
   placeInfo: BloggerPhotoSearch,
   maxPhotos: number
 ): Promise<AuthenticPhotoResult[]> {
-  if (!BLOGGER_API_KEY) {
-    return [];
-  }
-
-  try {
-    console.log(`🔍 Searching blogs for ${placeInfo.placeName} photos`);
-
-    // Use the enhanced Blogger image search service
-    const { bloggerImageSearch } = await import('./blogger-image-search');
-    
-    const bloggerResults = await bloggerImageSearch.searchPlaceImages({
-      placeName: placeInfo.placeName,
-      placeAddress: placeInfo.placeAddress,
-      placeTypes: placeInfo.placeTypes,
-      coordinates: placeInfo.coordinates,
-      maxResults: maxPhotos
-    });
-
-    // Convert blogger results to AuthenticPhotoResult format
-    const authenticResults: AuthenticPhotoResult[] = [];
-    
-    for (const blogResult of bloggerResults) {
-      // Validate the image URL is accessible
-      const isValid = await bloggerImageSearch.validateImageUrl(blogResult.url);
-      
-      if (isValid && blogResult.confidence >= 70) { // Only high-confidence images
-        authenticResults.push({
-          url: blogResult.url,
-          source: 'blogger_verified',
-          isAuthentic: true,
-          attribution: `Photo from ${blogResult.blogName}`,
-          confidence: blogResult.confidence,
-          metadata: {
-            author: blogResult.author,
-            uploadDate: blogResult.publishDate,
-            verificationMethod: 'blogger_context_analysis'
-          }
-        });
-      }
-    }
-
-    console.log(`📚 Found ${authenticResults.length} authentic blog photos for ${placeInfo.placeName}`);
-    return authenticResults;
-    
-  } catch (error) {
-    console.warn('Blogger photo search failed:', error);
-    return [];
-  }
+  // Blogger search is currently disabled due to API limitations
+  console.log('📝 Blogger photo search is currently disabled');
+  return [];
 }
 
 /**
@@ -437,7 +442,7 @@ function calculatePhotoQualityScore(photo: PlacePhoto): number {
  * Generate Street View photos for a place
  */
 async function generateStreetViewPhotos(
-  placeInfo: BloggerPhotoSearch, 
+  placeInfo: PlacePhotoSearch, 
   count: number
 ): Promise<AuthenticPhotoResult[]> {
   if (!placeInfo.coordinates) return [];
@@ -487,7 +492,7 @@ async function generateStreetViewPhotos(
  * Search for photos from similar places nearby
  */
 async function searchSimilarPlacePhotos(
-  placeInfo: BloggerPhotoSearch,
+  placeInfo: PlacePhotoSearch,
   count: number
 ): Promise<AuthenticPhotoResult[]> {
   if (!placeInfo.coordinates) return [];
@@ -558,7 +563,7 @@ async function searchSimilarPlacePhotos(
 /**
  * Generate a verified fallback URL that's relevant to the place type
  */
-function generateVerifiedFallbackUrl(placeInfo: BloggerPhotoSearch, index: number = 0): string {
+function generateVerifiedFallbackUrl(placeInfo: PlacePhotoSearch, index: number = 0): string {
   // Use a more specific approach based on place type and location
   const placeType = placeInfo.placeTypes?.[0] || 'restaurant';
   const cityName = extractCityFromAddress(placeInfo.placeAddress || '');

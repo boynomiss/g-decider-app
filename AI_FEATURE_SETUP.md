@@ -19,7 +19,7 @@ Create a `.env` file in the root directory:
 EXPO_PUBLIC_GEMINI_API_KEY=your-actual-gemini-api-key-here
 
 # Google Places API Configuration (already configured)
-GOOGLE_PLACES_API_KEY=AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg
+GOOGLE_PLACES_API_KEY=AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk
 ```
 
 ### 3. Install Dependencies

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Star, AlertCircle } from 'lucide-react-native';
+import { Star, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 interface AIDescriptionCardProps {
   description: string | null;
@@ -17,6 +17,12 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
   onRetry,
   onGenerate
 }) => {
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
+  const toggleDescription = () => {
+    setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -69,7 +75,30 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
         <Text style={styles.title}>AI Description</Text>
       </View>
       <View style={styles.descriptionContainer}>
-        <Text style={styles.description}>{description}</Text>
+        <Text 
+          style={styles.description} 
+          numberOfLines={isDescriptionExpanded ? undefined : 3}
+        >
+          {description}
+        </Text>
+        
+        {description.length > 150 && (
+          <TouchableOpacity 
+            style={styles.expandButton} 
+            onPress={toggleDescription}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.expandButtonText}>
+              {isDescriptionExpanded ? 'Show Less' : 'Read More'}
+            </Text>
+            {isDescriptionExpanded ? (
+              <ChevronUp size={16} color="#8B5FBF" />
+            ) : (
+              <ChevronDown size={16} color="#8B5FBF" />
+            )}
+          </TouchableOpacity>
+        )}
+        
         <TouchableOpacity style={styles.regenerateButton} onPress={onRetry}>
           <Text style={styles.regenerateButtonText}>Regenerate</Text>
         </TouchableOpacity>
@@ -154,6 +183,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#333',
     marginBottom: 8,
+  },
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  expandButtonText: {
+    fontSize: 12,
+    color: '#8B5FBF',
+    fontWeight: '500',
+    marginRight: 4,
   },
   regenerateButton: {
     flexDirection: 'row',

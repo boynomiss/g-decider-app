@@ -14,16 +14,16 @@ import {
   LoadingState 
 } from '../utils/place-discovery-logic';
 import { 
-  EnhancedPlaceDiscoveryService, 
+  PlaceMoodService, 
   PlaceData 
-} from '../utils/enhanced-place-discovery';
+} from '../utils/place-mood-service';
 import { 
   FilterApiBridge, 
   ApiReadyFilterData 
 } from '../utils/filter-api-bridge';
 
 // API Configuration
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyAdCy-m_2Rc_3trJm3vEbL-8HUqZw33SKg';
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
 
 // Default location (Manila, Philippines)
@@ -103,13 +103,13 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
   });
 
   // Services
-  const enhancedServiceRef = useRef<EnhancedPlaceDiscoveryService | null>(null);
+  const moodServiceRef = useRef<PlaceMoodService | null>(null);
   const discoveryLogicRef = useRef<PlaceDiscoveryLogic | null>(null);
 
   // Initialize services
   const getServices = useCallback(() => {
-    if (!enhancedServiceRef.current) {
-      enhancedServiceRef.current = new EnhancedPlaceDiscoveryService(
+    if (!moodServiceRef.current) {
+      moodServiceRef.current = new PlaceMoodService(
         GOOGLE_PLACES_API_KEY,
         GOOGLE_NATURAL_LANGUAGE_API_KEY
       );
@@ -117,14 +117,14 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     
     if (!discoveryLogicRef.current) {
       discoveryLogicRef.current = new PlaceDiscoveryLogic(
-        enhancedServiceRef.current,
+        moodServiceRef.current,
         GOOGLE_PLACES_API_KEY,
         [] // TODO: Add advertised places
       );
     }
     
     return {
-      enhanced: enhancedServiceRef.current,
+      mood: moodServiceRef.current,
       discovery: discoveryLogicRef.current
     };
   }, []);
@@ -262,9 +262,8 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       
       console.log('✅ Place discovery complete:', {
         places: results.places.length,
-        advertised: !!results.advertisedPlace,
-        hasMore: results.hasMore,
-        status: results.poolStatus
+        hasMore: results.poolInfo.needsRefresh === false,
+        status: results.poolInfo
       });
       
       return results;
@@ -339,7 +338,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     
     // Reset services
     discoveryLogicRef.current = null;
-    enhancedServiceRef.current = null;
+    moodServiceRef.current = null;
     
     setState(prev => ({
       ...prev,
@@ -486,7 +485,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     getDiscoveryStats: useCallback(() => ({
       totalPlaces: state.currentResults?.places.length || 0,
       hasAdvertised: !!state.currentResults?.advertisedPlace,
-      poolStatus: state.currentResults?.poolStatus || 'empty',
+            poolStatus: state.currentResults?.poolInfo || {},
       loadingState: state.loadingState,
       hasMore: state.currentResults?.hasMore || false,
       apiFiltersCount: state.apiReadyFilters.size

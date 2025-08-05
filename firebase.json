@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18",
+    "region": "asia-southeast1",
+    "serviceAccounts": {
+      // Gemini AI functions - use gemini-api-client service account
+      "testGeminiAccess": "gemini-api-client@g-decider-backend.iam.gserviceaccount.com",
+      "generatePlaceDescription": "gemini-api-client@g-decider-backend.iam.gserviceaccount.com",
+      "analyzeMoodAndSuggest": "gemini-api-client@g-decider-backend.iam.gserviceaccount.com",
+      "getPersonalizedRecommendations": "gemini-api-client@g-decider-backend.iam.gserviceaccount.com"
+      // Note: NLP functions use the default Firebase service account
+      // Note: filterPlaces uses the default Firebase service account
+    }
+  }
+}
