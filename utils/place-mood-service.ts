@@ -98,7 +98,7 @@ export interface MoodConfig {
 // Enhanced mood labels
 export const MOOD_LABELS: MoodConfig = {
   chill: ['Relaxed', 'Low-Key', 'Cozy', 'Mellow', 'Calm'],
-  neutral: ['Balanced', 'Standard', 'Casual', 'Average', 'Steady'],
+  neutral: ['Pleasant', 'Comfortable', 'Casual', 'Inviting', 'Friendly'],
   hype: ['Vibrant', 'Lively', 'Buzzing', 'Energetic', 'Electric']
 };
 

@@ -1,26 +1,43 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Phone, Globe, Star, MapPin, Clock, DollarSign, Users, Heart } from 'lucide-react-native';
-import { PlaceData } from '@/utils/place-mood-service';
+import { Phone, Globe, Star, MapPin, Clock, Users, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
+import { PlaceData } from '../utils/place-mood-service';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface EnhancedPlaceCardProps {
   place: PlaceData;
   onPress?: () => void;
   onSave?: () => void;
+  onRemove?: () => void;
+  onPass?: () => void;
+  onRestart?: () => void;
   isSaved?: boolean;
   showFullDetails?: boolean;
+  showRemoveButton?: boolean;
 }
 
 export default function EnhancedPlaceCard({
   place,
   onPress,
   onSave,
+  onRemove,
+  onPass,
+  onRestart,
   isSaved = false,
-  showFullDetails = false
+  showFullDetails = false,
+  showRemoveButton = false
 }: EnhancedPlaceCardProps) {
   const [imageError, setImageError] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Handle image scroll to update current index
+  const handleImageScroll = (event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    setCurrentImageIndex(Math.round(index));
+  };
 
   // Get the appropriate image based on screen context
   const getDisplayImage = () => {
@@ -75,21 +92,49 @@ export default function EnhancedPlaceCard({
     const finalMood = place.final_mood || 'neutral';
     
     const moodConfig = {
-      chill: { emoji: '😌', color: '#4CAF50', label: 'Chill Vibe' },
-      neutral: { emoji: '😊', color: '#FF9800', label: 'Balanced' },
-      hype: { emoji: '🔥', color: '#F44336', label: 'Lively Atmosphere' }
+      chill: { emoji: '😌', label: 'Chill Vibe' },
+      neutral: { emoji: '😊', label: 'Balanced' },
+      hype: { emoji: '🔥', label: 'Lively Atmosphere' }
     };
 
     return moodConfig[finalMood as keyof typeof moodConfig] || moodConfig.neutral;
   };
 
-  // Get price level display
+  // Get opening hours display
+  const getOpeningHoursDisplay = () => {
+    if (!place.opening_hours) return null;
+    
+    // Check if currently open
+    const isOpenNow = place.opening_hours.open_now;
+    
+    // Get today's hours if available
+    const today = new Date().getDay();
+    const weekdayText = place.opening_hours.weekday_text;
+    const todayHours = weekdayText ? weekdayText[today] : null;
+    
+    return {
+      isOpenNow,
+      todayHours,
+      hasHours: !!todayHours
+    };
+  };
+
+  // Get price level display (old UI style)
   const getPriceDisplay = () => {
     const priceLevel = place.price_level;
     if (priceLevel === undefined || priceLevel === null) return '₱₱';
     
     const prices = ['Free', '₱', '₱₱', '₱₱₱', '₱₱₱₱'];
     return prices[priceLevel] || '₱₱';
+  };
+
+  // Get budget display (old UI style)
+  const getBudgetDisplay = () => {
+    const priceLevel = place.price_level;
+    if (priceLevel === 1) return 'P';
+    if (priceLevel === 2) return 'PP';
+    if (priceLevel === 3) return 'PPP';
+    return 'PP';
   };
 
   // Cycle through images if multiple available
@@ -103,152 +148,210 @@ export default function EnhancedPlaceCard({
   const displayImage = getDisplayImage();
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <LinearGradient
-        colors={['#FFFFFF', '#F8F9FA']}
-        style={styles.gradient}
-      >
-        {/* Image Section */}
+    <View style={styles.container}>
+      {/* Image Section Container */}
+      <View style={styles.imageCardContainer}>
         <View style={styles.imageContainer}>
-          {displayImage && !imageError ? (
-            <TouchableOpacity onPress={handleImagePress} activeOpacity={0.8}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageScrollView}
+            onScroll={handleImageScroll}
+            onMomentumScrollEnd={handleImageScroll}
+            scrollEventThrottle={16}
+          >
+            {/* Temporary 5 images for testing */}
+            <View style={styles.imageWrapper}>
               <Image
-                source={{ uri: displayImage }}
+                source={{ uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop' }}
                 style={styles.placeImage}
-                onError={() => setImageError(true)}
                 resizeMode="cover"
               />
-              {place.photos && place.photos.count > 1 && (
-                <View style={styles.imageCounter}>
-                  <Text style={styles.imageCounterText}>
-                    {currentImageIndex + 1}/{place.photos.count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.placeholderImage}>
-              <MapPin size={32} color="#9E9E9E" />
-              <Text style={styles.placeholderText}>No Image</Text>
             </View>
-          )}
-
-          {/* Save Button */}
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={onSave}
-            activeOpacity={0.7}
-          >
-            <Heart
-              size={20}
-              color={isSaved ? '#F44336' : '#FFFFFF'}
-              fill={isSaved ? '#F44336' : 'transparent'}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Content Section */}
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.placeName} numberOfLines={1}>
-                {place.name}
-              </Text>
-              <Text style={styles.placeAddress} numberOfLines={1}>
-                {place.address}
-              </Text>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop' }}
+                style={styles.placeImage}
+                resizeMode="cover"
+              />
             </View>
-            
-            <View style={styles.priceContainer}>
-              <Text style={styles.priceText}>{getPriceDisplay()}</Text>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop' }}
+                style={styles.placeImage}
+                resizeMode="cover"
+              />
             </View>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop' }}
+                style={styles.placeImage}
+                resizeMode="cover"
+              />
+            </View>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop' }}
+                style={styles.placeImage}
+                resizeMode="cover"
+              />
+            </View>
+          </ScrollView>
+          {/* Carousel Indicators */}
+          <View style={styles.imageCounter} pointerEvents="box-none">
+            <Text style={styles.imageCounterText}>
+              {currentImageIndex + 1}/5
+            </Text>
           </View>
+        </View>
+      </View>
 
-          {/* Rating and Mood */}
-          <View style={styles.statsRow}>
-            <View style={styles.ratingContainer}>
+      {/* Place Info Section Container */}
+      <TouchableOpacity
+        style={styles.cardSectionContainer}
+        onPress={onPress}
+        activeOpacity={0.9}
+      >
+        <View style={styles.placeInfo}>
+          <Text style={styles.placeName}>{place.name}</Text>
+          <Text style={styles.placeLocation}>{place.address}</Text>
+          {/* Budget Badge (Old UI Style) */}
+          <View style={styles.budgetContainer}>
+            <Text style={styles.budget}>
+              {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}
+            </Text>
+          </View>
+          {/* Description (Old UI Style) */}
+          {place.editorial_summary && (
+            <Text style={styles.placeDescription} numberOfLines={2}>
+              {place.editorial_summary}
+            </Text>
+          )}
+          {/* Enhanced Info Row with Rating, Mood, and Hours */}
+          <View style={styles.enhancedInfoRow}>
+            {/* Rating Section */}
+            <View style={styles.ratingSection}>
               <Star size={14} color="#FFD700" fill="#FFD700" />
               <Text style={styles.ratingText}>
                 {place.rating ? place.rating.toFixed(1) : 'N/A'}
               </Text>
-              <Text style={styles.reviewCount}>
-                ({place.user_ratings_total || 0})
-              </Text>
             </View>
-
-            <View style={styles.moodContainer}>
-              <Text style={styles.moodEmoji}>{moodDisplay.emoji}</Text>
-              <Text style={[styles.moodText, { color: moodDisplay.color }]}>
+            
+            {/* Mood Section with Descriptive Words */}
+            <View style={styles.moodSection}>
+              <Text style={styles.moodText}> 
                 {moodDisplay.label}
               </Text>
-              <Text style={styles.moodScore}>
-                {place.mood_score || 50}/100
-              </Text>
             </View>
+            
+            {/* Opening Hours Section */}
+            {(() => {
+              const hoursDisplay = getOpeningHoursDisplay();
+              if (!hoursDisplay) return null;
+              
+              return (
+                <View style={styles.hoursSection}>
+                  <Clock size={14} color={hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B'} />
+                  <Text style={[styles.hoursText, { color: hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B' }]}>
+                    {hoursDisplay.isOpenNow ? 'Open' : 'Closed'}
+                  </Text>
+                  {hoursDisplay.todayHours && (
+                    <Text style={styles.hoursDetail} numberOfLines={1}>
+                      {hoursDisplay.todayHours}
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
           </View>
-
-          {/* Contact Actions */}
-          {place.contact?.hasContact && (
-            <View style={styles.contactRow}>
-              {place.contactActions?.canCall && (
-                <TouchableOpacity
-                  style={styles.contactButton}
-                  onPress={handleCall}
-                  activeOpacity={0.7}
-                >
-                  <Phone size={16} color="#4CAF50" />
-                  <Text style={styles.contactButtonText}>Call</Text>
-                </TouchableOpacity>
-              )}
-
-              {place.contactActions?.canVisitWebsite && (
-                <TouchableOpacity
-                  style={styles.contactButton}
-                  onPress={handleWebsite}
-                  activeOpacity={0.7}
-                >
-                  <Globe size={16} color="#2196F3" />
-                  <Text style={styles.contactButtonText}>Website</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {/* Additional Details (if showFullDetails) */}
-          {showFullDetails && (
-            <View style={styles.detailsSection}>
-              {place.business_status && (
-                <View style={styles.detailRow}>
-                  <Clock size={14} color="#666" />
-                  <Text style={styles.detailText}>
-                    {place.business_status === 'OPERATIONAL' ? 'Open' : 'Closed'}
-                  </Text>
-                </View>
-              )}
-
-              {place.types && place.types.length > 0 && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.categoryText}>
-                    {place.types[0].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Text>
-                </View>
-              )}
-
-              {place.editorial_summary && (
-                <Text style={styles.summaryText} numberOfLines={2}>
-                  {place.editorial_summary}
-                </Text>
-              )}
-            </View>
-          )}
+          {/* Place Actions (Old UI Style) */}
+          <View style={styles.placeActions}>
+            {place.contactActions?.canCall && (
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={handleCall}
+                activeOpacity={0.7}
+              >
+                <Phone size={16} color="#8B5FBF" />
+                <Text style={styles.actionText}>Call</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={() => {
+                // Open in maps
+                const url = `https://maps.google.com/?q=${encodeURIComponent(place.address)}`;
+                Linking.openURL(url);
+              }}
+              activeOpacity={0.7}
+            >
+              <MapPin size={16} color="#8B5FBF" />
+              <Text style={styles.actionText}>Map</Text>
+            </TouchableOpacity>
+            {place.contactActions?.canVisitWebsite && (
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={handleWebsite}
+                activeOpacity={0.7}
+              >
+                <Globe size={16} color="#8B5FBF" />
+                <Text style={styles.actionText}>Website</Text>
+              </TouchableOpacity>
+            )}
+            {showRemoveButton && onRemove && (
+              <TouchableOpacity 
+                style={styles.removeButton} 
+                onPress={onRemove}
+                activeOpacity={0.7}
+              >
+                <Trash size={16} color="#FF6B6B" />
+                <Text style={styles.removeText}>Remove</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {/* Divider */}
+          <View style={styles.divider} />
+          
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={onPass}
+              activeOpacity={0.7}
+            >
+              <X size={24} color="#FF6B6B" />
+              <Text style={[styles.actionText, { color: '#FF6B6B' }]}>Pass</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={onRestart}
+              activeOpacity={0.7}
+            >
+              <RotateCcw size={24} color="#4A4A4A" />
+              <Text style={[styles.actionText, { color: '#4A4A4A' }]}>Restart</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={onSave}
+              activeOpacity={0.7}
+            >
+              <Heart 
+                size={24} 
+                color={isSaved ? '#F44336' : '#4CAF50'} 
+                fill={isSaved ? '#F44336' : 'transparent'}
+              />
+              <Text style={[styles.actionText, { color: isSaved ? '#F44336' : '#4CAF50' }]}>
+                {isSaved ? 'Saved' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -256,23 +359,40 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  gradient: {
+  cardSectionContainer: {
+    backgroundColor: '#FFF',
     borderRadius: 16,
     overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 16,
+  },
+  imageCardContainer: {
+    backgroundColor: '#A67BCE', // 5% lighter purple background for image section
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 16,
   },
   imageContainer: {
     position: 'relative',
-    height: 200,
+    height: 240, // 4:3 aspect ratio
+  },
+  imageScrollView: {
+    width: '100%',
+    height: '100%',
+  },
+  imageWrapper: {
+    width: screenWidth - 32, // Full container width minus margins
+    height: '100%',
   },
   placeImage: {
     width: '100%',
@@ -308,58 +428,70 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 20,
+    padding: 8,
+    zIndex: 1,
   },
-  content: {
+  // Old UI Content Styles
+  placeInfo: {
     padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  titleContainer: {
-    flex: 1,
-    marginRight: 12,
   },
   placeName: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: 'bold',
+    color: '#4A4A4A',
     marginBottom: 4,
+    textAlign: 'center',
   },
-  placeAddress: {
+  placeLocation: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  priceContainer: {
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  budgetContainer: {
+    alignSelf: 'center',
+    backgroundColor: '#87CEEB',
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    borderRadius: 8,
+    marginBottom: 8,
   },
-  priceText: {
+  budget: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4CAF50',
+    color: '#666',
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  placeDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
     marginBottom: 12,
   },
-  ratingContainer: {
+  enhancedInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  ratingSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#87CEEB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 8,
+    marginRight: 8,
+    height: 24,
   },
   ratingText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#0066CC',
     marginLeft: 4,
   },
   reviewCount: {
@@ -367,9 +499,41 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
-  moodContainer: {
+  moodSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#87CEEB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 8,
+    marginRight: 8,
+    height: 24,
+  },
+  hoursSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#87CEEB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 8,
+    marginRight: 8,
+    height: 24,
+  },
+  hoursText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+    color: '#0066CC',
+  },
+  hoursDetail: {
+    fontSize: 10,
+    color: '#666',
+    marginLeft: 4,
   },
   moodEmoji: {
     fontSize: 16,
@@ -378,55 +542,52 @@ const styles = StyleSheet.create({
   moodText: {
     fontSize: 12,
     fontWeight: '600',
-    marginRight: 4,
+    color: '#0066CC',
   },
   moodScore: {
     fontSize: 10,
     color: '#999',
   },
-  contactRow: {
+  placeActions: {
     flexDirection: 'row',
-    marginBottom: 12,
-  },
-  contactButton: {
-    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+  },
+  actionButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
+    borderRadius: 8,
+    gap: 8,
   },
-  contactButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginLeft: 4,
+  actionText: {
+    fontSize: 14,
+    color: '#8B5FBF',
+    fontWeight: '500',
   },
-  detailsSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 12,
-  },
-  detailRow: {
+  removeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 8,
+    gap: 4,
   },
-  detailText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
+  removeText: {
+    fontSize: 14,
+    color: '#FF6B6B',
+    fontWeight: '500',
   },
-  categoryText: {
-    fontSize: 12,
-    color: '#8B5FBF',
-    fontWeight: '600',
+  divider: {
+    height: 2,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 4,
   },
-  summaryText: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 16,
-    marginTop: 4,
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
   },
 });

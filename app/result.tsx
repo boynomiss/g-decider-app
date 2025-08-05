@@ -27,6 +27,7 @@ import { AIDescriptionCard } from '../components/AIDescriptionCard';
 import { ActiveDiscountsCard } from '../components/ActiveDiscountsCard';
 import { BookingOptionsCard } from '../components/BookingOptionsCard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -99,6 +100,9 @@ export default function ResultScreen() {
 
   // Track if we've already attempted to load results
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  
+  // Track current result index for single result display
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
 
   // Load results on mount if none exist - fixed circular dependency
   useEffect(() => {
@@ -176,7 +180,7 @@ export default function ResultScreen() {
   const handleBookingPress = useCallback(async (platform: any) => {
     try {
       if (results.length > 0) {
-        const place = results[0];
+        const place = results[currentResultIndex];
         const success = await openBooking(platform, {
           restaurantName: place.name,
           location: place.address,
@@ -192,7 +196,7 @@ export default function ResultScreen() {
     } catch (error) {
       console.error('❌ Error opening booking:', error);
     }
-  }, [openBooking, results]);
+  }, [openBooking, results, currentResultIndex]);
 
   // Handle save place
   const handleSavePlace = useCallback(async (place: PlaceData) => {
@@ -212,9 +216,27 @@ export default function ResultScreen() {
   // Handle pass (skip current result)
   const handlePass = useCallback(() => {
     console.log('⏭️ Passing current result');
-    // For now, just log - in a real implementation, this would skip to next result
-    Alert.alert('Pass', 'This would skip to the next result in a full implementation');
-  }, []);
+    if (currentResultIndex < results.length - 1) {
+      setCurrentResultIndex(currentResultIndex + 1);
+    } else {
+      // No more results, show message
+      Alert.alert('No More Results', 'You\'ve seen all available results. Try adjusting your filters for more options.');
+    }
+  }, [currentResultIndex, results.length]);
+
+  // Handle next result
+  const handleNext = useCallback(() => {
+    if (currentResultIndex < results.length - 1) {
+      setCurrentResultIndex(currentResultIndex + 1);
+    }
+  }, [currentResultIndex, results.length]);
+
+  // Handle previous result
+  const handlePrevious = useCallback(() => {
+    if (currentResultIndex > 0) {
+      setCurrentResultIndex(currentResultIndex - 1);
+    }
+  }, [currentResultIndex]);
 
   // Handle restart (go back to filters)
   const handleRestart = useCallback(() => {
@@ -225,32 +247,13 @@ export default function ResultScreen() {
   // Search for discounts and booking options when results change
   useEffect(() => {
     if (results.length > 0 && !isLoading) {
-      const firstPlace = results[0];
-      searchDiscounts(firstPlace);
-      getBookingOptions(firstPlace);
+      const currentPlace = results[currentResultIndex];
+      searchDiscounts(currentPlace);
+      getBookingOptions(currentPlace);
     }
-  }, [results, isLoading, searchDiscounts, getBookingOptions]);
+  }, [results, isLoading, currentResultIndex, searchDiscounts, getBookingOptions]);
 
-  // Get price display
-  const getPriceDisplay = (place: PlaceData) => {
-    if (!place?.price_level) return 'PP';
-    const prices = ['Free', 'P', 'PP', 'PPP', 'PPPP'];
-    return prices[place.price_level] || 'PP';
-  };
 
-  // Get mood display
-  const getMoodDisplay = (place: PlaceData) => {
-    const moodScore = place.mood_score || 50;
-    const finalMood = place.final_mood || 'neutral';
-    
-    const moodConfig = {
-      chill: { emoji: '😌', label: 'Chill' },
-      neutral: { emoji: '😊', label: 'Balanced' },
-      hype: { emoji: '🔥', label: 'Lively' }
-    };
-
-    return moodConfig[finalMood as keyof typeof moodConfig] || moodConfig.neutral;
-  };
 
   if (isLoading && results.length === 0) {
     return (
@@ -273,8 +276,8 @@ export default function ResultScreen() {
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleGoBack}>
+            <Text style={styles.retryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -283,203 +286,28 @@ export default function ResultScreen() {
 
   return (
     <ErrorBoundary>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <LinearGradient
-          colors={['#667eea', '#764ba2']}
-          style={styles.gradient}
-        >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Results</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+      <LinearGradient
+        colors={['#C8A8E9', '#B19CD9']}
+        style={[styles.container, { paddingTop: insets.top }]}
+      >
 
-        {/* Results List */}
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {results.map((place, index) => {
-            const moodDisplay = getMoodDisplay(place);
-            const hasImageError = imageErrors[place.place_id];
-            const displayImage = place.photos?.medium?.[0];
-            const placeIsSaved = isSaved(place);
-            
-            return (
-              <View key={`${place.place_id}-${index}`} style={styles.placeCard}>
-                {/* Image Section */}
-                <View style={styles.imageContainer}>
-                  {displayImage && !hasImageError ? (
-                    <TouchableOpacity 
-                      onPress={() => handleImagePress(place, 0)}
-                      activeOpacity={0.8}
-                    >
-                      <Image
-                        source={{ uri: displayImage }}
-                        style={styles.placeImage}
-                        resizeMode="cover"
-                        onError={() => handleImageError(place.place_id)}
-                      />
-                      {/* Image Counter */}
-                      {place.photos && place.photos.count > 1 && (
-                        <View style={styles.imageCounter}>
-                          <Text style={styles.imageCounterText}>
-                            1/{place.photos.count}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Ionicons name="location" size={32} color="#9E9E9E" />
-                      <Text style={styles.placeholderText}>No Image</Text>
-                    </View>
-                  )}
-                  
-                  {/* Save Button */}
-                  <TouchableOpacity
-                    style={styles.saveButton}
-                    onPress={() => handleSavePlace(place)}
-                    activeOpacity={0.7}
-                  >
-                    <Heart
-                      size={20}
-                      color={placeIsSaved ? '#F44336' : '#FFFFFF'}
-                      fill={placeIsSaved ? '#F44336' : 'transparent'}
-                    />
-                  </TouchableOpacity>
-                </View>
 
-                {/* Content Section */}
-                <View style={styles.content}>
-                  <View style={styles.headerRow}>
-                    <Text style={styles.placeName} numberOfLines={1}>
-                      {place.name}
-                    </Text>
-                    <View style={styles.priceBadge}>
-                      <Text style={styles.priceText}>{getPriceDisplay(place)}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.ratingRow}>
-                    <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={14} color="#FFD700" />
-                      <Text style={styles.ratingText}>
-                        {place.rating ? place.rating.toFixed(1) : 'N/A'}
-                      </Text>
-                      <Text style={styles.reviewCount}>
-                        ({place.user_ratings_total || 0})
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.moodRow}>
-                    <Text style={styles.moodEmoji}>{moodDisplay.emoji}</Text>
-                    <Text style={styles.moodLabel}>{moodDisplay.label}</Text>
-                    <Text style={styles.moodScore}>
-                      {place.mood_score || 50}/100
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-
-          {/* AI Description Card */}
-          {results.length > 0 && (
-            <AIDescriptionCard
-              description={aiDescription}
-              isLoading={aiLoading}
-              error={aiError}
-              onRetry={() => {
-                if (results.length > 0) {
-                  generateDescription(results[0]);
-                }
-              }}
-              onGenerate={() => {
-                if (results.length > 0) {
-                  generateDescription(results[0]);
-                }
-              }}
-            />
-          )}
-
-          {/* Active Discounts Card */}
-          {results.length > 0 && (
-            <ActiveDiscountsCard
-              discounts={discounts}
-              isLoading={discountLoading}
-              error={discountError}
-              onDiscountPress={handleDiscountPress}
-              placeType={results[0].category as 'food' | 'activity' | 'something-new'}
-              tags={results[0].types || []}
-              description={results[0].editorial_summary || ''}
-            />
-          )}
-
-          {/* Booking Options Card */}
-          {results.length > 0 && (
-            <BookingOptionsCard
-              platforms={bookingPlatforms}
-              isLoading={bookingLoading}
-              error={bookingError}
-              onBookingPress={handleBookingPress}
-              restaurantName={results[0].name}
-              location={results[0].address}
-              placeType={results[0].category as 'food' | 'activity' | 'something-new'}
-              tags={results[0].types || []}
-              description={results[0].editorial_summary || ''}
-            />
-          )}
-
-          {/* Load more indicator */}
-          {isLoading && results.length > 0 && (
-            <View style={styles.loadMoreContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={styles.loadMoreText}>Loading more places...</Text>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Bottom Action Bar */}
+        {/* Place Details Container */}
         {results.length > 0 && (
-          <View style={styles.bottomActionBar}>
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={handlePass}
-              activeOpacity={0.7}
-            >
-              <X size={20} color="#FF6B6B" />
-              <Text style={[styles.actionButtonText, { color: '#FF6B6B' }]}>Pass</Text>
-            </TouchableOpacity>
+          <View style={styles.placeDetailsContainer}>
+            <EnhancedPlaceCard
+              key={`${results[currentResultIndex].place_id}-${currentResultIndex}`}
+              place={results[currentResultIndex]}
+              onPress={() => handleImagePress(results[currentResultIndex], 0)}
+              onSave={() => handleSavePlace(results[currentResultIndex])}
+              onPass={handlePass}
+              onRestart={handleRestart}
+              isSaved={isSaved(results[currentResultIndex])}
+              showFullDetails={true}
+              showRemoveButton={false}
+            />
+            
 
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={handleRestart}
-              activeOpacity={0.7}
-            >
-              <RotateCcw size={20} color="#8B5FBF" />
-              <Text style={[styles.actionButtonText, { color: '#8B5FBF' }]}>Restart</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton} 
-              onPress={() => results.length > 0 && handleSavePlace(results[0])}
-              activeOpacity={0.7}
-            >
-              <Heart 
-                size={20} 
-                color={results.length > 0 && isSaved(results[0]) ? '#F44336' : '#4CAF50'} 
-                fill={results.length > 0 && isSaved(results[0]) ? '#F44336' : 'transparent'}
-              />
-              <Text style={[styles.actionButtonText, { color: results.length > 0 && isSaved(results[0]) ? '#F44336' : '#4CAF50' }]}>
-                {results.length > 0 && isSaved(results[0]) ? 'Saved' : 'Save'}
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -542,7 +370,6 @@ export default function ResultScreen() {
           </View>
         </Modal>
       </LinearGradient>
-    </View>
     </ErrorBoundary>
   );
 }
@@ -550,167 +377,29 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
-  gradient: {
+
+
+  placeDetailsContainer: {
     flex: 1,
+    // Remove paddingHorizontal: 16 since EnhancedPlaceCard has marginHorizontal: 16
+    // Remove paddingTop: 20 since EnhancedPlaceCard has marginVertical: 8
+    // Remove justifyContent: 'space-between' since we removed the action buttons
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  placeCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  imageContainer: {
-    position: 'relative',
-    height: 200,
-  },
-  placeImage: {
-    width: '100%',
-    height: '100%',
-  },
-  saveButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 20,
-    padding: 8,
-    zIndex: 1,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: '#9E9E9E',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  imageCounter: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  imageCounterText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
-    padding: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  placeName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    flex: 1,
-    marginRight: 12,
-  },
-  priceBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  priceText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'white',
-  },
-  ratingRow: {
-    marginBottom: 8,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginLeft: 4,
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  moodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  moodEmoji: {
-    fontSize: 16,
-    marginRight: 4,
-  },
-  moodLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginRight: 4,
-  },
-  moodScore: {
-    fontSize: 10,
-    color: '#999',
-  },
+
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     margin: 20,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#4A4A4A',
     textAlign: 'center',
   },
   errorContainer: {
@@ -719,7 +408,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     margin: 20,
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 20,
   },
   errorTitle: {
@@ -731,7 +420,7 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 16,
-    color: '#666',
+    color: '#4A4A4A',
     marginTop: 8,
     textAlign: 'center',
     marginBottom: 20,
@@ -748,11 +437,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+
   loadMoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -762,7 +447,7 @@ const styles = StyleSheet.create({
   loadMoreText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: '#4A4A4A',
   },
   // Image Modal Styles
   modalOverlay: {
@@ -819,27 +504,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   // Bottom Action Bar Styles
-  bottomActionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    gap: 6,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
+
+
+
 });

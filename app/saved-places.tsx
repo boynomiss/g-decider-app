@@ -7,6 +7,7 @@ import { ArrowLeft, Trash, MapPin, Phone } from 'lucide-react-native';
 import { useSavedPlaces } from '../hooks/use-saved-places';
 import { useContact } from '../hooks/use-contact';
 import { contactService } from '../utils/contact-service';
+import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
 
 const { width } = Dimensions.get('window');
 
@@ -101,66 +102,50 @@ export default function SavedPlacesScreen() {
             </Text>
           </View>
         ) : (
-          savedPlaces.map((place, index) => (
-            <View key={place.id || index} style={styles.placeCard}>
-              {place.images && place.images.length > 0 && (
-                <Image
-                  source={{ uri: place.images[0] }}
-                  style={styles.placeImage}
-                  resizeMode="cover"
-                />
-              )}
-              
-              <View style={styles.placeInfo}>
-                <Text style={styles.placeName}>{place.name}</Text>
-                <Text style={styles.placeLocation}>{place.location}</Text>
-                
-                {place.budget && (
-                  <View style={styles.budgetContainer}>
-                    <Text style={styles.budget}>
-                      {place.budget === 'P' ? '₱' : place.budget === 'PP' ? '₱₱' : '₱₱₱'}
-                    </Text>
-                  </View>
-                )}
+          savedPlaces.map((place, index) => {
+            // Convert saved place format to PlaceData format
+            const placeData = {
+              place_id: place.id || `saved_${index}`,
+              name: place.name,
+              address: place.location,
+              category: place.category || 'food',
+              rating: place.rating || 0,
+              user_ratings_total: place.reviewCount || 0,
+              reviews: [],
+              mood_score: place.mood === 'hype' ? 80 : place.mood === 'chill' ? 30 : 50,
+              final_mood: place.mood || 'neutral',
+              photos: {
+                thumbnail: place.images || [],
+                medium: place.images || [],
+                large: place.images || [],
+                count: (place.images || []).length
+              },
+              contact: {
+                website: place.website,
+                hasContact: !!place.website
+              },
+              contactActions: {
+                canCall: false,
+                canVisitWebsite: !!place.website,
+                websiteUrl: place.website
+              },
+              price_level: place.budget === 'P' ? 1 : place.budget === 'PP' ? 2 : 3,
+              editorial_summary: place.description,
+              business_status: 'OPERATIONAL'
+            };
 
-                {place.description && (
-                  <Text style={styles.placeDescription} numberOfLines={2}>
-                    {place.description}
-                  </Text>
-                )}
-
-                <View style={styles.placeActions}>
-                  <TouchableOpacity 
-                    style={styles.actionButton} 
-                    onPress={() => handleCallPlace(place)}
-                  >
-                    <Phone size={16} color="#8B5FBF" />
-                    <Text style={styles.actionText}>Call</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.actionButton} 
-                    onPress={() => {
-                      // Open in maps
-                      const url = `https://maps.google.com/?q=${encodeURIComponent(place.location)}`;
-                      // You can use Linking.openURL(url) here
-                    }}
-                  >
-                    <MapPin size={16} color="#8B5FBF" />
-                    <Text style={styles.actionText}>Map</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.removeButton} 
-                    onPress={() => handleRemovePlace(place)}
-                  >
-                    <Trash size={16} color="#FF6B6B" />
-                    <Text style={styles.removeText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          ))
+            return (
+              <EnhancedPlaceCard
+                key={place.id || index}
+                place={placeData}
+                onSave={() => {}} // Already saved
+                isSaved={true}
+                showRemoveButton={true}
+                onRemove={() => handleRemovePlace(place)}
+                showFullDetails={false}
+              />
+            );
+          })
         )}
       </ScrollView>
     </LinearGradient>

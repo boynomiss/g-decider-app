@@ -463,9 +463,38 @@ async function performFiltering(
     return true;
   });
   
+  // Convert Google Places API format to ServerPlaceData format
+  const convertedResults = filteredResults.map(place => {
+    // Extract coordinates from the place data
+    const coordinates = place.location ? {
+      lat: place.location.latitude || 14.5176,
+      lng: place.location.longitude || 121.0509
+    } : { lat: 14.5176, lng: 121.0509 };
+
+    // Convert to ServerPlaceData format
+    return {
+      id: place.id || `place_${Math.random().toString(36).substr(2, 9)}`,
+      name: place.displayName?.text || place.name || 'Unknown Place',
+      location: place.formattedAddress || place.location?.address || 'Unknown Location',
+      images: place.photos ? place.photos.map((photo: any) => photo.name) : [],
+      budget: place.priceLevel ? (place.priceLevel === 1 ? 'P' : place.priceLevel === 2 ? 'PP' : 'PPP') : 'PP',
+      tags: place.types || [],
+      description: place.description || 'A great place to visit',
+      category: filters.category || 'food',
+      mood: filters.mood > 60 ? 'hype' : filters.mood < 40 ? 'chill' : 'both',
+      socialContext: ['solo', 'with-bae', 'barkada'],
+      timeOfDay: ['morning', 'afternoon', 'night'],
+      coordinates,
+      rating: place.rating || 0,
+      reviewCount: place.userRatingCount || 0,
+      reviews: place.reviews || [],
+      website: place.website || undefined
+    };
+  });
+
   // Add AI descriptions
   const finalResults = await Promise.all(
-    filteredResults.map(async (place) => ({
+    convertedResults.map(async (place) => ({
       ...place,
       description: await generateAIDescription(place, filters)
     }))

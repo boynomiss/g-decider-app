@@ -101,6 +101,7 @@ export default function ActionButton() {
       
       // Wait for results to be processed and state to update
       console.log('⏳ Waiting for results to be processed...');
+      
       let attempts = 0;
       const maxAttempts = 10;
       
