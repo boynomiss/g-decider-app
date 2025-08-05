@@ -10,12 +10,17 @@
  * instead of the Node.js SDKs which are not compatible with React Native.
  */
 
-import { PlacesClient } from '@googlemaps/places';
+// Import removed as it's not compatible with React Native
+// import { PlacesClient } from '@googlemaps/places';
 
 // Environment variables for API keys
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
-const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || '';
+const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
+
+// Service account configuration
+const NLP_SERVICE_ACCOUNT_PATH = './nlp-service-account.json';
+const GEMINI_SERVICE_ACCOUNT_PATH = './functions/gemini-api-client-key.json';
 
 // API Endpoints
 const PLACES_API_BASE_URL = 'https://places.googleapis.com/v1';

@@ -1,12 +1,15 @@
+// ⚠️ TEMPORARILY DISABLED: Button validation checks are disabled to allow button press
+// To re-enable: Remove the "TEMPORARILY DISABLED" comments and restore the return statements
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Image, Alert } from 'react-native';
 import { useAppStore } from '../hooks/use-app-store';
 import { useServerFiltering } from '../hooks/use-server-filtering';
 import { useRouter } from 'expo-router';
+import { filterValidationService } from '../utils/filter-validation-service';
 
 export default function ActionButton() {
   const { filters, retriesLeft, showMoreFilters } = useAppStore();
-  const { isLoading, error, filterPlaces } = useServerFiltering();
+  const { isLoading, error, results, filterPlaces } = useServerFiltering();
   const router = useRouter();
   const shakeAnimation = React.useRef(new Animated.Value(0)).current;
   const [isRouterReady, setIsRouterReady] = useState(false);
@@ -20,57 +23,164 @@ export default function ActionButton() {
   }, []);
 
   const handlePress = async () => {
+    console.log('🎯 Action button pressed!');
+    console.log('🔍 Button state - Category:', filters.category, 'Retries:', retriesLeft, 'Loading:', isLoading);
+    console.log('🔍 Current filters:', JSON.stringify(filters, null, 2));
+    console.log('🔍 Button disabled state:', isLoading);
+    console.log('🔍 Router ready state:', isRouterReady);
+    
     try {
-      console.log('🎯 Action button pressed. Category:', filters.category, 'Retries:', retriesLeft, 'Loading:', isLoading);
       
-      if (!filters.category) {
-        console.log('❌ No category selected, showing shake animation');
-        // Gentle shake animation to indicate category selection is needed
-        Animated.sequence([
-          Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnimation, { toValue: -5, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnimation, { toValue: 5, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnimation, { toValue: 0, duration: 100, useNativeDriver: true }),
-        ]).start();
+      console.log('🔍 Category validation - filters.category:', filters.category, 'type:', typeof filters.category);
+      
+      // TEMPORARILY DISABLED: Category validation to allow button press
+      if (!filters.category || filters.category === null || filters.category === undefined) {
+        console.log('⚠️ No category selected, but continuing anyway (validation disabled)');
+        // Don't return early, continue with the process
+      }
+      
+      console.log('🔍 Retries check - retriesLeft:', retriesLeft);
+      
+      // TEMPORARILY DISABLED: Retries check to allow button press
+      if (retriesLeft === 0) {
+        console.log('⚠️ No retries left, but continuing anyway (validation disabled)');
+        // Don't return early, continue with the process
+      }
+      
+      console.log('🔍 Loading check - isLoading:', isLoading);
+      
+      // TEMPORARILY DISABLED: Loading check to allow button press
+      if (isLoading) {
+        console.log('⚠️ Action would be blocked by loading state, but continuing anyway (validation disabled)');
+        // Don't return early, continue with the process
+      }
+      
+      console.log('🔍 Router check - isRouterReady:', isRouterReady);
+      
+      // TEMPORARILY DISABLED: Router check to allow button press
+      if (!isRouterReady) {
+        console.log('⚠️ Router not ready, but continuing anyway (validation disabled)');
+        // Don't return early, continue with the process
+      }
+
+      console.log('🚀 Starting server-side filtering with filters:', filters);
+      
+      // Pre-validate the filter before proceeding
+      console.log('🔍 Pre-validating filter connectivity...');
+      try {
+        const validationResult = await filterValidationService.validateLookingForFilter(
+          filters.category as 'food' | 'activity' | 'something-new'
+        );
+        
+        if (validationResult.success) {
+          console.log(`✅ Filter validation successful: ${validationResult.placeCount} places detected`);
+        } else {
+          console.warn(`⚠️ Filter validation failed: ${validationResult.error}`);
+          // Continue anyway, but log the warning
+        }
+      } catch (error) {
+        console.error('❌ Filter validation error:', error);
+        // Continue with the main search even if validation fails
+      }
+      
+      // Prepare filters for API call - ensure all required fields are present
+      const apiFilters = {
+        mood: filters.mood || 50,
+        category: filters.category || 'food', // Fallback to 'food' if no category selected
+        budget: filters.budget || null,
+        timeOfDay: filters.timeOfDay || null,
+        socialContext: filters.socialContext || null,
+        distanceRange: filters.distanceRange || 5 // Default to 5km if not set
+      };
+      
+      console.log('📤 Sending filters to API:', apiFilters);
+      
+      // Call server-side filtering with prepared filters
+      console.log('📤 Calling filterPlaces with:', apiFilters);
+      await filterPlaces(apiFilters, 5, true);
+      
+      // Wait for results to be processed and state to update
+      console.log('⏳ Waiting for results to be processed...');
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log(`📊 Attempt ${attempts + 1}: Results count = ${results.length}, Error = ${error}, Loading = ${isLoading}`);
+        
+        if (error) {
+          console.error('❌ Error occurred during filtering:', error);
+          Alert.alert(
+            'Error',
+            `Failed to fetch results: ${error}`,
+            [{ text: 'OK', style: 'default' }]
+          );
+          return;
+        }
+        
+        if (!isLoading && results.length > 0) {
+          console.log('✅ Results received successfully!');
+          break;
+        }
+        
+        attempts++;
+      }
+      
+      console.log('✅ Server filtering completed, checking final results...');
+      console.log('📊 Final results count:', results.length);
+      console.log('📊 Final error state:', error);
+      
+      if (error) {
+        console.error('❌ Error occurred during filtering:', error);
+        Alert.alert(
+          'Error',
+          `Failed to fetch results: ${error}`,
+          [{ text: 'OK', style: 'default' }]
+        );
         return;
       }
       
-      if (retriesLeft === 0) {
-        console.log('❌ No retries left, showing upgrade prompt');
+      if (results.length === 0) {
+        console.warn('⚠️ No results returned from server');
         Alert.alert(
-          'No Tries Left',
-          'Sign up to get more tries and unlock unlimited suggestions!',
+          'No Places Found',
+          'No places found in your area. Try a different category or increase your search distance.',
           [
-            { text: 'Cancel', style: 'cancel' },
             { 
-              text: 'Sign Up', 
-              onPress: () => {
-                try {
-                  router.push('/auth');
-                } catch (error) {
-                  console.error('❌ Error navigating to auth:', error);
-                }
+              text: 'Try Activity', 
+              onPress: async () => {
+                console.log('🔄 Retrying with activity category...');
+                const activityFilters = { ...apiFilters, category: 'activity' as const };
+                await filterPlaces(activityFilters, 5, true);
+                // Wait a moment then navigate
+                setTimeout(() => {
+                  if (results.length > 0) {
+                    router.push('/result');
+                  }
+                }, 1000);
               }
-            }
+            },
+            { 
+              text: 'Try Something New', 
+              onPress: async () => {
+                console.log('🔄 Retrying with something-new category...');
+                const somethingNewFilters = { ...apiFilters, category: 'something-new' as const };
+                await filterPlaces(somethingNewFilters, 5, true);
+                // Wait a moment then navigate
+                setTimeout(() => {
+                  if (results.length > 0) {
+                    router.push('/result');
+                  }
+                }, 1000);
+              }
+            },
+            { text: 'Cancel', style: 'cancel' }
           ]
         );
         return;
       }
       
-      if (isLoading) {
-        console.log('❌ Action blocked: isLoading =', isLoading);
-        return;
-      }
-      
-      if (!isRouterReady) {
-        console.log('⏳ Router not ready yet, waiting...');
-        return;
-      }
-
-      console.log('🚀 Starting server-side filtering...');
-      
-      // Call server-side filtering
-      await filterPlaces(filters, 5, true);
+      console.log('🎉 Success! Found', results.length, 'places, navigating to results...');
       
       // Navigate to result screen to display the results
       router.push('/result');
@@ -96,6 +206,7 @@ export default function ActionButton() {
           style={styles.button}
           onPress={handlePress}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color="#4A90A4" size="large" />

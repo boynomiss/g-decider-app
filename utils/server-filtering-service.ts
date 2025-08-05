@@ -1,4 +1,6 @@
 import { UserFilters } from '../types/app';
+import { ServerFilteringResponse, ServerFilteringError, ServerFilteringRequest, validateAndSanitizeResponse } from '../types/server-filtering';
+import { enhancedCachingService } from './enhanced-caching-service';
 
 // React Native compatible AbortSignal.timeout polyfill
 function createTimeoutSignal(timeout: number): AbortSignal {
@@ -19,35 +21,17 @@ function createTimeoutSignal(timeout: number): AbortSignal {
   return controller.signal;
 }
 
-export interface ServerFilteringResponse {
-  success: boolean;
-  results: any[];
-  source: 'cache' | 'api' | 'mixed';
-  cacheHit: boolean;
-  totalResults: number;
-  performance: {
-    responseTime: number;
-    cacheHitRate: number;
-    apiCallsMade: number;
-  };
-  metadata: {
-    filtersApplied: string[];
-    queryOptimization: string;
-  };
-}
-
-export interface ServerFilteringError {
-  error: string;
-  code?: string;
-  details?: any;
-}
-
 export class ServerFilteringService {
   private static instance: ServerFilteringService;
   private baseUrl: string;
   private timeout: number;
   private maxRetries: number;
   private retryDelay: number;
+  private cacheStats = {
+    hits: 0,
+    misses: 0,
+    totalRequests: 0
+  };
 
   private constructor() {
     // Use Firebase Function URL for both development and production
@@ -73,6 +57,30 @@ export class ServerFilteringService {
     console.log('🚀 Calling server-side filtering with filters:', filters);
     console.log('🌐 Using URL:', this.baseUrl);
 
+    this.cacheStats.totalRequests++;
+
+    // Try to get from cache first
+    if (useCache) {
+      const cachedResult = await enhancedCachingService.get(filters, minResults);
+      if (cachedResult) {
+        console.log('✅ Cache hit! Returning cached results');
+        this.cacheStats.hits++;
+        
+        return {
+          ...cachedResult,
+          source: 'cache',
+          cacheHit: true,
+          performance: {
+            ...cachedResult.performance,
+            cacheHitRate: this.getCacheHitRate()
+          }
+        };
+      }
+      
+      console.log('❌ Cache miss, fetching from server...');
+      this.cacheStats.misses++;
+    }
+
     let lastError: Error | null = null;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -81,6 +89,13 @@ export class ServerFilteringService {
         
         const response = await this.makeRequest(filters, minResults, useCache, attempt);
         console.log('✅ Server filtering successful on attempt', attempt);
+        
+        // Cache the result if caching is enabled
+        if (useCache && response.success) {
+          await enhancedCachingService.set(filters, response, minResults);
+          console.log('💾 Cached response for future requests');
+        }
+        
         return response;
         
       } catch (error) {
@@ -104,7 +119,7 @@ export class ServerFilteringService {
     minResults: number,
     useCache: boolean,
     attempt: number
-  ): Promise<ServerFilteringResponse> {
+  ): Promise<any> { // Return raw response for validation
     const startTime = Date.now();
     
     // Create request body
@@ -172,6 +187,48 @@ export class ServerFilteringService {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Get cache hit rate
+  private getCacheHitRate(): number {
+    return this.cacheStats.totalRequests > 0 
+      ? this.cacheStats.hits / this.cacheStats.totalRequests 
+      : 0;
+  }
+
+  // Get cache statistics
+  getCacheStats() {
+    return {
+      ...this.cacheStats,
+      hitRate: this.getCacheHitRate(),
+      enhancedCacheStats: enhancedCachingService.getStats()
+    };
+  }
+
+  // Invalidate cache
+  async invalidateCache(pattern: 'all' | 'category' | 'location' | 'budget', value?: any): Promise<void> {
+    console.log(`🗑️ Invalidating cache with pattern: ${pattern}, value: ${value}`);
+    await enhancedCachingService.invalidate(pattern, value);
+  }
+
+  // Warm cache with popular queries
+  async warmCache(): Promise<void> {
+    const popularQueries = enhancedCachingService.getPopularQueries();
+    if (popularQueries.length > 0) {
+      console.log(`🔥 Warming cache with ${popularQueries.length} popular queries`);
+      await enhancedCachingService.warmCache(popularQueries);
+    }
+  }
+
+  // Clear all cache
+  async clearCache(): Promise<void> {
+    console.log('🧹 Clearing all cache');
+    await enhancedCachingService.clear();
+    this.cacheStats = {
+      hits: 0,
+      misses: 0,
+      totalRequests: 0
+    };
   }
 
   // Legacy method for backward compatibility

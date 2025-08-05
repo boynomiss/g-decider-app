@@ -77,7 +77,7 @@ export default function PlaceDiscoveryInterface({
         console.error('❌ Location service failed:', error);
         
         // Final fallback
-        const fallbackLocation = { lat: 14.5995, lng: 120.9842 };
+        const fallbackLocation = { lat: 14.5176, lng: 121.0509 };
         setUserLocation(fallbackLocation);
         updateFilters({ userLocation: fallbackLocation });
         setLocationPermissionGranted(false);

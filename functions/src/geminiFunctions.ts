@@ -1,197 +1,255 @@
 import * as functions from 'firebase-functions';
+import { Request, Response } from 'firebase-functions';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
-// Initialize Google AI with API key
-// Note: For production, you should use environment variables for the API key
-// Using asia-southeast1 region for better optimization in Asia-Pacific
-const genAI = new GoogleGenerativeAI('AIzaSyAcdwn6FkzWBh-orqK2hcFyEBmskeFaMOY');
-
-// Get the model
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-
-export interface GeminiRequest {
+interface GeminiRequest {
+  text?: string;
+  placeData?: any;
+  userMood?: number;
+  filters?: any;
   prompt?: string;
-  task?: 'test' | 'place-description' | 'mood-analysis' | 'recommendation';
 }
 
-export interface GeminiResponse {
+interface GeminiResponse {
   success: boolean;
-  message: string;
-  geminiResponse?: string;
+  result?: string;
   error?: string;
-  processingTime: number;
 }
 
-/**
- * Firebase Function to test Gemini API access.
- * This HTTP callable function will send a simple prompt to Gemini and log the response.
- */
-export const testGeminiAccess = functions.region('asia-southeast1').https.onCall(async (data: GeminiRequest, context) => {
-  const startTime = Date.now();
-  
-  functions.logger.info("🚀 Attempting to call Gemini API...");
+// Initialize Secret Manager client
+const secretManager = new SecretManagerServiceClient();
 
-  const prompt = data.prompt || "Tell me a short, inspiring fact about the universe.";
+// Initialize Gemini AI
+let genAI: GoogleGenerativeAI | null = null;
+let apiKey: string | null = null;
+
+async function getGeminiAPIKey(): Promise<string> {
+  if (apiKey) {
+    return apiKey;
+  }
 
   try {
-    const result = await model.generateContent(prompt);
+    const name = 'projects/g-decider-backend/secrets/gemini-api-key/versions/latest';
+    const [version] = await secretManager.accessSecretVersion({ name });
+    apiKey = version.payload?.data?.toString() || '';
+    
+    if (!apiKey) {
+      throw new Error('Failed to retrieve API key from Secret Manager');
+    }
+    
+    console.log('✅ Successfully retrieved Gemini API key from Secret Manager');
+    return apiKey;
+  } catch (error) {
+    console.error('❌ Error retrieving API key from Secret Manager:', error);
+    throw new Error('Failed to access Gemini API key from Secret Manager');
+  }
+}
+
+async function getGeminiAI(): Promise<GoogleGenerativeAI> {
+  if (!genAI) {
+    const apiKey = await getGeminiAPIKey();
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
+
+export const testGeminiAccess = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const { text } = req.body as GeminiRequest;
+    
+    console.log('🧪 Testing Gemini AI access...');
+    
+    const gemini = await getGeminiAI();
+    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    const result = await model.generateContent(text || 'Hello, this is a test message.');
     const response = await result.response;
-    const text = response.text();
-
-    const processingTime = Date.now() - startTime;
-
-    functions.logger.info("✅ Successfully connected to Gemini API!", { 
-      response_text: text.substring(0, 100) + "...",
-      processingTime 
-    });
-
-    // This is the log you wanted to confirm everything is set!
-    functions.logger.info("🎉 Gemini API access confirmed! Everything is set in place. 🎉");
-
-    return {
+    const responseText = response.text();
+    
+    console.log('✅ Gemini AI access test successful');
+    
+    res.json({
       success: true,
-      message: "Gemini API call successful.",
-      geminiResponse: text,
-      processingTime
-    };
-  } catch (error: any) {
-    const processingTime = Date.now() - startTime;
-    functions.logger.error("❌ Error calling Gemini API:", error);
-
-    // Log the "failure" if something goes wrong
-    functions.logger.error("💔 Gemini API access failed. Check logs for details. 💔");
-
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to call Gemini API.',
-      { error: error.message, processingTime }
-    );
+      result: responseText
+    } as GeminiResponse);
+    
+  } catch (error) {
+    console.error('❌ Gemini AI access test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as GeminiResponse);
   }
 });
 
-/**
- * Firebase Function to generate place descriptions using Gemini
- */
-export const generatePlaceDescription = functions.region('asia-southeast1').https.onCall(async (data: GeminiRequest, context) => {
-  const startTime = Date.now();
-  
-  functions.logger.info("🏢 Generating place description with Gemini...");
+export const generatePlaceDescription = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
 
-  const placeInfo = data.prompt || "A restaurant in Manila";
-  const prompt = `Generate a compelling, short description (2-3 sentences) for this place: ${placeInfo}. 
-  Make it engaging and highlight what makes it special. Focus on atmosphere, food quality, and unique features.`;
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
 
   try {
+    const { placeData } = req.body as GeminiRequest;
+    
+    if (!placeData) {
+      res.status(400).json({ error: 'Place data is required' });
+      return;
+    }
+    
+    console.log('🎨 Generating place description with Gemini AI...');
+    
+    const gemini = await getGeminiAI();
+    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    const prompt = `Generate a compelling description for this place: ${JSON.stringify(placeData)}. 
+    Make it engaging and highlight the unique features. Keep it under 100 words.`;
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
-    const processingTime = Date.now() - startTime;
-
-    functions.logger.info("✅ Place description generated successfully!", { 
-      description_length: text.length,
-      processingTime 
-    });
-
-    return {
+    const description = response.text();
+    
+    console.log('✅ Place description generated successfully');
+    
+    res.json({
       success: true,
-      message: "Place description generated successfully.",
-      geminiResponse: text,
-      processingTime
-    };
-  } catch (error: any) {
-    const processingTime = Date.now() - startTime;
-    functions.logger.error("❌ Error generating place description:", error);
-
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to generate place description.',
-      { error: error.message, processingTime }
-    );
+      result: description
+    } as GeminiResponse);
+    
+  } catch (error) {
+    console.error('❌ Place description generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as GeminiResponse);
   }
 });
 
-/**
- * Firebase Function to analyze mood and suggest places
- */
-export const analyzeMoodAndSuggest = functions.region('asia-southeast1').https.onCall(async (data: GeminiRequest, context) => {
-  const startTime = Date.now();
-  
-  functions.logger.info("😊 Analyzing mood and suggesting places...");
+export const analyzeMoodAndSuggest = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
 
-  const userMood = data.prompt || "I'm feeling happy";
-  const prompt = `Based on this mood: "${userMood}", suggest 3 types of places that would be perfect for this mood. 
-  For each suggestion, explain why it matches the mood. Keep it concise and practical.`;
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
 
   try {
+    const { userMood, filters } = req.body as GeminiRequest;
+    
+    if (!userMood || !filters) {
+      res.status(400).json({ error: 'User mood and filters are required' });
+      return;
+    }
+    
+    console.log('😊 Analyzing mood and generating suggestions...');
+    
+    const gemini = await getGeminiAI();
+    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    const prompt = `Analyze this user mood (${userMood}/100) and filters (${JSON.stringify(filters)}) 
+    to suggest the best type of places they should visit. Consider their mood, budget, and preferences.`;
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
-    const processingTime = Date.now() - startTime;
-
-    functions.logger.info("✅ Mood analysis and suggestions completed!", { 
-      suggestions_length: text.length,
-      processingTime 
-    });
-
-    return {
+    const suggestion = response.text();
+    
+    console.log('✅ Mood analysis and suggestions completed');
+    
+    res.json({
       success: true,
-      message: "Mood analysis and suggestions completed.",
-      geminiResponse: text,
-      processingTime
-    };
-  } catch (error: any) {
-    const processingTime = Date.now() - startTime;
-    functions.logger.error("❌ Error analyzing mood:", error);
-
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to analyze mood and suggest places.',
-      { error: error.message, processingTime }
-    );
+      result: suggestion
+    } as GeminiResponse);
+    
+  } catch (error) {
+    console.error('❌ Mood analysis failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as GeminiResponse);
   }
 });
 
-/**
- * Firebase Function to get personalized recommendations
- */
-export const getPersonalizedRecommendations = functions.region('asia-southeast1').https.onCall(async (data: GeminiRequest, context) => {
-  const startTime = Date.now();
-  
-  functions.logger.info("🎯 Generating personalized recommendations...");
+export const getPersonalizedRecommendations = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
 
-  const preferences = data.prompt || "I like Italian food";
-  const prompt = `Based on these preferences: "${preferences}", provide 3 personalized place recommendations. 
-  For each recommendation, explain why it matches the preferences and what makes it special. 
-  Include practical details like atmosphere, price range, and unique features.`;
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
 
   try {
+    const { placeData, userMood } = req.body as GeminiRequest;
+    
+    if (!placeData || !userMood) {
+      res.status(400).json({ error: 'Place data and user mood are required' });
+      return;
+    }
+    
+    console.log('🎯 Generating personalized recommendations...');
+    
+    const gemini = await getGeminiAI();
+    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+    const prompt = `Based on this place data (${JSON.stringify(placeData)}) and user mood (${userMood}/100), 
+    provide personalized recommendations for similar places or activities that would match their preferences.`;
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-
-    const processingTime = Date.now() - startTime;
-
-    functions.logger.info("✅ Personalized recommendations generated!", { 
-      recommendations_length: text.length,
-      processingTime 
-    });
-
-    return {
+    const recommendations = response.text();
+    
+    console.log('✅ Personalized recommendations generated');
+    
+    res.json({
       success: true,
-      message: "Personalized recommendations generated successfully.",
-      geminiResponse: text,
-      processingTime
-    };
-  } catch (error: any) {
-    const processingTime = Date.now() - startTime;
-    functions.logger.error("❌ Error generating recommendations:", error);
-
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to generate personalized recommendations.',
-      { error: error.message, processingTime }
-    );
+      result: recommendations
+    } as GeminiResponse);
+    
+  } catch (error) {
+    console.error('❌ Personalized recommendations failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as GeminiResponse);
   }
 }); 

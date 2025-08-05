@@ -26,6 +26,7 @@ import { PlaceData } from '../utils/place-mood-service';
 import { AIDescriptionCard } from '../components/AIDescriptionCard';
 import { ActiveDiscountsCard } from '../components/ActiveDiscountsCard';
 import { BookingOptionsCard } from '../components/BookingOptionsCard';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -46,6 +47,8 @@ export default function ResultScreen() {
     clearResults,
     clearError
   } = useServerFiltering();
+  
+  console.log('🔍 ResultScreen render - isLoading:', isLoading, 'results.length:', results.length, 'error:', error, 'performance:', performance);
   
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -94,19 +97,32 @@ export default function ResultScreen() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
-  // Load results on mount if none exist
+  // Track if we've already attempted to load results
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+
+  // Load results on mount if none exist - fixed circular dependency
   useEffect(() => {
-    if (results.length === 0 && !isLoading && !error) {
+    console.log('🔍 Result page effect - hasAttemptedLoad:', hasAttemptedLoad, 'results.length:', results.length, 'isLoading:', isLoading, 'error:', error);
+    
+    // Only attempt to load if we haven't tried before and have no results
+    if (!hasAttemptedLoad && results.length === 0 && !isLoading && !error) {
       console.log('🔄 No results found, triggering server-side filtering...');
+      setHasAttemptedLoad(true);
       filterPlaces(filters, 5, true);
     }
-  }, [results.length, isLoading, error, filters, filterPlaces]);
+  }, [hasAttemptedLoad, results.length, isLoading, error, filters]);
+
+  // Reset attempt flag when filters change
+  useEffect(() => {
+    setHasAttemptedLoad(false);
+  }, [filters]);
 
   // Handle retry with different filters
   const handleRetry = useCallback(async () => {
     console.log('🔄 Retrying with current filters...');
     clearResults();
     clearError();
+    setHasAttemptedLoad(false); // Reset attempt flag for retry
     await filterPlaces(filters, 5, true);
   }, [filters, filterPlaces, clearResults, clearError]);
 
@@ -208,12 +224,12 @@ export default function ResultScreen() {
 
   // Search for discounts and booking options when results change
   useEffect(() => {
-    if (results.length > 0) {
+    if (results.length > 0 && !isLoading) {
       const firstPlace = results[0];
       searchDiscounts(firstPlace);
       getBookingOptions(firstPlace);
     }
-  }, [results, searchDiscounts, getBookingOptions]);
+  }, [results, isLoading, searchDiscounts, getBookingOptions]);
 
   // Get price display
   const getPriceDisplay = (place: PlaceData) => {
@@ -266,11 +282,12 @@ export default function ResultScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.gradient}
-      >
+    <ErrorBoundary>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          style={styles.gradient}
+        >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
@@ -526,6 +543,7 @@ export default function ResultScreen() {
         </Modal>
       </LinearGradient>
     </View>
+    </ErrorBoundary>
   );
 }
 

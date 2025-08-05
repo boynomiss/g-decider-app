@@ -27,11 +27,17 @@ import Shield from 'lucide-react-native/dist/esm/icons/shield';
 import CreditCard from 'lucide-react-native/dist/esm/icons/credit-card';
 import LogOut from 'lucide-react-native/dist/esm/icons/log-out';
 import ChevronRight from 'lucide-react-native/dist/esm/icons/chevron-right';
-
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-    const { user, isAuthenticated, signOut, updateProfile } = { user: null, isAuthenticated: false, signOut: () => {}, updateProfile: () => {} };
+  // Mock auth object - replace with actual auth hook
+  const { user, isAuthenticated, signOut, updateProfile } = { 
+    user: { name: 'John Doe', phone: '+1234567890' }, 
+    isAuthenticated: false, 
+    signOut: () => Promise.resolve(), 
+    updateProfile: () => Promise.resolve({ success: true }) 
+  };
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -60,12 +66,12 @@ export default function SettingsScreen() {
 
   const handleSaveProfile = async () => {
     try {
-      const result = await updateProfile(profileData);
+      const result = await updateProfile();
       if (result.success) {
         setIsEditingProfile(false);
         Alert.alert('Success', 'Profile updated successfully');
       } else {
-        Alert.alert('Error', result.error || 'Failed to update profile');
+        Alert.alert('Error', 'Failed to update profile');
       }
     } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -82,194 +88,171 @@ export default function SettingsScreen() {
 
   if (!isAuthenticated) {
     return (
-      <LinearGradient
-        colors={['#C8A8E9', '#B19CD9']}
-        style={[styles.container, { paddingTop: insets.top }]}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#666" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <View style={styles.placeholder} />
-        </View>
+      <ErrorBoundary componentName="SettingsScreen">
+        <LinearGradient
+          colors={['#C8A8E9', '#B19CD9']}
+          style={[styles.container, { paddingTop: insets.top }]}
+        >
+          <ErrorBoundary componentName="SettingsHeader">
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <ArrowLeft size={24} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Settings</Text>
+              <View style={styles.placeholder} />
+            </View>
+          </ErrorBoundary>
 
-        <View style={styles.notAuthenticatedContainer}>
-          <Text style={styles.notAuthenticatedTitle}>Sign In Required</Text>
-          <Text style={styles.notAuthenticatedText}>
-            Please sign in to access your settings and manage your account.
-          </Text>
-          <TouchableOpacity 
-            style={styles.signInButton}
-            onPress={() => router.push('/auth')}
-          >
-            <Text style={styles.signInButtonText}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+          <ErrorBoundary componentName="NotAuthenticatedContent">
+            <View style={styles.notAuthenticatedContainer}>
+              <Text style={styles.notAuthenticatedTitle}>Sign In Required</Text>
+              <Text style={styles.notAuthenticatedText}>
+                Please sign in to access your settings and manage your account.
+              </Text>
+              <TouchableOpacity 
+                style={styles.signInButton} 
+                onPress={() => router.push('/auth')}
+              >
+                <Text style={styles.signInButtonText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </ErrorBoundary>
+        </LinearGradient>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#C8A8E9', '#B19CD9']}
-      style={[styles.container, { paddingTop: insets.top }]}
-    >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#666" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        {/* Profile Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Profile</Text>
-            {!isEditingProfile && (
-              <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
-                <Edit size={20} color="#8B5FBF" />
-              </TouchableOpacity>
-            )}
+    <ErrorBoundary componentName="SettingsScreen">
+      <LinearGradient
+        colors={['#C8A8E9', '#B19CD9']}
+        style={[styles.container, { paddingTop: insets.top }]}
+      >
+        <ErrorBoundary componentName="SettingsHeader">
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Settings</Text>
+            <View style={styles.placeholder} />
           </View>
+        </ErrorBoundary>
 
-          {isEditingProfile ? (
-            <View style={styles.editContainer}>
-              <View style={styles.inputContainer}>
-                <User size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Full Name"
-                  value={profileData.name}
-                  onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
-                  autoCapitalize="words"
-                />
+        <ErrorBoundary componentName="SettingsContent">
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <ErrorBoundary componentName="ProfileSection">
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Profile</Text>
+                <View style={styles.profileCard}>
+                  {isEditingProfile ? (
+                    <ErrorBoundary componentName="ProfileEditForm">
+                      <View style={styles.editForm}>
+                        <View style={styles.inputContainer}>
+                          <User size={20} color="#666" style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.input}
+                            value={profileData.name}
+                            onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
+                            placeholder="Full Name"
+                            placeholderTextColor="#999"
+                          />
+                        </View>
+                        
+                        <View style={styles.inputContainer}>
+                          <Phone size={20} color="#666" style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.input}
+                            value={profileData.phone}
+                            onChangeText={(text) => setProfileData(prev => ({ ...prev, phone: text }))}
+                            placeholder="Phone Number"
+                            placeholderTextColor="#999"
+                            keyboardType="phone-pad"
+                          />
+                        </View>
+                        
+                        <View style={styles.editActions}>
+                          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
+                            <X size={20} color="#FF3B30" />
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                          
+                          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+                            <Check size={20} color="#34C759" />
+                            <Text style={styles.saveButtonText}>Save</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </ErrorBoundary>
+                  ) : (
+                    <ErrorBoundary componentName="ProfileDisplay">
+                      <View style={styles.profileInfo}>
+                        <View style={styles.profileHeader}>
+                          <Text style={styles.profileName}>{user?.name || 'User'}</Text>
+                          <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
+                            <Edit size={20} color="#007AFF" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.profilePhone}>{user?.phone || 'No phone number'}</Text>
+                      </View>
+                    </ErrorBoundary>
+                  )}
+                </View>
               </View>
+            </ErrorBoundary>
 
-              <View style={styles.inputContainer}>
-                <Phone size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Phone Number"
-                  value={profileData.phone}
-                  onChangeText={(text) => setProfileData(prev => ({ ...prev, phone: text }))}
-                  keyboardType="phone-pad"
-                />
+            <ErrorBoundary componentName="PreferencesSection">
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Preferences</Text>
+                <View style={styles.preferencesCard}>
+                  <View style={styles.preferenceItem}>
+                    <View style={styles.preferenceInfo}>
+                      <Bell size={20} color="#666" />
+                      <Text style={styles.preferenceText}>Push Notifications</Text>
+                    </View>
+                    <Switch
+                      value={notificationsEnabled}
+                      onValueChange={setNotificationsEnabled}
+                      trackColor={{ false: '#E5E5EA', true: '#34C759' }}
+                      thumbColor="#FFFFFF"
+                    />
+                  </View>
+                </View>
               </View>
+            </ErrorBoundary>
 
-              <View style={styles.editActions}>
-                <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
-                  <X size={16} color="#666" />
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-                  <Check size={16} color="white" />
-                  <Text style={styles.saveButtonText}>Save</Text>
-                </TouchableOpacity>
+            <ErrorBoundary componentName="AccountSection">
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Account</Text>
+                <View style={styles.accountCard}>
+                  <TouchableOpacity style={styles.menuItem}>
+                    <Shield size={20} color="#666" />
+                    <Text style={styles.menuItemText}>Privacy Policy</Text>
+                    <ChevronRight size={20} color="#666" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.menuItem}>
+                    <HelpCircle size={20} color="#666" />
+                    <Text style={styles.menuItemText}>Help & Support</Text>
+                    <ChevronRight size={20} color="#666" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.menuItem}>
+                    <CreditCard size={20} color="#666" />
+                    <Text style={styles.menuItemText}>Billing</Text>
+                    <ChevronRight size={20} color="#666" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
+                    <LogOut size={20} color="#FF3B30" />
+                    <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ) : (
-            <View>
-              <View style={styles.profileItem}>
-                <User size={20} color="#666" />
-                <Text style={styles.profileText}>{user?.name || 'Not set'}</Text>
-              </View>
-              <View style={styles.profileItem}>
-                <Phone size={20} color="#666" />
-                <Text style={styles.profileText}>{user?.phone || 'Not set'}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Account Status */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Status</Text>
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusLabel}>Plan:</Text>
-            <Text style={[
-              styles.statusValue,
-              user?.isPremium ? styles.premiumStatus : styles.freeStatus
-            ]}>
-              {user?.isPremium ? 'Premium' : 'Free'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Bell size={20} color="#666" />
-              <Text style={styles.settingText}>Push Notifications</Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#ccc', true: '#8B5FBF' }}
-              thumbColor={notificationsEnabled ? '#fff' : '#f4f3f4'}
-            />
-          </View>
-        </View>
-
-        {/* Menu Items */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => router.push('/saved-places')}
-          >
-            <View style={styles.menuLeft}>
-              <Bookmark size={20} color="#666" />
-              <Text style={styles.menuText}>Saved Places</Text>
-            </View>
-            <ChevronRight size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => router.push('/upgrade')}
-          >
-            <View style={styles.menuLeft}>
-              <CreditCard size={20} color="#666" />
-              <Text style={styles.menuText}>
-                {user?.isPremium ? 'Manage Premium' : 'Upgrade to Premium'}
-              </Text>
-            </View>
-            <ChevronRight size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuLeft}>
-              <Shield size={20} color="#666" />
-              <Text style={styles.menuText}>Privacy Policy</Text>
-            </View>
-            <ChevronRight size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuLeft}>
-              <HelpCircle size={20} color="#666" />
-              <Text style={styles.menuText}>Help & Support</Text>
-            </View>
-            <ChevronRight size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
-            <View style={styles.menuLeft}>
-              <LogOut size={20} color="#FF6B6B" />
-              <Text style={[styles.menuText, styles.signOutText]}>Sign Out</Text>
-            </View>
-            <ChevronRight size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.spacer} />
-      </ScrollView>
-    </LinearGradient>
+            </ErrorBoundary>
+          </ScrollView>
+        </ErrorBoundary>
+      </LinearGradient>
+    </ErrorBoundary>
   );
 }
 
@@ -477,5 +460,66 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 32,
+  },
+  profileCard: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 10,
+  },
+  profileInfo: {
+    paddingVertical: 10,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  profilePhone: {
+    fontSize: 16,
+    color: '#666',
+  },
+  editForm: {
+    gap: 16,
+  },
+  preferencesCard: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 10,
+  },
+  preferenceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  preferenceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  preferenceText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+  },
+  accountCard: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 10,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
   },
 });

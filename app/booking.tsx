@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../hooks/use-app-store';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -20,16 +21,18 @@ const FormInput = React.memo(({
   placeholder: string;
   keyboardType?: 'default' | 'phone-pad';
 }) => (
-  <View style={styles.inputContainer}>
-    <TextInput
-      style={styles.input}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor="#999"
-      keyboardType={keyboardType}
-    />
-  </View>
+  <ErrorBoundary componentName="FormInput">
+    <View style={styles.inputContainer}>
+      <TextInput
+        style={styles.input}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#999"
+        keyboardType={keyboardType}
+      />
+    </View>
+  </ErrorBoundary>
 ));
 
 // Extracted action buttons component
@@ -37,15 +40,17 @@ const ActionButtons = React.memo(({ onCancel, onConfirm }: {
   onCancel: () => void;
   onConfirm: () => void;
 }) => (
-  <View style={styles.actionButtons}>
-    <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-      <Text style={styles.cancelButtonText}>Cancel</Text>
-    </TouchableOpacity>
-    
-    <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
-      <Text style={styles.confirmButtonText}>Confirm</Text>
-    </TouchableOpacity>
-  </View>
+  <ErrorBoundary componentName="ActionButtons">
+    <View style={styles.actionButtons}>
+      <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+        <Text style={styles.cancelButtonText}>Cancel</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
+        <Text style={styles.confirmButtonText}>Confirm</Text>
+      </TouchableOpacity>
+    </View>
+  </ErrorBoundary>
 ));
 
 export default function BookingScreen() {
@@ -98,66 +103,69 @@ export default function BookingScreen() {
     return null;
   }
 
-  const containerStyle = {
-    ...styles.container,
-    paddingTop: insets.top + 8,
-  };
-
   return (
-    <LinearGradient
-      colors={['#C8A8E9', '#B19CD9']}
-      style={containerStyle}
-    >
-      <Stack.Screen options={{ headerShown: false }} />
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <Header />
-        
-        <View style={styles.contentCard}>
-          <Text style={styles.title}>{currentSuggestion.name}</Text>
-          <Text style={styles.location}>{currentSuggestion.location}</Text>
-          
-          <View style={styles.imageContainer}>
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=250&fit=crop' }}
-              style={styles.placeImage}
-              resizeMode="cover"
-            />
-          </View>
+    <ErrorBoundary componentName="BookingScreen">
+      <LinearGradient
+        colors={['#C8A8E9', '#B19CD9']}
+        style={[styles.container, { paddingTop: insets.top }]}
+      >
+        <ErrorBoundary componentName="Header">
+          <Header />
+        </ErrorBoundary>
 
-          <View style={styles.formContainer}>
-            <FormInput
-              value={formData.name}
-              onChangeText={(text) => handleInputChange('name', text)}
-              placeholder="Full Name"
-            />
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <ErrorBoundary componentName="BookingContent">
+            <View style={styles.content}>
+              <ErrorBoundary componentName="PlaceInfo">
+                <View style={styles.placeInfo}>
+                  <Text style={styles.placeName}>{currentSuggestion.name}</Text>
+                  <Text style={styles.placeAddress}>{currentSuggestion.address}</Text>
+                </View>
+              </ErrorBoundary>
 
-            <FormInput
-              value={formData.phone}
-              onChangeText={(text) => handleInputChange('phone', text)}
-              placeholder="Phone Number"
-              keyboardType="phone-pad"
-            />
+              <ErrorBoundary componentName="BookingForm">
+                <View style={styles.form}>
+                  <Text style={styles.formTitle}>Booking Details</Text>
+                  
+                  <FormInput
+                    value={formData.name}
+                    onChangeText={(value) => handleInputChange('name', value)}
+                    placeholder="Your Name"
+                  />
+                  
+                  <FormInput
+                    value={formData.phone}
+                    onChangeText={(value) => handleInputChange('phone', value)}
+                    placeholder="Phone Number"
+                    keyboardType="phone-pad"
+                  />
+                  
+                  <FormInput
+                    value={formData.partySize}
+                    onChangeText={(value) => handleInputChange('partySize', value)}
+                    placeholder="Party Size"
+                  />
+                  
+                  <FormInput
+                    value={formData.eta}
+                    onChangeText={(value) => handleInputChange('eta', value)}
+                    placeholder="Estimated Arrival Time"
+                  />
+                </View>
+              </ErrorBoundary>
+            </View>
+          </ErrorBoundary>
+        </ScrollView>
 
-            <FormInput
-              value={formData.partySize}
-              onChangeText={(text) => handleInputChange('partySize', text)}
-              placeholder="For how many"
-            />
-
-            <FormInput
-              value={formData.eta}
-              onChangeText={(text) => handleInputChange('eta', text)}
-              placeholder="Set ETA"
-            />
-          </View>
-
+        <ErrorBoundary componentName="ActionButtons">
           <ActionButtons onCancel={handleCancel} onConfirm={handleConfirm} />
-        </View>
-      </ScrollView>
-      
-      <Footer />
-    </LinearGradient>
+        </ErrorBoundary>
+
+        <ErrorBoundary componentName="Footer">
+          <Footer />
+        </ErrorBoundary>
+      </LinearGradient>
+    </ErrorBoundary>
   );
 }
 
@@ -168,43 +176,45 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  contentCard: {
+  content: {
+    padding: 16,
+  },
+  placeInfo: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
-    margin: 16,
     padding: 24,
+    marginBottom: 16,
   },
-  title: {
+  placeName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#4A4A4A',
     textAlign: 'center',
     marginBottom: 8,
   },
-  location: {
+  placeAddress: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
   },
-  imageContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+  form: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    padding: 24,
   },
-  placeImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-  },
-  formContainer: {
-    gap: 16,
-    marginBottom: 24,
+  formTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   inputContainer: {
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 4,
+    marginBottom: 16,
   },
   input: {
     fontSize: 16,
@@ -214,6 +224,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 12,
+    padding: 16,
   },
   cancelButton: {
     flex: 1,

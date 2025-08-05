@@ -41,3 +41,8 @@ google-cloud-credentials.json
 
 # Firebase Admin SDK
 firebase-adminsdk.json
+
+# Service account files
+nlp-service-account.json
+functions/gemini-api-client-key.json
+*-service-account.json

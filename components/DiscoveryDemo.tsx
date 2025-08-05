@@ -47,8 +47,8 @@ export default function DiscoveryDemo() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission Denied', 'Location permission is required for place discovery');
-          // Use Manila as fallback
-          setUserLocation({ lat: 14.5995, lng: 120.9842 });
+          // Use BGC as fallback
+          setUserLocation({ lat: 14.5176, lng: 121.0509 });
           return;
         }
 
@@ -62,8 +62,8 @@ export default function DiscoveryDemo() {
         console.log('📍 User location obtained:', coords);
       } catch (error) {
         console.error('Error getting location:', error);
-        // Use Manila as fallback
-        setUserLocation({ lat: 14.5995, lng: 120.9842 });
+        // Use BGC as fallback
+        setUserLocation({ lat: 14.5176, lng: 121.0509 });
       }
     };
 

@@ -9,30 +9,63 @@ import MoodSlider from '../components/MoodSlider';
 import ActionButton from '../components/ActionButton';
 import Footer from '../components/Footer';
 import APIStatus from '../components/APIStatus';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAppStore } from '../hooks/use-app-store';
 
 // Extracted fixed content component
 const FixedContent = React.memo(() => (
-  <View style={styles.fixedContent}>
-    <Header />
-    <APIStatus isVisible={false} />
-    <AdPlacement />
-    <CategoryButtons />
-    <MoodSlider />
-  </View>
+  <ErrorBoundary componentName="FixedContent">
+    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <View style={styles.fixedContent}>
+        <ErrorBoundary componentName="Header">
+          <Header />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="APIStatus">
+          <APIStatus isVisible={false} />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="AdPlacement">
+          <AdPlacement />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="CategoryButtons">
+          <CategoryButtons />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="MoodSlider">
+          <MoodSlider />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="ActionButton">
+          <ActionButton />
+        </ErrorBoundary>
+      </View>
+      <View style={styles.spacer} />
+    </ScrollView>
+  </ErrorBoundary>
 ));
 
 // Extracted scrollable content component
 const ScrollableContent = React.memo(() => (
-  <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-    <Header />
-    <APIStatus isVisible={false} />
-    <AdPlacement />
-    <CategoryButtons />
-    <MoodSlider />
-    <ActionButton />
-    <View style={styles.spacer} />
-  </ScrollView>
+  <ErrorBoundary componentName="ScrollableContent">
+    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ErrorBoundary componentName="Header">
+        <Header />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="APIStatus">
+        <APIStatus isVisible={false} />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="AdPlacement">
+        <AdPlacement />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="CategoryButtons">
+        <CategoryButtons />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="MoodSlider">
+        <MoodSlider />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="ActionButton">
+        <ActionButton />
+      </ErrorBoundary>
+      <View style={styles.spacer} />
+    </ScrollView>
+  </ErrorBoundary>
 ));
 
 export default function HomeScreen() {
@@ -48,17 +81,16 @@ export default function HomeScreen() {
   // Memoized layout based on filter state
   const layout = useMemo(() => {
     if (!showMoreFilters) {
-      // Non-scrollable layout when filters are collapsed
+      // Scrollable layout when filters are collapsed
       return (
         <LinearGradient
           colors={['#C8A8E9', '#B19CD9']}
           style={containerStyle}
         >
           <FixedContent />
-          <View style={styles.bottomSection}>
-            <ActionButton />
+          <ErrorBoundary componentName="Footer">
             <Footer />
-          </View>
+          </ErrorBoundary>
         </LinearGradient>
       );
     }
@@ -70,12 +102,18 @@ export default function HomeScreen() {
         style={containerStyle}
       >
         <ScrollableContent />
-        <Footer />
+        <ErrorBoundary componentName="Footer">
+          <Footer />
+        </ErrorBoundary>
       </LinearGradient>
     );
   }, [showMoreFilters, containerStyle]);
 
-  return layout;
+  return (
+    <ErrorBoundary componentName="HomeScreen">
+      {layout}
+    </ErrorBoundary>
+  );
 }
 
 const SECTION_SPACING = 16;
@@ -85,11 +123,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fixedContent: {
-    flex: 1,
     paddingBottom: SECTION_SPACING,
-  },
-  bottomSection: {
-    justifyContent: 'flex-end',
   },
   scrollView: {
     flex: 1,

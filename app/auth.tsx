@@ -15,11 +15,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Lock, User, Phone } from 'lucide-react-native';
 import Mail from 'lucide-react-native/dist/esm/icons/mail';
-
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useAuth } from '../hooks/use-auth';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, isLoading } = { signIn: () => {}, signUp: () => {}, isLoading: false };
+  const { login, register, isLoading } = useAuth();
   
   const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
@@ -41,20 +42,14 @@ export default function AuthScreen() {
     }
 
     try {
-      let result;
       if (isSignUp) {
-        result = await signUp(formData.email, formData.password, formData.name, formData.phone);
+        await register(formData.name, formData.email, formData.password);
       } else {
-        result = await signIn(formData.email, formData.password);
+        await login(formData.email, formData.password);
       }
-
-      if (result.success) {
-        router.back();
-      } else {
-        Alert.alert('Error', result.error || 'Authentication failed');
-      }
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      router.back();
+    } catch (error) {
+      Alert.alert('Error', 'Authentication failed. Please try again.');
     }
   };
 
@@ -64,113 +59,130 @@ export default function AuthScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#C8A8E9', '#B19CD9']}
-      style={[styles.container, { paddingTop: insets.top }]}
-    >
-      <KeyboardAvoidingView 
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ErrorBoundary componentName="AuthScreen">
+      <LinearGradient
+        colors={['#C8A8E9', '#B19CD9']}
+        style={[styles.container, { paddingTop: insets.top }]}
       >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={24} color="#666" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
-            </Text>
-            <View style={styles.placeholder} />
-          </View>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ErrorBoundary componentName="AuthContent">
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+              {/* Header */}
+              <ErrorBoundary componentName="AuthHeader">
+                <View style={styles.header}>
+                  <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                    <ArrowLeft size={24} color="#666" />
+                  </TouchableOpacity>
+                  <Text style={styles.headerTitle}>
+                    {isSignUp ? 'Create Account' : 'Welcome Back'}
+                  </Text>
+                  <View style={styles.placeholder} />
+                </View>
+              </ErrorBoundary>
 
-          {/* Form */}
-          <View style={styles.formContainer}>
-            <Text style={styles.subtitle}>
-              {isSignUp 
-                ? 'Sign up to get unlimited tries and save your preferences' 
-                : 'Sign in to continue your G! journey'
-              }
-            </Text>
+              {/* Form */}
+              <ErrorBoundary componentName="AuthForm">
+                <View style={styles.formContainer}>
+                  <Text style={styles.subtitle}>
+                    {isSignUp 
+                      ? 'Sign up to get unlimited tries and save your preferences' 
+                      : 'Sign in to continue your G! journey'
+                    }
+                  </Text>
 
-            {isSignUp && (
-              <View style={styles.inputContainer}>
-                <User size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Full Name"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                  autoCapitalize="words"
-                />
-              </View>
-            )}
+                  {isSignUp && (
+                    <ErrorBoundary componentName="NameInput">
+                      <View style={styles.inputContainer}>
+                        <User size={20} color="#666" style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          value={formData.name}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+                          placeholder="Full Name"
+                          placeholderTextColor="#999"
+                          autoCapitalize="words"
+                        />
+                      </View>
+                    </ErrorBoundary>
+                  )}
 
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                value={formData.email}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+                  <ErrorBoundary componentName="EmailInput">
+                    <View style={styles.inputContainer}>
+                      <Mail size={20} color="#666" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        value={formData.email}
+                        onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+                        placeholder="Email Address"
+                        placeholderTextColor="#999"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  </ErrorBoundary>
 
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={formData.password}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
-                secureTextEntry
-              />
-            </View>
+                  <ErrorBoundary componentName="PasswordInput">
+                    <View style={styles.inputContainer}>
+                      <Lock size={20} color="#666" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        value={formData.password}
+                        onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
+                        placeholder="Password"
+                        placeholderTextColor="#999"
+                        secureTextEntry
+                      />
+                    </View>
+                  </ErrorBoundary>
 
-            {isSignUp && (
-              <View style={styles.inputContainer}>
-                <Phone size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Phone Number (Optional)"
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            )}
+                  {isSignUp && (
+                    <ErrorBoundary componentName="PhoneInput">
+                      <View style={styles.inputContainer}>
+                        <Phone size={20} color="#666" style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          value={formData.phone}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
+                          placeholder="Phone Number (Optional)"
+                          placeholderTextColor="#999"
+                          keyboardType="phone-pad"
+                        />
+                      </View>
+                    </ErrorBoundary>
+                  )}
 
-            <TouchableOpacity 
-              style={[styles.submitButton, isLoading && styles.disabledButton]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
-              <Text style={styles.submitButtonText}>
-                {isLoading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
-              </Text>
-            </TouchableOpacity>
+                  <ErrorBoundary componentName="SubmitButton">
+                    <TouchableOpacity 
+                      style={styles.submitButton} 
+                      onPress={handleSubmit}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.submitButtonText}>
+                        {isLoading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Sign In')}
+                      </Text>
+                    </TouchableOpacity>
+                  </ErrorBoundary>
 
-            <TouchableOpacity style={styles.toggleButton} onPress={toggleMode}>
-              <Text style={styles.toggleText}>
-                {isSignUp 
-                  ? 'Already have an account? Sign In' 
-                  : "Don't have an account? Sign Up"
-                }
-              </Text>
-            </TouchableOpacity>
-
-            {/* Demo Account Info */}
-            <View style={styles.demoContainer}>
-              <Text style={styles.demoTitle}>Demo Account</Text>
-              <Text style={styles.demoText}>Email: demo@example.com</Text>
-              <Text style={styles.demoText}>Password: any password</Text>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+                  <ErrorBoundary componentName="ToggleMode">
+                    <TouchableOpacity style={styles.toggleButton} onPress={toggleMode}>
+                      <Text style={styles.toggleButtonText}>
+                        {isSignUp 
+                          ? 'Already have an account? Sign In' 
+                          : "Don't have an account? Sign Up"
+                        }
+                      </Text>
+                    </TouchableOpacity>
+                  </ErrorBoundary>
+                </View>
+              </ErrorBoundary>
+            </ScrollView>
+          </ErrorBoundary>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </ErrorBoundary>
   );
 }
 

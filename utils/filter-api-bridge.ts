@@ -182,18 +182,21 @@ export class FilterApiBridge {
     const categoryMapping: Record<string, any> = {
       'food': {
         displayName: 'Food & Dining',
-        types: ['restaurant', 'cafe', 'bakery', 'meal_takeaway', 'meal_delivery', 'food', 'bar'],
-        emoji: '🍔'
+        types: ['restaurant', 'cafe', 'bar', 'bakery', 'food', 'meal_delivery', 'meal_takeaway', 'liquor_store', 'convenience_store', 'supermarket'],
+        emoji: '🍔',
+        rationale: 'These types are primarily focused on dining, drinking, and food-related purchases. Includes restaurants, cafes, bars, bakeries, meal services, and food retail establishments.'
       },
       'activity': {
         displayName: 'Activities & Entertainment', 
-        types: ['amusement_park', 'aquarium', 'art_gallery', 'bowling_alley', 'casino', 'movie_theater', 'museum', 'park', 'spa', 'stadium', 'tourist_attraction', 'zoo', 'gym'],
-        emoji: '🧩'
+        types: ['park', 'museum', 'art_gallery', 'movie_theater', 'night_club', 'stadium', 'casino', 'gym', 'spa', 'bowling_alley', 'amusement_park', 'zoo', 'aquarium', 'golf_course', 'skate_park', 'swimming_pool', 'playground', 'tourist_attraction'],
+        emoji: '🧩',
+        rationale: 'These types are focused on leisure, recreation, entertainment, and cultural experiences. Includes outdoor spaces, cultural venues, entertainment spots, sports facilities, and places for personal well-being.'
       },
       'something-new': {
         displayName: 'Something New',
-        types: ['tourist_attraction', 'art_gallery', 'museum', 'amusement_park', 'aquarium', 'zoo', 'shopping_mall', 'store'],
-        emoji: '✨'
+        types: ['shopping_mall', 'library', 'book_store', 'clothing_store', 'shoe_store', 'department_store', 'electronics_store', 'home_goods_store', 'hardware_store', 'florist', 'jewelry_store', 'sporting_goods_store', 'pet_store', 'bicycle_store', 'hair_care', 'beauty_salon', 'university', 'hindu_temple', 'church', 'mosque', 'synagogue', 'rv_park', 'campground'],
+        emoji: '✨',
+        rationale: 'This category focuses on places that offer unique experiences, less common activities, or places for discovery. Prioritizes exploration, cultural sites, unique shopping experiences, and novel destinations.'
       }
     };
     
@@ -230,6 +233,7 @@ export class FilterApiBridge {
     console.log('🎯 Category Filter (API Ready):', {
       selected: category.displayName,
       googleTypes: category.types,
+      rationale: category.rationale,
       priority: 'STRICT',
       apiQuery: filterData.googlePlacesQuery
     });

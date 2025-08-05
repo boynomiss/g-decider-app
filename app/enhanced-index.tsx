@@ -83,37 +83,42 @@ export default function EnhancedHomeScreen() {
 
   // Fixed content for when filters are collapsed
   const FixedContent = React.memo(() => (
-    <View style={styles.fixedContent}>
-      <View style={styles.headerContainer}>
-        <Header />
+    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <View style={styles.fixedContent}>
+        <View style={styles.headerContainer}>
+          <Header />
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFilterPanel(true)}
+            activeOpacity={0.7}
+          >
+            <Settings size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+        <APIStatus isVisible={false} />
+        <AdPlacement />
+        <CategoryButtons />
+        <MoodSlider />
+        
+        {/* Quick Access to Recommendations */}
         <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterPanel(true)}
-          activeOpacity={0.7}
+          style={styles.recommendationsButton}
+          onPress={() => setShowRecommendations(true)}
+          activeOpacity={0.8}
         >
-          <Settings size={20} color="#FFFFFF" />
+          <LinearGradient
+            colors={['#8B5FBF', '#9C6ECC']}
+            style={styles.recommendationsGradient}
+          >
+            <Sparkles size={20} color="#FFFFFF" />
+            <Text style={styles.recommendationsText}>Instant Recommendations</Text>
+          </LinearGradient>
         </TouchableOpacity>
+        
+        <ActionButton />
       </View>
-      <APIStatus isVisible={false} />
-      <AdPlacement />
-      <CategoryButtons />
-      <MoodSlider />
-      
-      {/* Quick Access to Recommendations */}
-      <TouchableOpacity
-        style={styles.recommendationsButton}
-        onPress={() => setShowRecommendations(true)}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#8B5FBF', '#9C6ECC']}
-          style={styles.recommendationsGradient}
-        >
-          <Sparkles size={20} color="#FFFFFF" />
-          <Text style={styles.recommendationsText}>Instant Recommendations</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
+      <View style={styles.spacer} />
+    </ScrollView>
   ));
 
   // Scrollable content for when filters are expanded
@@ -196,12 +201,7 @@ export default function EnhancedHomeScreen() {
     }
 
     if (!showMoreFilters) {
-      return (
-        <>
-          <FixedContent />
-          <ActionButton />
-        </>
-      );
+      return <FixedContent />;
     }
 
     return <ScrollableContent />;
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fixedContent: {
-    flex: 1,
+    paddingBottom: 16,
   },
   scrollView: {
     flex: 1,

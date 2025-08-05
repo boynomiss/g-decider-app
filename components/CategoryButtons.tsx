@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
 import { FilterApiBridge } from '@/utils/filter-api-bridge';
+import { filterValidationService } from '@/utils/filter-validation-service';
 
 const categories = [
   { id: 'food', label: 'Food', icon: '🍔' },
@@ -24,13 +25,30 @@ export default function CategoryButtons() {
               styles.categoryButton,
               filters.category === category.id && styles.activeButton
             ]}
-            onPress={() => {
-              // Enhanced logging with API-ready data (null-safe)
-              const filterData = FilterApiBridge.logCategorySelection(category.id);
+            onPress={async () => {
+              console.log('🎯 Category button pressed:', category.id);
+              
+              // Update filters
               updateFilters({ 
-                category: category.id,
-                _categoryApiData: filterData // Store API-ready data (may be null)
+                category: category.id
               });
+              console.log('✅ Filters updated');
+              
+              // Trigger validation
+              try {
+                console.log('🔍 Starting filter validation...');
+                const validationResult = await filterValidationService.validateLookingForFilter(
+                  category.id as 'food' | 'activity' | 'something-new'
+                );
+                
+                if (validationResult.success) {
+                  console.log(`✅ Validation successful: ${validationResult.placeCount} places found for ${category.id}`);
+                } else {
+                  console.warn(`⚠️ Validation failed for ${category.id}: ${validationResult.error}`);
+                }
+              } catch (error) {
+                console.error('❌ Validation error:', error);
+              }
             }}
           >
             <Text style={styles.icon}>{category.icon}</Text>

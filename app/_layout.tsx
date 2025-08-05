@@ -6,7 +6,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppProvider } from "../hooks/use-app-store";
 import { AuthProvider } from "../hooks/use-auth";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import colors from "../constants/colors";
+import { useComponentDebug, useRequiredComponentsValidation } from "../hooks/use-component-validation";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,15 +35,17 @@ export const useTheme = () => {
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="result" options={{ headerShown: false }} />
-      <Stack.Screen name="booking" options={{ headerShown: false }} />
-      <Stack.Screen name="confirmation" options={{ headerShown: false }} />
-      <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ headerShown: false }} />
-      <Stack.Screen name="upgrade" options={{ headerShown: false }} />
-    </Stack>
+    <ErrorBoundary componentName="RootLayoutNav">
+      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="result" options={{ headerShown: false }} />
+        <Stack.Screen name="booking" options={{ headerShown: false }} />
+        <Stack.Screen name="confirmation" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="upgrade" options={{ headerShown: false }} />
+      </Stack>
+    </ErrorBoundary>
   );
 }
 
@@ -50,19 +54,53 @@ export default function RootLayout() {
     SplashScreen.hideAsync();
   }, []);
 
+  // Component validation - check that all critical components are available
+  const criticalComponents: Record<string, React.ComponentType<any> | undefined> = {
+    QueryClientProvider,
+    Stack,
+    GestureHandlerRootView,
+    SafeAreaProvider,
+    AppProvider,
+    AuthProvider,
+    ErrorBoundary,
+    ThemeProvider
+  };
+
+  // Debug component availability in development
+  useComponentDebug(criticalComponents);
+
+  // Validate that all required components are available
+  const allComponentsAvailable = useRequiredComponentsValidation(criticalComponents);
+
+  // Show error if critical components are missing
+  if (!allComponentsAvailable) {
+    console.error('❌ Critical components are missing. App may not function properly.');
+    return React.createElement('div', {
+      style: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#ffebee',
+        padding: 20
+      }
+    }, 'Error: Critical components are missing. Check console for details.');
+  }
+
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AppProvider>
-            <ThemeProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <RootLayoutNav />
-              </GestureHandlerRootView>
-            </ThemeProvider>
-          </AppProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary componentName="RootLayout">
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AppProvider>
+              <ThemeProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <RootLayoutNav />
+                </GestureHandlerRootView>
+              </ThemeProvider>
+            </AppProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

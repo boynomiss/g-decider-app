@@ -18,15 +18,22 @@ const https = require('https');
 const crypto = require('crypto');
 
 // Load service account credentials
-const CREDENTIALS_FILE = './google-cloud-credentials.json';
+const NLP_CREDENTIALS_FILE = './nlp-service-account.json';
+const GEMINI_CREDENTIALS_FILE = './functions/gemini-api-client-key.json';
 
-if (!fs.existsSync(CREDENTIALS_FILE)) {
-  console.error('❌ Service account credentials file not found:', CREDENTIALS_FILE);
-  console.log('Please ensure you have the google-cloud-credentials.json file in the project root.');
+// Try to load NLP service account first, then Gemini
+let credentials;
+if (fs.existsSync(NLP_CREDENTIALS_FILE)) {
+  credentials = JSON.parse(fs.readFileSync(NLP_CREDENTIALS_FILE, 'utf8'));
+  console.log('✅ Using NLP service account credentials');
+} else if (fs.existsSync(GEMINI_CREDENTIALS_FILE)) {
+  credentials = JSON.parse(fs.readFileSync(GEMINI_CREDENTIALS_FILE, 'utf8'));
+  console.log('✅ Using Gemini service account credentials');
+} else {
+  console.error('❌ Service account credentials file not found');
+  console.log('Please ensure you have either nlp-service-account.json or functions/gemini-api-client-key.json in the project.');
   process.exit(1);
 }
-
-const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
 
 /**
  * Generate a JWT token for Google Cloud authentication

@@ -1,4 +1,4 @@
-import { filterPlaces } from './filterPlaces';
+import { filterPlaces, validateFilter } from './filterPlaces';
 import { 
   analyzeSentiment, 
   analyzeEntities, 
@@ -15,6 +15,7 @@ import {
 
 export { 
   filterPlaces,
+  validateFilter,
   analyzeSentiment,
   analyzeEntities,
   analyzeText,

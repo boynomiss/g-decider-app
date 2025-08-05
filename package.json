@@ -27,7 +27,11 @@
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "type-check": "tsc --noEmit",
     "test-firebase-function": "node test-firebase-function.js",
-    "test-server-filtering": "node test-server-filtering.js"
+    "test-server-filtering": "node test-server-filtering.js",
+    "test-imports": "node scripts/test-imports.js",
+    "check-organization": "node scripts/check-file-organization.js",
+    "validate-components": "npm run type-check && npm run test-imports && npm run check-organization",
+    "pre-commit": "npm run validate-components"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

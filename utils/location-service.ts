@@ -20,13 +20,15 @@ export interface LocationResult {
   timestamp: number;
 }
 
-// Default fallback location (Manila, Philippines)
+// Default fallback location (BGC, Philippines)
+// Changed from Manila to BGC for better place discovery
 const DEFAULT_LOCATION: LocationCoords = {
-  lat: 14.5995,
-  lng: 120.9842
+  lat: 14.5176,  // BGC latitude
+  lng: 121.0509  // BGC longitude
 };
 
 // Popular locations for simulator testing
+// Add your custom locations here
 const SIMULATOR_LOCATIONS: Record<string, LocationCoords> = {
   'manila': { lat: 14.5995, lng: 120.9842 },
   'makati': { lat: 14.5547, lng: 121.0244 },
@@ -35,7 +37,9 @@ const SIMULATOR_LOCATIONS: Record<string, LocationCoords> = {
   'quezon_city': { lat: 14.6760, lng: 121.0437 },
   'alabang': { lat: 14.4297, lng: 121.0403 },
   'cebu': { lat: 10.3157, lng: 123.8854 },
-  'davao': { lat: 7.1907, lng: 125.4553 }
+  'davao': { lat: 7.1907, lng: 125.4553 },
+  // Add your custom location here:
+  // 'your_location': { lat: YOUR_LATITUDE, lng: YOUR_LONGITUDE }
 };
 
 export class LocationService {

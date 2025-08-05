@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import { UserFilters } from '../types/app';
 import { PlaceData } from '../utils/place-mood-service';
-import { serverFilteringService, ServerFilteringResponse } from '../utils/server-filtering-service';
+import { serverFilteringService } from '../utils/server-filtering-service';
+import { ServerFilteringResponse } from '../types/server-filtering';
+import { convertServerResponse, validateAndSanitizeResponse } from '../utils/server-data-converter';
 
 export interface UseServerFilteringReturn {
   // State
@@ -51,71 +53,24 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
     setError(null);
 
     try {
-      const response = await serverFilteringService.filterPlaces(filters, minResults, useCache);
+      const rawResponse = await serverFilteringService.filterPlaces(filters, minResults, useCache);
       
-      // Convert server results (Suggestion format) to PlaceData format
-      const placeDataResults: PlaceData[] = response.results.map((place: any) => ({
-        place_id: place.id,
-        name: place.name,
-        address: place.location,
-        category: place.category,
-        user_ratings_total: place.reviewCount || 0,
-        rating: place.rating || 0,
-        reviews: place.reviews || [],
-        images: {
-          urls: place.images || [],
-          metadata: {
-            totalImages: (place.images || []).length,
-            authenticImages: (place.images || []).length,
-            averageConfidence: 1.0,
-            sources: ['server']
-          }
-        },
-        photos: {
-          thumbnail: place.images || [],
-          medium: place.images || [],
-          large: place.images || [],
-          count: (place.images || []).length
-        },
-        location: place.coordinates,
-        website: place.website,
-        description: place.description,
-        vicinity: place.location,
-        formatted_address: place.location,
-        types: place.tags || [],
-        price_level: place.budget === 'P' ? 1 : place.budget === 'PP' ? 2 : 3,
-        opening_hours: place.openHours ? { open_now: true } : undefined,
-        contact: {
-          website: place.website,
-          hasContact: !!place.website
-        },
-        contactActions: {
-          canCall: false,
-          canVisitWebsite: !!place.website,
-          websiteUrl: place.website
-        }
-      }));
+      // Validate and sanitize the response
+      const validatedResponse = validateAndSanitizeResponse(rawResponse);
+      
+      // Convert server response to client format with proper error handling
+      const { placeDataResults, performance, metadata } = convertServerResponse(validatedResponse);
 
       setResults(placeDataResults);
-      setLastResponse(response);
-      setPerformance({
-        responseTime: response.performance.responseTime,
-        cacheHitRate: response.performance.cacheHitRate,
-        apiCallsMade: response.performance.apiCallsMade
-      });
-      setMetadata({
-        filtersApplied: response.metadata.filtersApplied,
-        queryOptimization: response.metadata.queryOptimization,
-        source: response.source,
-        cacheHit: response.cacheHit,
-        totalResults: response.totalResults
-      });
+      setLastResponse(validatedResponse);
+      setPerformance(performance);
+      setMetadata(metadata);
 
       console.log('✅ Server filtering completed:', {
         resultsCount: placeDataResults.length,
-        source: response.source,
-        cacheHit: response.cacheHit,
-        responseTime: response.performance.responseTime
+        source: validatedResponse.source,
+        cacheHit: validatedResponse.cacheHit,
+        responseTime: performance.responseTime
       });
 
     } catch (err) {

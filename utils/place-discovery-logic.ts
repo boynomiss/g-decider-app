@@ -2,6 +2,9 @@ import { PlaceMoodService, PlaceData } from './place-mood-service';
 import { CATEGORY_MOOD_MAPPING } from './mood-config';
 import { generatePhotoUrls, getOptimizedPhotoUrls, createFrontendPhotoUrls } from './photo-url-generator';
 import { googlePlacesClient, googleNaturalLanguageClient } from './google-api-clients';
+
+// Service account configuration for NLP
+const NLP_SERVICE_ACCOUNT_PATH = './nlp-service-account.json';
 import { createFrontendContactObject, ContactDetails } from './contact-formatter';
 
 // Types for the discovery logic system
@@ -68,21 +71,21 @@ const DISTANCE_MAPPINGS: DistanceMapping[] = [
 // Google Places category mappings for the three main categories
 const CATEGORY_TO_GOOGLE_TYPES: Record<string, string[]> = {
   'food': [
-    'restaurant', 'cafe', 'bakery', 'bar', 'meal_delivery', 
-    'meal_takeaway', 'food', 'fast_food_restaurant', 
-    'pizza_place', 'coffee_shop', 'ice_cream_shop'
+    'restaurant', 'cafe', 'bar', 'bakery', 'food', 'meal_delivery', 
+    'meal_takeaway', 'liquor_store', 'convenience_store', 'supermarket'
   ],
   'activity': [
-    'amusement_park', 'aquarium', 'art_gallery', 'bowling_alley',
-    'casino', 'gym', 'movie_theater', 'museum', 'night_club',
-    'park', 'shopping_mall', 'spa', 'stadium', 'tourist_attraction',
-    'zoo', 'karaoke', 'arcade', 'escape_room'
+    'park', 'museum', 'art_gallery', 'movie_theater', 'night_club', 
+    'stadium', 'casino', 'gym', 'spa', 'bowling_alley', 'amusement_park', 
+    'zoo', 'aquarium', 'golf_course', 'skate_park', 'swimming_pool', 
+    'playground', 'tourist_attraction'
   ],
   'something-new': [
-    'art_gallery', 'book_store', 'library', 'museum',
-    'performing_arts_theater', 'university', 'cultural_center',
-    'workshop', 'cooking_class', 'dance_studio', 'music_venue',
-    'comedy_club', 'exhibition', 'festival'
+    'shopping_mall', 'library', 'book_store', 'clothing_store', 'shoe_store', 
+    'department_store', 'electronics_store', 'home_goods_store', 'hardware_store', 
+    'florist', 'jewelry_store', 'sporting_goods_store', 'pet_store', 
+    'bicycle_store', 'hair_care', 'beauty_salon', 'university', 'hindu_temple', 
+    'church', 'mosque', 'synagogue', 'rv_park', 'campground'
   ]
 };
 

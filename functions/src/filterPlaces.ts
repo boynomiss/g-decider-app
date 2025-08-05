@@ -1,8 +1,16 @@
 import * as functions from 'firebase-functions';
+import { Request, Response } from 'firebase-functions';
 
 // Google Places API configuration
 const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const PLACES_API_BASE_URL = 'https://places.googleapis.com/v1';
+
+// Category to Google Places API type mapping for validation
+const VALIDATION_TYPE_MAPPING = {
+  'food': ['restaurant', 'cafe', 'bar', 'bakery'],
+  'activity': ['park', 'museum', 'art_gallery', 'movie_theater', 'tourist_attraction'],
+  'something-new': ['shopping_mall', 'library', 'book_store', 'tourist_attraction']
+} as const;
 
 interface UserFilters {
   mood: number;
@@ -30,369 +38,450 @@ interface FilteringResponse {
   };
 }
 
-// Enhanced Google Places API integration with retry mechanism
-async function fetchRealRestaurants(filters: UserFilters): Promise<any[]> {
-  try {
-    console.log('🔍 Starting to fetch real restaurants from Google Places API...');
+// Server-side cache implementation
+class ServerCache {
+  private cache = new Map<string, any>();
+  private stats = {
+    hits: 0,
+    misses: 0,
+    totalRequests: 0
+  };
+  private readonly maxSize = 1000;
+  private readonly defaultTTL = 10 * 60 * 1000; // 10 minutes
+
+  generateKey(filters: UserFilters, minResults: number): string {
+    const filterString = JSON.stringify({
+      mood: filters.mood,
+      category: filters.category,
+      budget: filters.budget,
+      timeOfDay: filters.timeOfDay,
+      socialContext: filters.socialContext,
+      distanceRange: filters.distanceRange,
+      minResults
+    });
     
-    // Validate API key
-    if (!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === 'your-google-places-api-key-here') {
-      console.warn('⚠️ Google Places API key not configured, using fallback data');
-      return getFallbackRestaurants();
+    let hash = 0;
+    for (let i = 0; i < filterString.length; i++) {
+      const char = filterString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
     }
+    
+    return `server_filter_${Math.abs(hash)}`;
+  }
 
-    console.log('🔑 Using Google Places API key:', GOOGLE_PLACES_API_KEY.substring(0, 10) + '...');
+  get(key: string): any | null {
+    this.stats.totalRequests++;
+    const entry = this.cache.get(key);
+    
+    if (!entry) {
+      this.stats.misses++;
+      return null;
+    }
+    
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      this.stats.misses++;
+      return null;
+    }
+    
+    this.stats.hits++;
+    return entry.data;
+  }
 
-    // Define more search areas in Metro Manila for variety
-    const searchAreas = [
-      { lat: 14.5547, lng: 121.0244, name: 'Makati' },
-      { lat: 14.5547, lng: 120.9842, name: 'Manila' },
-      { lat: 14.5547, lng: 121.0644, name: 'Quezon City' },
-      { lat: 14.5547, lng: 121.0444, name: 'Taguig' },
-      { lat: 14.5547, lng: 121.0844, name: 'Pasig' },
-      { lat: 14.5547, lng: 120.9642, name: 'Pasay' },
-      { lat: 14.5547, lng: 121.1044, name: 'Marikina' }
-    ];
+  set(key: string, data: any, ttl: number = this.defaultTTL): void {
+    if (this.cache.size >= this.maxSize) {
+      this.evictOldest();
+    }
+    
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
+  }
 
-    // Vary the radius based on budget for more variety
-    const radiusMap = {
-      'P': 3000,    // Budget places - smaller radius
-      'PP': 5000,   // Mid-range - medium radius  
-      'PPP': 8000   // Premium - larger radius for more options
+  private evictOldest(): void {
+    let oldestKey: string | null = null;
+    let oldestTime = Date.now();
+    
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
+    }
+    
+    if (oldestKey) {
+      this.cache.delete(oldestKey);
+    }
+  }
+
+  getStats() {
+    return {
+      ...this.stats,
+      hitRate: this.stats.totalRequests > 0 ? this.stats.hits / this.stats.totalRequests : 0,
+      size: this.cache.size
     };
+  }
 
-    // Vary restaurant types based on filters
-    const getRestaurantTypes = (filters: UserFilters): string[] => {
-      const baseTypes = ['restaurant'];
-      
-      if (filters.socialContext === 'with-bae') {
-        baseTypes.push('cafe', 'bar', 'night_club');
-      }
-      
-      if (filters.timeOfDay === 'night') {
-        baseTypes.push('bar', 'night_club');
-      }
-      
-      if (filters.budget === 'PPP') {
-        baseTypes.push('fine_dining_restaurant');
-      }
-      
-      return baseTypes;
-    };
+  clear(): void {
+    this.cache.clear();
+    this.stats = { hits: 0, misses: 0, totalRequests: 0 };
+  }
+}
 
-    const restaurants = [];
-    const radius = radiusMap[filters.budget || 'PP'];
-    const restaurantTypes = getRestaurantTypes(filters);
+// Initialize server cache
+const serverCache = new ServerCache();
 
-    console.log(`🎯 Using radius: ${radius}m, types: ${restaurantTypes.join(', ')}`);
-
-    // Shuffle search areas for variety
-    const shuffledAreas = searchAreas.sort(() => Math.random() - 0.5);
+async function fetchRealRestaurants(filters: UserFilters): Promise<any[]> {
+  console.log('🍽️ Fetching real restaurants from Google Places API...');
+  
+  try {
+    const restaurants: any[] = [];
     let apiCallsMade = 0;
     let successfulCalls = 0;
-
-    for (const area of shuffledAreas.slice(0, 4)) { // Limit to 4 areas for performance
-      try {
-        console.log(`📍 Searching restaurants in ${area.name}...`);
-        
-        const places = await fetchPlacesWithRetry(area, radius, restaurantTypes);
-        apiCallsMade++;
-        
-        if (places && places.length > 0) {
-          successfulCalls++;
-          console.log(`✅ Found ${places.length} places in ${area.name}`);
+    
+    // Define search areas around Manila with more diverse locations
+    const searchAreas = [
+      { lat: 14.5176, lng: 121.0509, name: 'BGC' }, // Updated to correct BGC coordinates
+      { lat: 14.5547, lng: 121.0244, name: 'Makati' },
+      { lat: 14.5995, lng: 120.9842, name: 'Manila Bay Area' },
+      { lat: 14.4791, lng: 120.8969, name: 'Pasay' },
+      { lat: 14.6091, lng: 121.0223, name: 'Quezon City' },
+      { lat: 14.5866, lng: 121.0630, name: 'Ortigas' }
+    ];
+    
+    // Shuffle areas for better distribution
+    const shuffledAreas = searchAreas.sort(() => Math.random() - 0.5);
+    
+    // Get restaurant types based on filters
+    const getRestaurantTypes = (filters: UserFilters): string[] => {
+      // Use primary types for better Google Places API compatibility
+      if (filters.category === 'food') {
+        return ['restaurant', 'cafe', 'bar', 'bakery'];
+      } else if (filters.category === 'activity') {
+        return ['park', 'museum', 'art_gallery', 'movie_theater', 'tourist_attraction'];
+      } else if (filters.category === 'something-new') {
+        return ['shopping_mall', 'library', 'book_store', 'tourist_attraction'];
+      }
+      
+      return ['restaurant']; // Default fallback
+    };
+    
+    const restaurantTypes = getRestaurantTypes(filters);
+    const radius = Math.min(filters.distanceRange || 5, 10) * 1000; // Convert to meters
+    
+    console.log(`🔍 Searching with radius: ${radius}m, types: ${restaurantTypes.join(', ')}`);
+    
+    // Search in multiple areas with each type separately
+    for (const area of shuffledAreas.slice(0, 4)) { // Try more areas for better coverage
+      for (const type of restaurantTypes) {
+        try {
+          console.log(`📍 Searching ${type} in ${area.name}...`);
           
-          // Process places and add to results
-          for (const place of places.slice(0, 2)) { // Take 2 from each area
-            try {
-              const enhancedPlace = await enhancePlaceWithDetails(place);
-              if (enhancedPlace) {
-                restaurants.push(enhancedPlace);
-              }
-            } catch (detailError) {
-              console.error(`❌ Error enhancing place ${place.displayName}:`, detailError);
-              // Continue with other places
-            }
+          const areaResults = await fetchPlacesWithRetry(area, radius, [type]);
+          restaurants.push(...areaResults);
+          successfulCalls++;
+          
+          console.log(`✅ Found ${areaResults.length} ${type} in ${area.name}`);
+          
+          if (restaurants.length >= 20) {
+            console.log('🎯 Reached target number of restaurants, stopping search');
+            break;
           }
-        } else {
-          console.log(`⚠️ No places found in ${area.name}`);
+        } catch (error) {
+          console.error(`❌ Error searching ${type} in ${area.name}:`, error);
+          apiCallsMade++;
         }
-        
-      } catch (areaError) {
-        console.error(`❌ Error fetching places in ${area.name}:`, areaError);
-        // Continue with other areas
+      }
+      
+      if (restaurants.length >= 20) {
+        break;
       }
     }
-
-    console.log(`🎉 API calls made: ${apiCallsMade}, successful: ${successfulCalls}`);
-    console.log(`📊 Total restaurants found: ${restaurants.length}`);
-
-    return restaurants.length > 0 ? restaurants : getFallbackRestaurants();
+    
+    // If no results found, try with broader search
+    if (restaurants.length === 0) {
+      console.log('🔄 No results found, trying with broader search...');
+      for (const area of shuffledAreas.slice(0, 2)) {
+        try {
+          console.log(`📍 Broad search in ${area.name}...`);
+          const broadResults = await fetchPlacesWithRetry(area, radius * 2, ['restaurant']);
+          restaurants.push(...broadResults);
+          console.log(`✅ Found ${broadResults.length} places in broad search`);
+          if (restaurants.length >= 10) break;
+        } catch (error) {
+          console.error(`❌ Error in broad search:`, error);
+        }
+      }
+    }
+    
+    console.log(`📊 Search completed: ${restaurants.length} restaurants found from ${successfulCalls} areas`);
+    return restaurants;
     
   } catch (error) {
-    console.error('❌ Error fetching real restaurants:', error);
+    console.error('❌ Error in fetchRealRestaurants:', error);
     return getFallbackRestaurants();
   }
 }
 
-// Retry mechanism for Places API calls
 async function fetchPlacesWithRetry(
   area: { lat: number; lng: number; name: string },
   radius: number,
   restaurantTypes: string[],
   maxRetries: number = 3
 ): Promise<any[]> {
-  let lastError: Error | null = null;
-  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`📡 Attempt ${attempt}/${maxRetries} for ${area.name}...`);
+      console.log(`🔄 Attempt ${attempt}/${maxRetries} for ${area.name}`);
       
-      const response = await fetch(`${PLACES_API_BASE_URL}/places:searchNearby`, {
+      const searchUrl = `${PLACES_API_BASE_URL}/places:searchNearby`;
+      const requestBody = {
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: area.lat,
+              longitude: area.lng
+            },
+            radius: radius
+          }
+        },
+        includedTypes: restaurantTypes,
+        maxResultCount: 10
+      };
+      
+      const response = await fetch(searchUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.userRatingCount,places.rating,places.priceLevel,places.photos'
+          'X-Goog-FieldMask': 'places.displayName,places.id,places.types,places.rating,places.userRatingCount,places.priceLevel,places.primaryType,places.primaryTypeDisplayName'
         },
-        body: JSON.stringify({
-          locationRestriction: {
-            circle: {
-              center: {
-                latitude: area.lat,
-                longitude: area.lng
-              },
-              radius: radius
-            }
-          },
-          includedTypes: restaurantTypes,
-          maxResultCount: 15
-        })
+        body: JSON.stringify(requestBody)
       });
-
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-
+      
       const data = await response.json();
-      console.log(`✅ Places API call successful for ${area.name} on attempt ${attempt}`);
+      console.log(`✅ Successfully fetched ${data.places?.length || 0} places from ${area.name}`);
+      
       return data.places || [];
       
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`❌ Attempt ${attempt} failed for ${area.name}:`, lastError.message);
+      console.error(`❌ Attempt ${attempt} failed for ${area.name}:`, error);
       
-      if (attempt < maxRetries) {
-        const delay = 1000 * Math.pow(2, attempt - 1); // Exponential backoff
-        console.log(`⏳ Retrying ${area.name} in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      if (attempt === maxRetries) {
+        console.error(`❌ All ${maxRetries} attempts failed for ${area.name}`);
+        return [];
       }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
   }
   
-  console.error(`❌ All attempts failed for ${area.name}:`, lastError?.message);
   return [];
 }
 
-// Enhanced place details fetching with retry
 async function enhancePlaceWithDetails(place: any): Promise<any | null> {
   try {
-    console.log(`🏪 Processing place: ${place.displayName?.text || place.displayName}`);
+    if (!place.id) {
+      console.warn('⚠️ Place has no ID, skipping details fetch');
+      return place;
+    }
     
-    // Get detailed place information with retry
     const details = await fetchPlaceDetailsWithRetry(place.id);
-    
     if (!details) {
-      console.warn(`⚠️ Could not fetch details for ${place.displayName}`);
-      return null;
+      return place;
     }
     
-    // Get photo URLs
-    const photos = [];
-    if (details.photos) {
-      for (const photo of details.photos.slice(0, 3)) {
-        const photoUrl = `${PLACES_API_BASE_URL}/${photo.name}/media?maxWidthPx=400&maxHeightPx=300&key=${GOOGLE_PLACES_API_KEY}`;
-        photos.push(photoUrl);
-      }
-    }
-
-    // Convert price level to budget
-    const budget = details.priceLevel === 'PRICE_LEVEL_FREE' ? 'P' : 
-                  details.priceLevel === 'PRICE_LEVEL_INEXPENSIVE' ? 'P' :
-                  details.priceLevel === 'PRICE_LEVEL_MODERATE' ? 'PP' :
-                  details.priceLevel === 'PRICE_LEVEL_EXPENSIVE' ? 'PPP' : 'PP';
-
-    const restaurant = {
-      id: place.id,
-      name: place.displayName?.text || place.displayName,
-      location: place.formattedAddress,
-      images: photos,
-      budget,
-      tags: place.types || [],
-      category: 'food',
-      mood: 'chill', // Will be enhanced with AI
-      socialContext: ['solo', 'with-bae'],
-      timeOfDay: ['afternoon', 'night'],
-      rating: place.rating || 0,
-      reviewCount: place.userRatingCount || 0,
-      website: details.website,
-      coordinates: { lat: place.geometry?.location?.lat || 0, lng: place.geometry?.location?.lng || 0 }
+    return {
+      ...place,
+      ...details,
+      enhanced: true
     };
-
-    console.log(`✅ Added restaurant: ${restaurant.name} (${restaurant.rating}⭐, ${restaurant.reviewCount} reviews)`);
-    return restaurant;
     
   } catch (error) {
-    console.error(`❌ Error enhancing place ${place.displayName}:`, error);
-    return null;
+    console.error('❌ Error enhancing place:', error);
+    return place;
   }
 }
 
-// Retry mechanism for place details
 async function fetchPlaceDetailsWithRetry(placeId: string, maxRetries: number = 2): Promise<any | null> {
-  let lastError: Error | null = null;
-  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(`${PLACES_API_BASE_URL}/places/${placeId}`, {
-        method: 'GET',
+      const detailsUrl = `${PLACES_API_BASE_URL}/places/${placeId}`;
+      
+      const response = await fetch(detailsUrl, {
         headers: {
-          'Content-Type': 'application/json',
           'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,userRatingCount,rating,priceLevel,photos,website,geometry'
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,rating,userRatingCount,priceLevel,website,internationalPhoneNumber,openingHours,photos,reviews'
         }
       });
-
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-
-      const details = await response.json();
-      return details;
+      
+      const data = await response.json();
+      return data;
       
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`❌ Place details attempt ${attempt} failed:`, lastError.message);
+      console.error(`❌ Attempt ${attempt} failed for place details:`, error);
       
-      if (attempt < maxRetries) {
-        const delay = 500 * Math.pow(2, attempt - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      if (attempt === maxRetries) {
+        console.error(`❌ All ${maxRetries} attempts failed for place details`);
+        return null;
       }
+      
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt));
     }
   }
-  
   return null;
 }
 
-// Fallback restaurant data when Google Places API is not available
 function getFallbackRestaurants(): any[] {
+  console.log('🔄 Using fallback restaurant data');
+  
   return [
     {
-      id: `restaurant_${Date.now()}_1`,
-      name: 'Manila Bay Restaurant',
-      location: 'Roxas Boulevard, Manila',
-      images: [],
+      id: 'fallback_1',
+      name: 'Jollibee - Makati',
+      location: 'Makati, Metro Manila',
+      images: ['https://example.com/jollibee.jpg'],
+      budget: 'P',
+      tags: ['fast_food', 'restaurant'],
+      description: 'Popular Filipino fast food chain',
+      category: 'food',
+      mood: 'both',
+      socialContext: ['solo', 'with-bae', 'barkada'],
+      timeOfDay: ['morning', 'afternoon', 'night'],
+      rating: 4.2,
+      reviewCount: 150,
+      reviews: [],
+      website: 'https://www.jollibee.com.ph'
+    },
+    {
+      id: 'fallback_2',
+      name: 'Starbucks - BGC',
+      location: 'Bonifacio Global City, Taguig',
+      images: ['https://example.com/starbucks.jpg'],
       budget: 'PP',
-      tags: ['seafood', 'fine-dining', 'romantic'],
+      tags: ['cafe', 'coffee'],
+      description: 'International coffee chain',
       category: 'food',
       mood: 'chill',
       socialContext: ['solo', 'with-bae'],
-      timeOfDay: ['afternoon', 'night'],
+      timeOfDay: ['morning', 'afternoon'],
       rating: 4.5,
-      reviewCount: 127,
-      website: 'https://manilabayrestaurant.ph',
-      coordinates: { lat: 14.5547, lng: 120.9842 }
+      reviewCount: 89,
+      reviews: [],
+      website: 'https://www.starbucks.com.ph'
     },
     {
-      id: `restaurant_${Date.now()}_2`,
-      name: 'BGC Food District',
-      location: 'Bonifacio Global City, Taguig',
-      images: [],
+      id: 'fallback_3',
+      name: 'Wolfgang\'s Steakhouse',
+      location: 'Makati, Metro Manila',
+      images: ['https://example.com/wolfgangs.jpg'],
       budget: 'PPP',
-      tags: ['international', 'fine-dining', 'trendy'],
+      tags: ['fine_dining', 'steakhouse'],
+      description: 'Premium steakhouse experience',
       category: 'food',
       mood: 'hype',
       socialContext: ['with-bae', 'barkada'],
       timeOfDay: ['night'],
       rating: 4.8,
-      reviewCount: 203,
-      website: 'https://bgcfooddistrict.com',
-      coordinates: { lat: 14.5547, lng: 121.0244 }
-    },
-    {
-      id: `restaurant_${Date.now()}_3`,
-      name: 'Ortigas Dining Hub',
-      location: 'Ortigas Center, Pasig City',
-      images: [],
-      budget: 'PP',
-      tags: ['asian', 'fusion', 'modern'],
-      category: 'food',
-      mood: 'chill',
-      socialContext: ['solo', 'with-bae'],
-      timeOfDay: ['afternoon', 'night'],
-      rating: 4.6,
-      reviewCount: 89,
-      website: 'https://ortigasdininghub.ph',
-      coordinates: { lat: 14.5547, lng: 121.0244 }
+      reviewCount: 234,
+      reviews: [],
+      website: 'https://www.wolfgangssteakhouse.com'
     }
   ];
 }
 
-// Generate AI description for a restaurant
 async function generateAIDescription(restaurantData: any, filters: UserFilters): Promise<string> {
   try {
-    // This function is no longer directly used as AI description generation is removed.
-    // Keeping it for now as it might be re-introduced or refactored later.
-    return `This restaurant is a great choice for ${filters.mood > 70 ? 'energetic' : filters.mood > 30 ? 'relaxed' : 'chill'} ${filters.socialContext === 'with-bae' ? 'romantic couples' : 
-                      filters.socialContext === 'barkada' ? 'groups of friends' : 'individual diners'} seeking a ${filters.timeOfDay === 'night' ? 'evening dining' : 
-                    filters.timeOfDay === 'afternoon' ? 'lunch or afternoon' : 'morning'} experience with ${restaurantData.rating}-star quality and ${restaurantData.reviewCount} satisfied customers.`;
+    // For now, return a simple description
+    // In production, this would call the Gemini API
+    const baseDescription = `${restaurantData.name} is a great place to visit.`;
+    
+    if (filters.socialContext === 'with-bae') {
+      return `${baseDescription} Perfect for a romantic date night.`;
+    } else if (filters.socialContext === 'barkada') {
+      return `${baseDescription} Great for group gatherings and celebrations.`;
+    } else {
+      return `${baseDescription} Ideal for solo dining and quiet meals.`;
+    }
   } catch (error) {
-    console.error('AI description generation failed:', error);
-    
-    // Create more engaging fallback descriptions
-    const moodText = filters.mood > 70 ? 'energetic' : filters.mood > 30 ? 'relaxed' : 'chill';
-    const socialText = filters.socialContext === 'with-bae' ? 'romantic couples' : 
-                      filters.socialContext === 'barkada' ? 'groups of friends' : 'individual diners';
-    const timeText = filters.timeOfDay === 'night' ? 'evening dining' : 
-                    filters.timeOfDay === 'afternoon' ? 'lunch or afternoon' : 'morning';
-    
-    const cuisineType = restaurantData.tags[0] || 'delicious';
-    const atmosphere = restaurantData.budget === 'PPP' ? 'luxurious and sophisticated' : 
-                      restaurantData.budget === 'PP' ? 'comfortable and elegant' : 'casual and welcoming';
-    
-    return `${restaurantData.name} offers exceptional ${cuisineType} cuisine in a ${atmosphere} atmosphere. Perfect for ${socialText} seeking a ${moodText} ${timeText} experience with ${restaurantData.rating}-star quality and ${restaurantData.reviewCount} satisfied customers.`;
+    console.error('❌ Error generating AI description:', error);
+    return `${restaurantData.name} is a great place to visit.`;
   }
 }
 
-// Basic filtering implementation
 async function performFiltering(
   filters: UserFilters, 
   minResults: number, 
   useCache: boolean
 ): Promise<{ results: any[]; source: 'cache' | 'api' | 'mixed'; cacheHit: boolean; totalResults: number }> {
+  console.log('🔍 Performing filtering with:', filters);
   
-  // Fetch real restaurant data from Google Places API
-  const baseRestaurants = await fetchRealRestaurants(filters);
-
-  // Enhance restaurants with AI descriptions
+  // Check server-side cache first
+  const cacheKey = serverCache.generateKey(filters, minResults);
+  const cachedResult = serverCache.get(cacheKey);
+  
+  if (cachedResult && useCache) {
+    console.log('✅ Server cache hit!');
+    return {
+      results: cachedResult.results,
+      source: 'cache',
+      cacheHit: true,
+      totalResults: cachedResult.results.length
+    };
+  }
+  
+  console.log('❌ Server cache miss, fetching from API...');
+  
+  // Fetch from API
+  const restaurants = await fetchRealRestaurants(filters);
+  
+  // Enhance places with details
   const enhancedResults = await Promise.all(
-    baseRestaurants.map(async (restaurant) => {
-      const description = await generateAIDescription(restaurant, filters);
-      
-      return {
-        ...restaurant,
-        description
-      };
-    })
+    restaurants.map(place => enhancePlaceWithDetails(place))
   );
-
+  
+  // Filter based on user preferences
+  const filteredResults = enhancedResults.filter(place => {
+    // Basic filtering logic
+    if (filters.budget && place.priceLevel) {
+      const priceLevel = place.priceLevel;
+      const budgetLevel = filters.budget === 'P' ? 1 : filters.budget === 'PP' ? 2 : 3;
+      if (priceLevel > budgetLevel) return false;
+    }
+    
+    return true;
+  });
+  
+  // Add AI descriptions
+  const finalResults = await Promise.all(
+    filteredResults.map(async (place) => ({
+      ...place,
+      description: await generateAIDescription(place, filters)
+    }))
+  );
+  
+  // Cache the result
+  if (useCache) {
+    serverCache.set(cacheKey, { results: finalResults });
+    console.log('💾 Cached result on server');
+  }
+  
   return {
-    results: enhancedResults,
+    results: finalResults,
     source: 'api',
     cacheHit: false,
-    totalResults: enhancedResults.length
+    totalResults: finalResults.length
   };
 }
 
@@ -423,7 +512,7 @@ function getQueryOptimizationDescription(filters: UserFilters): string {
     : 'Basic search optimization';
 }
 
-export const filterPlaces = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
+export const filterPlaces = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   const startTime = Date.now();
   
   // Enable CORS
@@ -445,44 +534,206 @@ export const filterPlaces = functions.region('asia-southeast1').https.onRequest(
     const { filters, minResults = 5, useCache = true } = req.body;
     
     if (!filters) {
-      res.status(400).json({ error: 'Missing filters' });
+      res.status(400).json({ error: 'Filters are required' });
       return;
     }
-
-    console.log('🚀 Server-side filtering request:', filters);
-
-    // For now, we'll implement a basic version
-    // You can integrate your existing enhanced filtering logic here
-    const results = await performFiltering(filters, minResults, useCache);
     
+    console.log('🚀 Processing filtering request:', {
+      filters,
+      minResults,
+      useCache,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Perform filtering with caching
+    const result = await performFiltering(filters, minResults, useCache);
     const responseTime = Date.now() - startTime;
+    
+    // Get cache statistics
+    const cacheStats = serverCache.getStats();
     
     const response: FilteringResponse = {
       success: true,
-      results: results.results,
-      source: results.source,
-      cacheHit: results.cacheHit,
-      totalResults: results.totalResults,
+      results: result.results,
+      source: result.source,
+      cacheHit: result.cacheHit,
+      totalResults: result.totalResults,
       performance: {
         responseTime,
-        cacheHitRate: 0.75, // Mock value
-        apiCallsMade: results.source === 'api' ? 1 : 0
+        cacheHitRate: cacheStats.hitRate,
+        apiCallsMade: result.source === 'api' ? 1 : 0
       },
       metadata: {
         filtersApplied: getAppliedFiltersList(filters),
         queryOptimization: getQueryOptimizationDescription(filters)
       }
     };
-
-    console.log(`✅ Server-side filtering completed in ${responseTime}ms`);
-    res.status(200).json(response);
-
-  } catch (error: any) {
-    console.error('❌ Server-side filtering error:', error);
+    
+    console.log('✅ Filtering completed:', {
+      resultsCount: response.results.length,
+      source: response.source,
+      cacheHit: response.cacheHit,
+      responseTime: `${responseTime}ms`,
+      cacheHitRate: `${(cacheStats.hitRate * 100).toFixed(1)}%`
+    });
+    
+    res.json(response);
+    
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    console.error('❌ Filtering error:', error);
+    
     res.status(500).json({
       success: false,
-      error: error.message,
-      results: []
+      error: error instanceof Error ? error.message : 'Unknown error',
+      performance: {
+        responseTime
+      }
     });
   }
 });
+
+/**
+ * Validates "Looking For" filter connectivity and data mapping
+ */
+export const validateFilter = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
+  
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    console.log('🔍 Filter validation function called');
+    
+    // Parse request body
+    const { category, location } = req.body;
+    
+    if (!category) {
+      console.error('❌ No category provided');
+      res.status(400).json({ 
+        success: false, 
+        error: 'No category provided' 
+      });
+      return;
+    }
+    
+    if (!VALIDATION_TYPE_MAPPING[category as keyof typeof VALIDATION_TYPE_MAPPING]) {
+      console.error('❌ Invalid category:', category);
+      res.status(400).json({ 
+        success: false, 
+        error: 'Invalid category' 
+      });
+      return;
+    }
+    
+    const searchLocation = location || { lat: 14.5176, lng: 121.0509 }; // Default to BGC
+    const radius = 1000; // 1km for validation
+    const types = VALIDATION_TYPE_MAPPING[category as keyof typeof VALIDATION_TYPE_MAPPING];
+    
+    console.log(`🔍 Validating ${category} filter connectivity...`);
+    console.log(`📍 Location: ${searchLocation.lat}, ${searchLocation.lng}`);
+    console.log(`🎯 Types: ${types.join(', ')}`);
+    console.log(`📏 Radius: ${radius}m`);
+    
+    // Count places using Google Places API with minimal fields
+    let totalCount = 0;
+    
+    for (const type of types) {
+      try {
+        const count = await countPlacesByType(searchLocation, radius, type);
+        totalCount += count;
+        console.log(`📊 Found ${count} places of type '${type}'`);
+        
+        // If we have enough places, we can stop early
+        if (totalCount >= 10) {
+          console.log(`🎯 Reached minimum count (${totalCount}), stopping early`);
+          break;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to count places for type '${type}':`, error);
+        // Continue with other types
+      }
+    }
+    
+    const responseTime = Date.now() - startTime;
+    
+    const result = {
+      success: true,
+      category,
+      placeCount: totalCount,
+      types,
+      radius,
+      location: searchLocation,
+      responseTime
+    };
+    
+    console.log(`✅ Validation successful: Detected ${totalCount} places for ${category} within 1km`);
+    console.log(`⏱️ Response time: ${responseTime}ms`);
+    
+    res.json(result);
+    
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    console.error('❌ Error in validateFilter:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      responseTime
+    });
+  }
+});
+
+/**
+ * Counts places of a specific type using Google Places API with minimal fields
+ */
+async function countPlacesByType(
+  location: { lat: number; lng: number },
+  radius: number,
+  type: string
+): Promise<number> {
+  const searchUrl = `${PLACES_API_BASE_URL}/places:searchNearby`;
+  
+  const requestBody = {
+    locationRestriction: {
+      circle: {
+        center: {
+          latitude: location.lat,
+          longitude: location.lng
+        },
+        radius: radius
+      }
+    },
+    includedTypes: [type],
+    maxResultCount: 20 // Request more to get accurate count
+  };
+
+  const response = await fetch(searchUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+      'X-Goog-FieldMask': 'places.id,places.location'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.places?.length || 0;
+}

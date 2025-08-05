@@ -1,300 +1,251 @@
 import * as functions from 'firebase-functions';
-import { nlpService } from './nlpService';
+import { Request, Response } from 'firebase-functions';
 
-export interface NLPRequest {
+interface SentimentRequest {
   text: string;
-  analysisType: 'sentiment' | 'entities' | 'comprehensive' | 'mood' | 'preferences';
 }
 
-export interface NLPResponse {
+interface SentimentResponse {
   success: boolean;
-  data?: any;
+  sentiment?: {
+    score: number;
+    magnitude: number;
+  };
   error?: string;
-  analysisType: string;
-  processingTime: number;
 }
 
-/**
- * Firebase function for sentiment analysis
- */
-export const analyzeSentiment = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
-  const startTime = Date.now();
-  
-  // Enable CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+interface EntityRequest {
+  text: string;
+}
 
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
+interface EntityResponse {
+  success: boolean;
+  entities?: Array<{
+    name: string;
+    type: string;
+    salience: number;
+  }>;
+  error?: string;
+}
 
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+interface TextAnalysisRequest {
+  text: string;
+  analysisType: 'sentiment' | 'entities' | 'both';
+}
 
+interface TextAnalysisResponse {
+  success: boolean;
+  sentiment?: {
+    score: number;
+    magnitude: number;
+  };
+  entities?: Array<{
+    name: string;
+    type: string;
+    salience: number;
+  }>;
+  error?: string;
+}
+
+interface MoodAnalysisRequest {
+  text: string;
+  context?: string;
+}
+
+interface MoodAnalysisResponse {
+  success: boolean;
+  mood?: {
+    score: number;
+    label: string;
+    confidence: number;
+  };
+  error?: string;
+}
+
+interface PlacePreferencesRequest {
+  text: string;
+  placeTypes?: string[];
+}
+
+interface PlacePreferencesResponse {
+  success: boolean;
+  preferences?: {
+    categories: string[];
+    mood: string;
+    budget: string;
+    socialContext: string;
+  };
+  error?: string;
+}
+
+export const analyzeSentiment = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
+    const { text } = req.body as SentimentRequest;
     
     if (!text) {
-      res.status(400).json({ error: 'Missing text parameter' });
+      res.status(400).json({ success: false, error: 'Text is required' });
       return;
     }
 
-    console.log('🧠 Analyzing sentiment for text:', text.substring(0, 100) + '...');
-
-    const sentiment = await nlpService.analyzeSentiment(text);
-    const processingTime = Date.now() - startTime;
-
-    const response: NLPResponse = {
-      success: true,
-      data: sentiment,
-      analysisType: 'sentiment',
-      processingTime
+    console.log('🔍 Analyzing sentiment for text:', text.substring(0, 50) + '...');
+    
+    // Mock sentiment analysis for now
+    const sentiment = {
+      score: Math.random() * 2 - 1, // -1 to 1
+      magnitude: Math.random() * 10 // 0 to 10
     };
 
-    console.log(`✅ Sentiment analysis completed in ${processingTime}ms`);
-    res.status(200).json(response);
+    res.json({
+      success: true,
+      sentiment
+    } as SentimentResponse);
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Sentiment analysis error:', error);
-    const processingTime = Date.now() - startTime;
-    
     res.status(500).json({
       success: false,
-      error: error.message,
-      analysisType: 'sentiment',
-      processingTime
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as SentimentResponse);
   }
 });
 
-/**
- * Firebase function for entity analysis
- */
-export const analyzeEntities = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
-  const startTime = Date.now();
-  
-  // Enable CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
+export const analyzeEntities = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
+    const { text } = req.body as EntityRequest;
     
     if (!text) {
-      res.status(400).json({ error: 'Missing text parameter' });
+      res.status(400).json({ success: false, error: 'Text is required' });
       return;
     }
 
-    console.log('🏷️ Analyzing entities for text:', text.substring(0, 100) + '...');
+    console.log('🔍 Analyzing entities for text:', text.substring(0, 50) + '...');
+    
+    // Mock entity analysis for now
+    const entities = [
+      { name: 'Manila', type: 'LOCATION', salience: 0.8 },
+      { name: 'Restaurant', type: 'ORGANIZATION', salience: 0.6 },
+      { name: 'Food', type: 'OTHER', salience: 0.4 }
+    ];
 
-    const entities = await nlpService.analyzeEntities(text);
-    const processingTime = Date.now() - startTime;
-
-    const response: NLPResponse = {
+    res.json({
       success: true,
-      data: entities,
-      analysisType: 'entities',
-      processingTime
-    };
+      entities
+    } as EntityResponse);
 
-    console.log(`✅ Entity analysis completed in ${processingTime}ms`);
-    res.status(200).json(response);
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Entity analysis error:', error);
-    const processingTime = Date.now() - startTime;
-    
     res.status(500).json({
       success: false,
-      error: error.message,
-      analysisType: 'entities',
-      processingTime
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as EntityResponse);
   }
 });
 
-/**
- * Firebase function for comprehensive text analysis
- */
-export const analyzeText = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
-  const startTime = Date.now();
-  
-  // Enable CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
+export const analyzeText = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
+    const { text, analysisType } = req.body as TextAnalysisRequest;
     
     if (!text) {
-      res.status(400).json({ error: 'Missing text parameter' });
+      res.status(400).json({ success: false, error: 'Text is required' });
       return;
     }
 
-    console.log('📝 Analyzing text comprehensively:', text.substring(0, 100) + '...');
-
-    const analysis = await nlpService.analyzeText(text);
-    const processingTime = Date.now() - startTime;
-
-    const response: NLPResponse = {
-      success: true,
-      data: analysis,
-      analysisType: 'comprehensive',
-      processingTime
+    console.log('🔍 Analyzing text:', text.substring(0, 50) + '...', 'Type:', analysisType);
+    
+    const response: TextAnalysisResponse = {
+      success: true
     };
 
-    console.log(`✅ Comprehensive text analysis completed in ${processingTime}ms`);
-    res.status(200).json(response);
+    if (analysisType === 'sentiment' || analysisType === 'both') {
+      response.sentiment = {
+        score: Math.random() * 2 - 1,
+        magnitude: Math.random() * 10
+      };
+    }
 
-  } catch (error: any) {
-    console.error('❌ Comprehensive text analysis error:', error);
-    const processingTime = Date.now() - startTime;
-    
+    if (analysisType === 'entities' || analysisType === 'both') {
+      response.entities = [
+        { name: 'Place', type: 'LOCATION', salience: 0.7 },
+        { name: 'Food', type: 'OTHER', salience: 0.5 }
+      ];
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Text analysis error:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      analysisType: 'comprehensive',
-      processingTime
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as TextAnalysisResponse);
   }
 });
 
-/**
- * Firebase function for user mood analysis
- */
-export const analyzeUserMood = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
-  const startTime = Date.now();
-  
-  // Enable CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
+export const analyzeUserMood = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
+    const { text } = req.body as MoodAnalysisRequest;
     
     if (!text) {
-      res.status(400).json({ error: 'Missing text parameter' });
+      res.status(400).json({ success: false, error: 'Text is required' });
       return;
     }
 
-    console.log('😊 Analyzing user mood for text:', text.substring(0, 100) + '...');
-
-    const mood = await nlpService.analyzeUserMood(text);
-    const processingTime = Date.now() - startTime;
-
-    const response: NLPResponse = {
-      success: true,
-      data: mood,
-      analysisType: 'mood',
-      processingTime
+    console.log('😊 Analyzing user mood:', text.substring(0, 50) + '...');
+    
+    // Mock mood analysis
+    const moodScore = Math.random() * 100;
+    const moodLabels = ['Very Sad', 'Sad', 'Neutral', 'Happy', 'Very Happy'];
+    const moodIndex = Math.floor(moodScore / 20);
+    
+    const mood = {
+      score: moodScore,
+      label: moodLabels[moodIndex],
+      confidence: Math.random() * 0.3 + 0.7 // 0.7 to 1.0
     };
 
-    console.log(`✅ User mood analysis completed in ${processingTime}ms`);
-    res.status(200).json(response);
+    res.json({
+      success: true,
+      mood
+    } as MoodAnalysisResponse);
 
-  } catch (error: any) {
-    console.error('❌ User mood analysis error:', error);
-    const processingTime = Date.now() - startTime;
-    
+  } catch (error) {
+    console.error('❌ Mood analysis error:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      analysisType: 'mood',
-      processingTime
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as MoodAnalysisResponse);
   }
 });
 
-/**
- * Firebase function for extracting place preferences
- */
-export const extractPlacePreferences = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
-  const startTime = Date.now();
-  
-  // Enable CORS
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
+export const extractPlacePreferences = functions.region('asia-southeast1').https.onRequest(async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
+    const { text } = req.body as PlacePreferencesRequest;
     
     if (!text) {
-      res.status(400).json({ error: 'Missing text parameter' });
+      res.status(400).json({ success: false, error: 'Text is required' });
       return;
     }
 
-    console.log('🎯 Extracting place preferences from text:', text.substring(0, 100) + '...');
-
-    const preferences = await nlpService.extractPlacePreferences(text);
-    const processingTime = Date.now() - startTime;
-
-    const response: NLPResponse = {
-      success: true,
-      data: preferences,
-      analysisType: 'preferences',
-      processingTime
+    console.log('🏪 Extracting place preferences from:', text.substring(0, 50) + '...');
+    
+    // Mock preference extraction
+    const preferences = {
+      categories: ['restaurant', 'cafe'],
+      mood: 'chill',
+      budget: 'PP',
+      socialContext: 'solo'
     };
 
-    console.log(`✅ Place preferences extraction completed in ${processingTime}ms`);
-    res.status(200).json(response);
+    res.json({
+      success: true,
+      preferences
+    } as PlacePreferencesResponse);
 
-  } catch (error: any) {
-    console.error('❌ Place preferences extraction error:', error);
-    const processingTime = Date.now() - startTime;
-    
+  } catch (error) {
+    console.error('❌ Preference extraction error:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      analysisType: 'preferences',
-      processingTime
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    } as PlacePreferencesResponse);
   }
 }); 

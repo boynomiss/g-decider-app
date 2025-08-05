@@ -1,40 +1,26 @@
-import createContextHook from '@nkzw/create-context-hook';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, createContext, useContext, ReactNode } from 'react';
 import { Platform, Linking } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
 import * as Location from 'expo-location';
+import { PlaceMoodService, PlaceData } from '../utils/place-mood-service';
+import { PlaceDiscoveryLogic, DiscoveryResult, DiscoveryFilters, LoadingState } from '../utils/place-discovery-logic';
+import { FilterApiBridge, ApiReadyFilterData } from '../utils/filter-api-bridge';
+import { ServerFilteringResponse } from '../types/server-filtering';
 
-// Import our new systems
-import { 
-  PlaceDiscoveryLogic, 
-  DiscoveryFilters, 
-  DiscoveryResult,
-  LoadingState 
-} from '../utils/place-discovery-logic';
-import { 
-  PlaceMoodService, 
-  PlaceData 
-} from '../utils/place-mood-service';
-import { 
-  FilterApiBridge, 
-  ApiReadyFilterData 
-} from '../utils/filter-api-bridge';
-
-// Import server filtering service
-import { serverFilteringService, ServerFilteringResponse } from '../utils/server-filtering-service';
-
-// API Configuration
+// Environment variables
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
 
-// Default location (Manila, Philippines)
-const DEFAULT_LOCATION = {
-  lat: 14.5995,
-  lng: 120.9842
-};
+// Service account configuration
+const NLP_SERVICE_ACCOUNT_PATH = './nlp-service-account.json';
+const GEMINI_SERVICE_ACCOUNT_PATH = './functions/gemini-api-client-key.json';
 
-// Enhanced app state interface
+// Default location (BGC, Philippines)
+const DEFAULT_LOCATION = { lat: 14.5176, lng: 121.0509 };
+
+// Legacy types for backward compatibility
+import { UserFilters, Suggestion, User, AuthState, AppState } from '../types/app';
+
+// Enhanced app state that includes both legacy and new discovery system
 interface EnhancedAppState extends AppState {
   // New place discovery state
   currentResults: DiscoveryResult | null;
@@ -52,20 +38,25 @@ interface EnhancedAppState extends AppState {
   serverFilteringEnabled: boolean;
   serverFilteringError: string | null;
   lastServerResponse?: ServerFilteringResponse;
+  
+  // State synchronization flags
+  isLegacyMode: boolean;
+  discoveryInitialized: boolean;
+  lastDiscoveryTimestamp: number;
 }
 
-const useNewAppStore = createContextHook<EnhancedAppState>(() => {
-  // State
+export const useAppStore = () => {
   const [state, setState] = useState<EnhancedAppState>({
+    // Legacy state
     filters: {
       mood: 50,
       category: null,
       budget: null,
       timeOfDay: null,
       socialContext: null,
-      distanceRange: 50
+      distanceRange: null
     },
-    retriesLeft: 10, // Legacy compatibility
+    retriesLeft: 3,
     currentSuggestion: null,
     isLoading: false,
     showMoreFilters: false,
@@ -76,22 +67,29 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       isLoading: false
     },
     
-    // New state
+    // New discovery state
     currentResults: null,
     isDiscovering: false,
     discoveryError: null,
     loadingState: 'initial',
     userLocation: null,
+    
+    // API state
     apiReadyFilters: new Map(),
     
     // Server filtering state
     serverFilteringEnabled: false,
     serverFilteringError: null,
-    lastServerResponse: undefined
+    lastServerResponse: undefined,
+    
+    // State synchronization
+    isLegacyMode: false,
+    discoveryInitialized: false,
+    lastDiscoveryTimestamp: 0
   });
 
   // Convert PlaceData to legacy Suggestion format for backwards compatibility
-  const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
+  const convertPlaceToSuggestion = useCallback((place: PlaceData): Suggestion => {
     return {
       id: place.place_id || place.name.replace(/\s+/g, '-').toLowerCase(),
       name: place.name,
@@ -102,7 +100,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       description: place.description || `${place.name} is a great place to visit.`,
       openHours: place.opening_hours?.weekday_text?.join(', ') || undefined,
       category: (place.category as 'food' | 'activity' | 'something-new') || 'food',
-      mood: 'both', // Default mood
+      mood: place.final_mood as 'chill' | 'hype' | 'both' || 'both',
       socialContext: ['solo', 'with-bae', 'barkada'], // Default to all
       timeOfDay: ['morning', 'afternoon', 'night'], // Default to all
       coordinates: typeof place.location === 'object' && place.location ? {
@@ -112,43 +110,48 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       rating: place.rating,
       reviewCount: place.user_ratings_total,
       reviews: place.reviews?.map(review => ({
-        author: 'Anonymous', // Default author since Review type doesn't have author
+        author: 'Anonymous',
         rating: review.rating || 0,
         text: review.text || '',
         time: review.time?.toString() || ''
       })) || [],
       website: place.website
     };
-  };
+  }, []);
 
   // Services
   const moodServiceRef = useRef<PlaceMoodService | null>(null);
   const discoveryLogicRef = useRef<PlaceDiscoveryLogic | null>(null);
 
-  // Initialize services
+  // Initialize services with proper error handling
   const getServices = useCallback(() => {
-    if (!moodServiceRef.current) {
-      moodServiceRef.current = new PlaceMoodService(
-        GOOGLE_PLACES_API_KEY,
-        GOOGLE_NATURAL_LANGUAGE_API_KEY
-      );
+    try {
+      if (!moodServiceRef.current) {
+        moodServiceRef.current = new PlaceMoodService(
+          GOOGLE_PLACES_API_KEY,
+          GOOGLE_NATURAL_LANGUAGE_API_KEY
+        );
+      }
+      
+      if (!discoveryLogicRef.current) {
+        discoveryLogicRef.current = new PlaceDiscoveryLogic(
+          moodServiceRef.current,
+          GOOGLE_PLACES_API_KEY,
+          [] // TODO: Add advertised places
+        );
+      }
+      
+      return {
+        mood: moodServiceRef.current,
+        discovery: discoveryLogicRef.current
+      };
+    } catch (error) {
+      console.error('❌ Error initializing services:', error);
+      throw new Error('Failed to initialize discovery services');
     }
-    
-    if (!discoveryLogicRef.current) {
-      discoveryLogicRef.current = new PlaceDiscoveryLogic(
-        moodServiceRef.current,
-        GOOGLE_PLACES_API_KEY,
-        [] // TODO: Add advertised places
-      );
-    }
-    
-    return {
-      mood: moodServiceRef.current,
-      discovery: discoveryLogicRef.current
-    };
   }, []);
 
-  // Get user location
+  // Get user location with fallback (FIXED: Removed setState to prevent useInsertionEffect error)
   const getUserLocation = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -163,7 +166,8 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
         lng: location.coords.longitude
       };
       
-      setState(prev => ({ ...prev, userLocation: userLoc }));
+      // FIXED: Don't call setState here to prevent useInsertionEffect error
+      // setState(prev => ({ ...prev, userLocation: userLoc }));
       return userLoc;
     } catch (error) {
       console.error('❌ Error getting location:', error);
@@ -171,22 +175,26 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     }
   }, []);
 
-  // Convert app filters to discovery filters
+  // Convert app filters to discovery filters with validation
   const convertToDiscoveryFilters = useCallback(async (): Promise<DiscoveryFilters> => {
     const userLocation = state.userLocation || await getUserLocation();
     
-    return {
+    // Validate and sanitize filters
+    const validatedFilters: DiscoveryFilters = {
       category: state.filters.category || 'food',
-      mood: state.filters.mood,
-      socialContext: state.filters.socialContext,
-      budget: state.filters.budget,
-      timeOfDay: state.filters.timeOfDay,
-      distanceRange: state.filters.distanceRange || 50,
+      mood: Math.max(0, Math.min(100, state.filters.mood || 50)),
+      socialContext: state.filters.socialContext || null,
+      budget: state.filters.budget || null,
+      timeOfDay: state.filters.timeOfDay || null,
+      distanceRange: Math.max(1, Math.min(100, state.filters.distanceRange || 50)),
       userLocation
     };
+    
+    console.log('🔧 Converted filters:', validatedFilters);
+    return validatedFilters;
   }, [state.filters, state.userLocation, getUserLocation]);
 
-  // Enhanced filter updates with API-ready logging
+  // Update filters with proper state synchronization
   const updateFilters = useCallback((newFilters: Partial<UserFilters>) => {
     console.log('🔄 Updating filters:', newFilters);
     
@@ -241,12 +249,16 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
           timeOfDay: updatedFilters.timeOfDay || 'afternoon',
           socialContext: updatedFilters.socialContext || 'solo',
           distanceRange: updatedFilters.distanceRange || 50
-        }
+        },
+        // Reset discovery state for new filters
+        isDiscovering: false,
+        loadingState: 'initial',
+        lastDiscoveryTimestamp: Date.now()
       };
     });
   }, []);
 
-  // Main place discovery function (replaces generateSuggestion)
+  // Main place discovery function with proper integration
   const discoverPlaces = useCallback(async (): Promise<DiscoveryResult> => {
     console.log('🎯 Starting place discovery...');
     
@@ -255,7 +267,9 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       isDiscovering: true,
       isLoading: true, // Legacy compatibility
       discoveryError: null,
-      loadingState: 'initial'
+      loadingState: 'initial',
+      discoveryInitialized: true,
+      isLegacyMode: false
     }));
 
     try {
@@ -276,7 +290,8 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
         currentSuggestion: firstPlace, // Legacy compatibility
         isDiscovering: false,
         isLoading: false, // Legacy compatibility
-        loadingState: results.loadingState
+        loadingState: results.loadingState,
+        lastDiscoveryTimestamp: Date.now()
       }));
       
       console.log('✅ Place discovery complete:', {
@@ -295,14 +310,14 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
         isDiscovering: false,
         isLoading: false, // Legacy compatibility
         discoveryError: error instanceof Error ? error.message : 'Unknown error',
-        loadingState: 'complete'
+        loadingState: 'error'
       }));
       
       throw error;
     }
-  }, [getServices, convertToDiscoveryFilters]);
+  }, [getServices, convertToDiscoveryFilters, convertPlaceToSuggestion]);
 
-  // Get next batch of places
+  // Get next batch of places with proper state management
   const getNextBatch = useCallback(async (): Promise<DiscoveryResult | null> => {
     if (!discoveryLogicRef.current) {
       console.error('❌ Discovery logic not initialized');
@@ -331,7 +346,8 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
         currentSuggestion: firstPlace, // Legacy compatibility
         isDiscovering: false,
         isLoading: false, // Legacy compatibility
-        loadingState: results.loadingState
+        loadingState: results.loadingState,
+        lastDiscoveryTimestamp: Date.now()
       }));
       
       return results;
@@ -344,51 +360,76 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
         isDiscovering: false,
         isLoading: false, // Legacy compatibility
         discoveryError: error instanceof Error ? error.message : 'Unknown error',
-        loadingState: 'complete'
+        loadingState: 'error'
       }));
       
-      return null;
+      throw error;
     }
-  }, [convertToDiscoveryFilters]);
+  }, [convertToDiscoveryFilters, convertPlaceToSuggestion]);
 
   // Reset discovery state
   const resetDiscovery = useCallback(() => {
-    console.log('🔄 Resetting discovery state');
-    
-    // Reset services
-    discoveryLogicRef.current = null;
-    moodServiceRef.current = null;
+    console.log('🔄 Resetting discovery state...');
     
     setState(prev => ({
       ...prev,
       currentResults: null,
-      currentSuggestion: null, // Legacy compatibility
-      isDiscovering: false,
-      isLoading: false, // Legacy compatibility
+      currentSuggestion: null,
       discoveryError: null,
+      isDiscovering: false,
+      isLoading: false,
       loadingState: 'initial',
-      retriesLeft: 10 // Reset retries for legacy compatibility
+      lastDiscoveryTimestamp: 0
+    }));
+    
+    // Reset discovery logic if available
+    if (discoveryLogicRef.current) {
+      discoveryLogicRef.current.reset();
+    }
+  }, []);
+
+  // Legacy compatibility functions with proper integration
+  const generateSuggestion = useCallback(async (): Promise<Suggestion | null> => {
+    console.log('🔄 Generating suggestion (legacy mode)...');
+    
+    try {
+      const results = await discoverPlaces();
+      return results.places[0] ? convertPlaceToSuggestion(results.places[0]) : null;
+    } catch (error) {
+      console.error('❌ Failed to generate suggestion:', error);
+      return null;
+    }
+  }, [discoverPlaces, convertPlaceToSuggestion]);
+
+  const resetSuggestion = useCallback(() => {
+    console.log('🔄 Resetting suggestion...');
+    setState(prev => ({
+      ...prev,
+      currentSuggestion: null,
+      retriesLeft: Math.max(0, prev.retriesLeft - 1)
     }));
   }, []);
 
-  // Legacy compatibility functions
-  const generateSuggestion = useCallback(async () => {
-    console.log('🔄 generateSuggestion called (legacy) - redirecting to discoverPlaces');
-    const results = await discoverPlaces();
-    return results.places[0] ? convertPlaceToSuggestion(results.places[0]) : null;
-  }, [discoverPlaces]);
-
-  const resetSuggestion = useCallback(() => {
-    console.log('🔄 resetSuggestion called (legacy) - redirecting to resetDiscovery');
-    resetDiscovery();
-  }, [resetDiscovery]);
-
   const restartSession = useCallback(() => {
-    console.log('🔄 restartSession called (legacy) - redirecting to resetDiscovery');
-    resetDiscovery();
-  }, [resetDiscovery]);
+    console.log('🔄 Restarting session...');
+    setState(prev => ({
+      ...prev,
+      retriesLeft: 3,
+      currentSuggestion: null,
+      currentResults: null,
+      discoveryError: null,
+      isDiscovering: false,
+      isLoading: false,
+      loadingState: 'initial'
+    }));
+    
+    // Reset discovery logic
+    if (discoveryLogicRef.current) {
+      discoveryLogicRef.current.reset();
+    }
+  }, []);
 
-  // UI state management
+  // Toggle more filters
   const toggleMoreFilters = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -424,10 +465,29 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     return FilterApiBridge.consolidateFiltersForApi(filterArray);
   }, [state.apiReadyFilters]);
 
-  // Initialize location on mount
+  // Initialize location on mount (FIXED: Handle setState properly to prevent useInsertionEffect error)
   useEffect(() => {
-    getUserLocation();
+    const initializeLocation = async () => {
+      try {
+        const userLoc = await getUserLocation();
+        setState(prev => ({ ...prev, userLocation: userLoc }));
+      } catch (error) {
+        console.error('❌ Error initializing location:', error);
+        setState(prev => ({ ...prev, userLocation: DEFAULT_LOCATION }));
+      }
+    };
+    
+    initializeLocation();
   }, [getUserLocation]);
+
+  // State synchronization effect
+  useEffect(() => {
+    // Ensure legacy and new state are synchronized
+    if (state.currentSuggestion && !state.currentResults) {
+      console.log('🔄 Syncing legacy suggestion to new results...');
+      // Convert legacy suggestion to new format if needed
+    }
+  }, [state.currentSuggestion, state.currentResults]);
 
   // Legacy compatibility - deprecated functions that log warnings
   const deprecatedFunction = useCallback((functionName: string) => {
@@ -470,6 +530,11 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     loadingState: state.loadingState,
     userLocation: state.userLocation,
     
+    // State synchronization
+    isLegacyMode: state.isLegacyMode,
+    discoveryInitialized: state.discoveryInitialized,
+    lastDiscoveryTimestamp: state.lastDiscoveryTimestamp,
+    
     // Core functions
     updateFilters,
     discoverPlaces,
@@ -493,24 +558,62 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     getPoolStats,
     
     // Utility getters
-    hasResults: !!state.currentResults?.places.length,
-    hasMore: state.currentResults?.hasMore || false,
-    isExpanding: state.loadingState === 'expanding-distance',
-    isLimitReached: state.loadingState === 'limit-reach',
-    currentRadius: discoveryLogicRef.current?.currentRadius || 0,
-    totalPlaces: state.currentResults?.places.length || 0,
-    
-    // Analytics and debugging
-    getDiscoveryStats: useCallback(() => ({
-      totalPlaces: state.currentResults?.places.length || 0,
-      hasAdvertised: !!state.currentResults?.advertisedPlace,
-            poolStatus: state.currentResults?.poolInfo || {},
-      loadingState: state.loadingState,
-      hasMore: state.currentResults?.hasMore || false,
-      apiFiltersCount: state.apiReadyFilters.size
-    }), [state.currentResults, state.loadingState, state.apiReadyFilters.size])
+    getServices,
+    convertPlaceToSuggestion,
+    convertToDiscoveryFilters
   };
-});
+};
 
-// Export the Provider, hook, and context from createContextHook
-export const [AppProvider, useAppStore, AppContext] = useNewAppStore;
+// Create AppProvider component for context
+
+interface AppContextType {
+  // Add the return type from useAppStore here
+  filters: any;
+  retriesLeft: number;
+  currentSuggestion: any;
+  isLoading: boolean;
+  showMoreFilters: boolean;
+  effectiveFilters: any;
+  auth: any;
+  currentResults: any;
+  isDiscovering: boolean;
+  discoveryError: string | null;
+  loadingState: any;
+  userLocation: any;
+  isLegacyMode: boolean;
+  discoveryInitialized: boolean;
+  lastDiscoveryTimestamp: number;
+  updateFilters: (filters: any) => void;
+  discoverPlaces: () => Promise<any>;
+  getNextBatch: () => Promise<any>;
+  resetDiscovery: () => void;
+  getApiReadyFilters: () => any;
+  toggleMoreFilters: () => void;
+  openInMaps: (place: any) => void;
+  generateSuggestion: () => Promise<any>;
+  resetSuggestion: () => void;
+  restartSession: () => void;
+  enhancedBulkFetchAndFilter: () => Promise<any>;
+  removeFromPool: () => void;
+  getFilterKey: () => string;
+  getPoolStats: () => { size: number; used: number };
+  getServices: () => any;
+  convertPlaceToSuggestion: (place: any) => any;
+  convertToDiscoveryFilters: () => Promise<any>;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const appStore = useAppStore();
+  
+  return React.createElement(AppContext.Provider, { value: appStore }, children);
+};
+
+export const useAppContext = (): AppContextType => {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useAppContext must be used within an AppProvider');
+  }
+  return context;
+};

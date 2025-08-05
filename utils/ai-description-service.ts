@@ -4,6 +4,9 @@ import { Suggestion } from '../types/app';
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'your-gemini-api-key-here';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
+// Service account configuration for server-side usage
+const GEMINI_SERVICE_ACCOUNT_PATH = './functions/gemini-api-client-key.json';
+
 // Cache for AI-generated descriptions
 const descriptionCache = new Map<string, { description: string; timestamp: number }>();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours

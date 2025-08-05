@@ -26,9 +26,10 @@ async function testGoogleAPIClients() {
   const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
   const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
 
-  // Check for service account credentials file
-  const SERVICE_ACCOUNT_FILE = './google-cloud-credentials.json';
-  const hasServiceAccount = fs.existsSync(SERVICE_ACCOUNT_FILE);
+  // Check for service account credentials files
+  const NLP_SERVICE_ACCOUNT_FILE = './nlp-service-account.json';
+  const GEMINI_SERVICE_ACCOUNT_FILE = './functions/gemini-api-client-key.json';
+  const hasServiceAccount = fs.existsSync(NLP_SERVICE_ACCOUNT_FILE) || fs.existsSync(GEMINI_SERVICE_ACCOUNT_FILE);
   
   // Test API configuration validation
   console.log('📋 Validating API Configuration...');
@@ -44,7 +45,7 @@ async function testGoogleAPIClients() {
   }
 
   if (!nlConfigured) {
-    console.log('⚠️  Google Natural Language API not configured. Please set EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY or provide google-cloud-credentials.json.\n');
+    console.log('⚠️  Google Natural Language API not configured. Please set EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY or provide nlp-service-account.json.\n');
   }
 
   // Test Google Places API
@@ -188,8 +189,11 @@ async function testGoogleAPIClients() {
     console.log('1. Google Places API: Set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY in .env');
     console.log('2. Google Natural Language API: Either:');
     console.log('   - Set EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY in .env, OR');
-    console.log('   - Provide google-cloud-credentials.json (recommended for production)');
-    console.log('3. Make sure .env and *-credentials.json are in your .gitignore');
+    console.log('   - Provide nlp-service-account.json (recommended for production)');
+    console.log('3. Gemini API: Either:');
+    console.log('   - Set EXPO_PUBLIC_GEMINI_API_KEY in .env, OR');
+    console.log('   - Provide functions/gemini-api-client-key.json (recommended for production)');
+    console.log('4. Make sure .env and *-service-account.json are in your .gitignore');
   }
 }
 
