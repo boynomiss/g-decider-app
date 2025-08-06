@@ -42,15 +42,15 @@ export default function EnhancedPlaceCard({
 
   // Get the appropriate image based on screen context
   const getDisplayImage = () => {
-    if (!place.photos?.medium || place.photos.medium.length === 0) {
+    if (!place.photos?.medium || !place.photos.medium.length || place.photos.medium.length === 0) {
       return null;
     }
-    return place.photos.medium[currentImageIndex] || place.photos.medium[0];
+    return place.photos.medium[currentImageIndex] || (place.photos.medium.length > 0 ? place.photos.medium[0] : null);
   };
 
   // Handle contact actions
   const handleCall = async () => {
-    if (!place.contactActions?.canCall || !place.contactActions.callUrl) {
+    if (!place.contactActions || !place.contactActions.canCall || !place.contactActions.callUrl) {
       Alert.alert('No Phone Number', 'This place doesn\'t have a phone number available.');
       return;
     }
@@ -69,7 +69,7 @@ export default function EnhancedPlaceCard({
   };
 
   const handleWebsite = async () => {
-    if (!place.contactActions?.canVisitWebsite || !place.contactActions.websiteUrl) {
+    if (!place.contactActions || !place.contactActions.canVisitWebsite || !place.contactActions.websiteUrl) {
       Alert.alert('No Website', 'This place doesn\'t have a website available.');
       return;
     }
@@ -139,14 +139,14 @@ export default function EnhancedPlaceCard({
 
   // Get opening hours display
   const getOpeningHoursDisplay = () => {
-    if (!place.opening_hours) return null;
+    if (!place.opening_hours || typeof place.opening_hours !== 'object') return null;
     
     // Check if currently open
     const isOpenNow = place.opening_hours.open_now;
     
     // Get today's hours if available
     const today = new Date().getDay();
-    const weekdayText = place.opening_hours.weekday_text;
+    const weekdayText = place.opening_hours.weekday_text || null;
     const todayHours = weekdayText ? weekdayText[today] : null;
     
     return {
@@ -176,7 +176,7 @@ export default function EnhancedPlaceCard({
 
   // Cycle through images if multiple available
   const handleImagePress = () => {
-    if (place.photos?.medium && place.photos.medium.length > 1) {
+    if (place.photos && place.photos.medium && place.photos.medium.length > 1) {
       setCurrentImageIndex((prev) => (prev + 1) % place.photos.medium.length);
     }
   };
@@ -199,7 +199,7 @@ export default function EnhancedPlaceCard({
             scrollEventThrottle={16}
           >
             {/* Display actual place photos if available */}
-            {place.photos?.medium?.length > 0 ? (
+            {place.photos && place.photos.medium && place.photos.medium.length > 0 ? (
               place.photos.medium.map((photo, index) => (
                 <View key={index} style={styles.imageWrapper}>
                   <Image
@@ -219,10 +219,10 @@ export default function EnhancedPlaceCard({
             )}
           </ScrollView>
           {/* Carousel Indicators */}
-          {place.photos?.medium?.length > 1 && (
+          {place.photos && place.photos.medium && place.photos.medium.length > 1 && (
             <View style={styles.imageCounter} pointerEvents="box-none">
               <Text style={styles.imageCounterText}>
-                {currentImageIndex + 1}/{place.photos?.medium?.length || 1}
+                {currentImageIndex + 1}/{place.photos && place.photos.medium ? place.photos.medium.length : 1}
               </Text>
             </View>
           )}
@@ -297,7 +297,7 @@ export default function EnhancedPlaceCard({
           </View>
           {/* Place Actions (Old UI Style) */}
           <View style={styles.placeActions}>
-            {place.contactActions?.canCall && (
+            {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
                 style={styles.actionButton} 
                 onPress={handleCall}
@@ -319,7 +319,7 @@ export default function EnhancedPlaceCard({
               <MapPin size={16} color="#8B5FBF" />
               <Text style={styles.mapButtonText}>View in Maps</Text>
             </TouchableOpacity>
-            {place.contactActions?.canVisitWebsite && (
+            {place.contactActions && place.contactActions.canVisitWebsite && (
               <TouchableOpacity 
                 style={styles.actionButton} 
                 onPress={handleWebsite}
