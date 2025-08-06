@@ -254,8 +254,9 @@ export default function ResultScreen() {
       const currentPlace = results[currentResultIndex];
       searchDiscounts(currentPlace);
       getBookingOptions(currentPlace);
+      generateDescription(currentPlace);
     }
-  }, [results, isLoading, currentResultIndex, searchDiscounts, getBookingOptions]);
+  }, [results, isLoading, currentResultIndex, searchDiscounts, getBookingOptions, generateDescription]);
 
 
 
@@ -310,8 +311,12 @@ export default function ResultScreen() {
               showFullDetails={true}
               showRemoveButton={false}
             />
-            
-
+            <AIDescriptionCard
+              description={aiDescription}
+              isLoading={aiLoading}
+              error={aiError}
+              onGenerate={() => generateDescription(results[currentResultIndex])}
+            />
           </View>
         )}
 
@@ -345,7 +350,7 @@ export default function ResultScreen() {
                   scrollEventThrottle={16}
                   style={styles.imageScrollView}
                 >
-                  {selectedPlace.photos.medium.map((image: string, index: number) => (
+                  {selectedPlace.photos.medium.slice(0, 5).map((image: string, index: number) => (
                     <Image
                       key={index}
                       source={{ uri: image }}
@@ -359,7 +364,7 @@ export default function ResultScreen() {
               {/* Carousel Indicators */}
               {selectedPlace?.photos?.medium && selectedPlace.photos.medium.length > 1 && (
                 <View style={styles.carouselIndicators}>
-                  {selectedPlace.photos.medium.map((_: string, index: number) => (
+                  {selectedPlace.photos.medium.slice(0, 5).map((_: string, index: number) => (
                     <View
                       key={index}
                       style={[

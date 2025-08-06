@@ -8,7 +8,7 @@ import { ServerFilteringResponse } from '../types/server-filtering';
 
 // Environment variables
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
+const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || 'AIzaSyDFDP5a0_AwD-ZC9igtkZWCiwjpf_SfY2E';
 
 // Service account configuration
 const NLP_SERVICE_ACCOUNT_PATH = './nlp-service-account.json';
