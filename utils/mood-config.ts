@@ -42,6 +42,134 @@ export const MOOD_LABELS = {
   ]
 };
 
+// Entity Analysis Enhanced Mood Labels
+// These are extracted from actual review entities and provide more authentic descriptors
+export const ENTITY_ENHANCED_MOOD_LABELS = {
+  chill: {
+    // Adjectives commonly found in reviews for chill places
+    adjectives: [
+      'cozy', 'peaceful', 'quiet', 'serene', 'tranquil', 'calm', 'relaxing',
+      'intimate', 'romantic', 'charming', 'quaint', 'rustic', 'homely',
+      'comfortable', 'welcoming', 'warm', 'gentle', 'soft', 'mellow',
+      'laid-back', 'casual', 'unpretentious', 'simple', 'minimalist'
+    ],
+    // Nouns that indicate chill atmosphere
+    nouns: [
+      'oasis', 'retreat', 'sanctuary', 'haven', 'escape', 'hideaway',
+      'nook', 'corner', 'spot', 'place', 'space', 'area', 'zone'
+    ],
+    // Phrases that suggest chill vibes
+    phrases: [
+      'perfect for', 'great for', 'ideal for', 'wonderful for',
+      'amazing for', 'excellent for', 'fantastic for'
+    ]
+  },
+  neutral: {
+    // Adjectives for balanced, moderate places
+    adjectives: [
+      'decent', 'good', 'nice', 'pleasant', 'adequate', 'satisfactory',
+      'reasonable', 'fair', 'standard', 'typical', 'normal', 'regular',
+      'convenient', 'accessible', 'practical', 'functional', 'reliable'
+    ],
+    // Nouns for neutral places
+    nouns: [
+      'option', 'choice', 'alternative', 'place', 'spot', 'location',
+      'venue', 'establishment', 'facility', 'service'
+    ],
+    // Phrases for neutral descriptions
+    phrases: [
+      'does the job', 'gets the job done', 'meets expectations',
+      'satisfies needs', 'fulfills requirements', 'serves its purpose'
+    ]
+  },
+  hype: {
+    // Adjectives for energetic, exciting places
+    adjectives: [
+      'vibrant', 'lively', 'energetic', 'exciting', 'thrilling', 'amazing',
+      'incredible', 'fantastic', 'awesome', 'electric', 'pumping', 'wild',
+      'crazy', 'insane', 'intense', 'dynamic', 'bustling', 'happening',
+      'trendy', 'hip', 'cool', 'popular', 'hot', 'buzzing', 'bustling'
+    ],
+    // Nouns for hype places
+    nouns: [
+      'spot', 'place', 'venue', 'destination', 'hotspot', 'scene',
+      'atmosphere', 'vibe', 'energy', 'excitement', 'thrill'
+    ],
+    // Phrases for hype descriptions
+    phrases: [
+      'must visit', 'worth checking out', 'definitely go', 'highly recommend',
+      'absolutely amazing', 'incredible experience', 'unforgettable'
+    ]
+  }
+};
+
+// Entity Analysis Configuration
+export const ENTITY_ANALYSIS_CONFIG = {
+  // Minimum salience score for entities to be considered
+  MIN_SALIENCE: 0.1,
+  
+  // Minimum sentiment magnitude for entity sentiment to be considered
+  MIN_SENTIMENT_MAGNITUDE: 0.3,
+  
+  // Entity types to focus on for mood analysis
+  RELEVANT_ENTITY_TYPES: [
+    'PERSON', 'ORGANIZATION', 'LOCATION', 'EVENT', 'WORK_OF_ART',
+    'CONSUMER_GOOD', 'OTHER'
+  ],
+  
+  // Keywords that indicate mood (ONLY POSITIVE KEYWORDS)
+  MOOD_INDICATOR_KEYWORDS: {
+    hype: [
+      'amazing', 'incredible', 'fantastic', 'awesome', 'excellent',
+      'outstanding', 'brilliant', 'perfect', 'wonderful', 'marvelous',
+      'spectacular', 'phenomenal', 'extraordinary', 'exceptional',
+      'electric', 'pumping', 'wild', 'crazy', 'insane', 'intense',
+      'dynamic', 'bustling', 'happening', 'trendy', 'hip', 'cool',
+      'popular', 'hot', 'buzzing', 'lively', 'energetic', 'exciting',
+      'thrilling', 'vibrant'
+    ],
+    chill: [
+      'peaceful', 'calm', 'quiet', 'serene', 'tranquil', 'relaxing',
+      'soothing', 'gentle', 'soft', 'mellow', 'laid-back', 'casual',
+      'cozy', 'intimate', 'romantic', 'charming', 'quaint', 'rustic',
+      'homely', 'comfortable', 'welcoming', 'warm', 'unpretentious',
+      'simple', 'minimalist', 'zen', 'blissful', 'meditative'
+    ],
+    neutral: [
+      'decent', 'good', 'nice', 'pleasant', 'adequate', 'satisfactory',
+      'reasonable', 'fair', 'standard', 'typical', 'normal', 'regular',
+      'convenient', 'accessible', 'practical', 'functional', 'reliable',
+      'solid', 'consistent', 'acceptable', 'fine', 'okay'
+    ]
+  },
+  
+  // Weight multipliers for different entity types
+  ENTITY_TYPE_WEIGHTS: {
+    'PERSON': 1.0,        // People mentioned in reviews
+    'ORGANIZATION': 0.8,   // Business names, brands
+    'LOCATION': 0.6,       // Place names, landmarks
+    'EVENT': 1.2,          // Events, activities (higher weight)
+    'WORK_OF_ART': 0.9,    // Creative works, performances
+    'CONSUMER_GOOD': 0.7,  // Products, services
+    'OTHER': 0.5           // Other entities
+  },
+  
+  // Review text processing
+  REVIEW_PROCESSING: {
+    // Minimum review length to analyze
+    MIN_REVIEW_LENGTH: 10,
+    
+    // Maximum reviews to analyze per place
+    MAX_REVIEWS_TO_ANALYZE: 20,
+    
+    // Recent review weight multiplier (recent reviews count more)
+    RECENT_REVIEW_WEIGHT: 1.5,
+    
+    // Older review weight multiplier
+    OLD_REVIEW_WEIGHT: 0.8
+  }
+};
+
 // Comprehensive category to mood mapping
 export const CATEGORY_MOOD_MAPPING: Record<string, number> = {
   // Entertainment & Nightlife (High Hype: 80-95)

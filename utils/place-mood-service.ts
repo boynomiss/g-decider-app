@@ -1,5 +1,6 @@
 // React Native compatible implementation - using REST API instead of SDK
 import { googlePlacesClient, googleNaturalLanguageClient } from './google-api-clients';
+import { EntityEnhancedMoodService, EntityMoodAnalysis } from './entity-enhanced-mood-service';
 
 // Types for the enhanced place discovery system
 export interface PlaceData {
@@ -164,10 +165,12 @@ export const MOOD_KEYWORDS = {
 export class PlaceMoodService {
   private googlePlacesApiKey: string;
   private googleNaturalLanguageApiKey: string;
+  private entityMoodService: EntityEnhancedMoodService;
 
   constructor(googlePlacesApiKey: string, googleNaturalLanguageApiKey?: string) {
     this.googlePlacesApiKey = googlePlacesApiKey;
     this.googleNaturalLanguageApiKey = googleNaturalLanguageApiKey || '';
+    this.entityMoodService = new EntityEnhancedMoodService();
   }
 
   /**
@@ -193,9 +196,13 @@ export class PlaceMoodService {
       const moodScore = this.calculateMoodScore(coreData, sentimentData, realTimeData);
       console.log(`🎯 Mood score calculated: ${moodScore}`);
       
-      // Step 5: Assign final descriptive mood
-      const finalMood = this.assignFinalMood(moodScore);
-      console.log(`🎭 Final mood assigned: ${finalMood}`);
+      // Step 5: Assign final descriptive mood with entity analysis enhancement
+      const moodAnalysis = await this.assignFinalMoodWithEntityAnalysis(
+        moodScore, 
+        coreData.reviews || [], 
+        coreData.category || 'establishment'
+      );
+      console.log(`🎭 Final mood assigned: ${moodAnalysis.mood} (confidence: ${moodAnalysis.confidence}%)`);
       
       // Combine all data
       const enhancedPlace: PlaceData = {
@@ -208,7 +215,7 @@ export class PlaceMoodService {
         reviews: coreData.reviews || [],
         ...realTimeData,
         mood_score: moodScore,
-        final_mood: finalMood
+        final_mood: moodAnalysis.mood
       };
       
       return enhancedPlace;
@@ -503,7 +510,77 @@ export class PlaceMoodService {
   }
 
   /**
-   * Step 5: Assign final descriptive mood based on score
+   * Step 5: Assign final descriptive mood based on score with entity analysis enhancement
+   */
+  private async assignFinalMoodWithEntityAnalysis(
+    moodScore: number, 
+    reviews: Review[], 
+    placeCategory: string
+  ): Promise<{ mood: string; confidence: number; descriptors: string[] }> {
+    try {
+      console.log('🔍 Starting entity-enhanced mood analysis...');
+      console.log(`   Reviews count: ${reviews.length}`);
+      console.log(`   Place category: ${placeCategory}`);
+      console.log(`   Mood score: ${moodScore}`);
+      
+      // Convert reviews to the format expected by entity analysis
+      const reviewEntities = reviews.map(review => ({
+        text: review.text,
+        rating: review.rating,
+        time: review.time * 1000 // Convert to milliseconds
+      }));
+
+      console.log('📝 Converted reviews for entity analysis:', reviewEntities.length);
+
+      // Perform entity-enhanced mood analysis
+      console.log('🔍 Calling entity mood service...');
+      const entityAnalysis = await this.entityMoodService.analyzePlaceMoodFromReviews(
+        reviewEntities,
+        placeCategory
+      );
+      
+      console.log('✅ Entity analysis completed:');
+      console.log(`   Confidence: ${entityAnalysis.confidence}%`);
+      console.log(`   Extracted descriptors: ${entityAnalysis.extractedDescriptors.join(', ')}`);
+      console.log(`   Mood category: ${entityAnalysis.moodCategory}`);
+      console.log(`   Mood score: ${entityAnalysis.moodScore}`);
+
+      // If entity analysis has high confidence and extracted descriptors, use them
+      if (entityAnalysis.confidence > 70 && entityAnalysis.extractedDescriptors.length > 0) {
+        // Use the most relevant descriptor as the mood label
+        const primaryDescriptor = entityAnalysis.extractedDescriptors[0];
+        console.log(`🎯 Using enhanced mood descriptor: ${primaryDescriptor}`);
+        return {
+          mood: primaryDescriptor,
+          confidence: entityAnalysis.confidence,
+          descriptors: entityAnalysis.extractedDescriptors
+        };
+      }
+
+      console.log('⚠️ Entity analysis confidence too low or no descriptors, using fallback');
+      // Fallback to traditional mood assignment
+      const fallbackMood = this.assignFinalMood(moodScore);
+      console.log(`🔄 Using fallback mood: ${fallbackMood}`);
+      return {
+        mood: fallbackMood,
+        confidence: 50,
+        descriptors: []
+      };
+
+    } catch (error) {
+      console.warn('⚠️ Entity analysis failed, using fallback mood assignment:', error);
+      const fallbackMood = this.assignFinalMood(moodScore);
+      console.log(`🔄 Using fallback mood due to error: ${fallbackMood}`);
+      return {
+        mood: fallbackMood,
+        confidence: 30,
+        descriptors: []
+      };
+    }
+  }
+
+  /**
+   * Step 5: Assign final descriptive mood based on score (fallback method)
    */
   private assignFinalMood(moodScore: number): string {
     if (moodScore >= 70) {

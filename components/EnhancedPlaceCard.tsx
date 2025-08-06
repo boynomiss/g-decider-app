@@ -91,6 +91,42 @@ export default function EnhancedPlaceCard({
     const moodScore = place.mood_score || 50;
     const finalMood = place.final_mood || 'neutral';
     
+    // Enhanced mood display that uses entity analysis results
+    const getMoodEmoji = (mood: string) => {
+      const moodLower = mood.toLowerCase();
+      
+      // Check for hype-related keywords
+      if (moodLower.includes('vibrant') || moodLower.includes('lively') || moodLower.includes('energetic') || 
+          moodLower.includes('exciting') || moodLower.includes('buzzing') || moodLower.includes('dynamic') ||
+          moodLower.includes('thrilling') || moodLower.includes('electric') || moodLower.includes('pumping')) {
+        return '🔥';
+      }
+      
+      // Check for chill-related keywords
+      if (moodLower.includes('cozy') || moodLower.includes('peaceful') || moodLower.includes('calm') ||
+          moodLower.includes('serene') || moodLower.includes('tranquil') || moodLower.includes('relaxing') ||
+          moodLower.includes('intimate') || moodLower.includes('romantic') || moodLower.includes('charming') ||
+          moodLower.includes('quaint') || moodLower.includes('rustic') || moodLower.includes('homely') ||
+          moodLower.includes('comfortable') || moodLower.includes('welcoming') || moodLower.includes('warm') ||
+          moodLower.includes('gentle') || moodLower.includes('soft') || moodLower.includes('mellow') ||
+          moodLower.includes('laid-back') || moodLower.includes('casual') || moodLower.includes('unpretentious') ||
+          moodLower.includes('simple') || moodLower.includes('minimalist')) {
+        return '😌';
+      }
+      
+      // Default to neutral for other cases
+      return '😊';
+    };
+    
+    // If final_mood contains enhanced descriptors, use them directly
+    if (finalMood && finalMood !== 'neutral' && finalMood !== 'chill' && finalMood !== 'hype') {
+      return {
+        emoji: getMoodEmoji(finalMood),
+        label: finalMood.charAt(0).toUpperCase() + finalMood.slice(1) // Capitalize first letter
+      };
+    }
+    
+    // Fallback to basic mood categories
     const moodConfig = {
       chill: { emoji: '😌', label: 'Chill Vibe' },
       neutral: { emoji: '😊', label: 'Balanced' },
@@ -278,7 +314,7 @@ export default function EnhancedPlaceCard({
               </TouchableOpacity>
             )}
             <TouchableOpacity 
-              style={styles.actionButton} 
+              style={styles.mapButton} 
               onPress={() => {
                 // Open in maps
                 const url = `https://maps.google.com/?q=${encodeURIComponent(place.address)}`;
@@ -287,7 +323,7 @@ export default function EnhancedPlaceCard({
               activeOpacity={0.7}
             >
               <MapPin size={16} color="#8B5FBF" />
-              <Text style={styles.actionText}>Map</Text>
+              <Text style={styles.mapButtonText}>View in Maps</Text>
             </TouchableOpacity>
             {place.contactActions?.canVisitWebsite && (
               <TouchableOpacity 
@@ -435,28 +471,28 @@ const styles = StyleSheet.create({
   },
   // Old UI Content Styles
   placeInfo: {
-    padding: 16,
+    padding: 20, // Increased from 16 to 20 for better overall spacing
   },
   placeName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4A4A4A',
-    marginBottom: 4,
+    marginBottom: 8, // Standardized to 8
     textAlign: 'center',
   },
   placeLocation: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 12, // Standardized to 12
     textAlign: 'center',
   },
   budgetContainer: {
     alignSelf: 'center',
-    backgroundColor: '#87CEEB',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+    backgroundColor: '#F5F5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 16, // Increased to 16 for better separation
   },
   budget: {
     fontSize: 14,
@@ -467,31 +503,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 16, // Standardized to 16
   },
   enhancedInfoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 16, // Standardized to 16
     flexWrap: 'wrap',
+    gap: 8, // Added gap for consistent spacing between elements
   },
   ratingSection: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#87CEEB',
+    backgroundColor: '#E6F3FF',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 8,
-    marginRight: 8,
-    height: 24,
+    marginBottom: 0, // Removed marginBottom since we're using gap
+    marginRight: 0, // Removed marginRight since we're using gap
+    height: 26,
   },
   ratingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0066CC',
+    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
     marginLeft: 4,
   },
   reviewCount: {
@@ -504,31 +541,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#87CEEB',
+    backgroundColor: '#E6F3FF',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 8,
-    marginRight: 8,
-    height: 24,
+    marginBottom: 0, // Removed marginBottom since we're using gap
+    marginRight: 0, // Removed marginRight since we're using gap
+    height: 26,
   },
   hoursSection: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#87CEEB',
+    backgroundColor: '#E6F3FF',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 8,
-    marginRight: 8,
-    height: 24,
+    marginBottom: 0, // Removed marginBottom since we're using gap
+    marginRight: 0, // Removed marginRight since we're using gap
+    height: 26,
   },
   hoursText: {
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
-    color: '#0066CC',
+    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
   },
   hoursDetail: {
     fontSize: 10,
@@ -542,7 +579,7 @@ const styles = StyleSheet.create({
   moodText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0066CC',
+    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
   },
   moodScore: {
     fontSize: 10,
@@ -552,19 +589,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 16, // Added consistent top margin
   },
   actionButton: {
-    flexDirection: 'column',
+    flexDirection: 'column',        // Vertical layout (icon above text)
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    gap: 8,
+    gap: 6,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12 for better proportion
     color: '#8B5FBF',
     fontWeight: '500',
+    textAlign: 'center',
   },
   removeButton: {
     flexDirection: 'row',
@@ -576,18 +615,36 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   removeText: {
-    fontSize: 14,
+    fontSize: 12, // Reduced from 14 to 12 for consistency
     color: '#FF6B6B',
     fontWeight: '500',
   },
   divider: {
-    height: 2,
+    height: 1, // Reduced from 2 to 1 for subtler appearance
     backgroundColor: '#E0E0E0',
-    marginVertical: 4,
+    marginVertical: 12, // Standardized to 12 for consistency
   },
   actionButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 12,
+  },
+  mapButton: {
+    flexDirection: 'row',           // Horizontal layout (icon beside text)
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',      // White background
+    borderWidth: 1,                 // Has a border
+    borderColor: '#8B5FBF',        // Purple border
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 4,
+  },
+  mapButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5FBF',
+    marginLeft: 8,
   },
 });

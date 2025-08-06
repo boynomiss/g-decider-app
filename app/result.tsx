@@ -109,10 +109,14 @@ export default function ResultScreen() {
     console.log('🔍 Result page effect - hasAttemptedLoad:', hasAttemptedLoad, 'results.length:', results.length, 'isLoading:', isLoading, 'error:', error);
     
     // Only attempt to load if we haven't tried before and have no results
+    // AND if we're not currently loading (which means we came from the home page)
     if (!hasAttemptedLoad && results.length === 0 && !isLoading && !error) {
-      console.log('🔄 No results found, triggering server-side filtering...');
+      console.log('🔄 No results found and not loading, triggering server-side filtering...');
       setHasAttemptedLoad(true);
       filterPlaces(filters, 5, true);
+    } else if (results.length > 0) {
+      console.log('✅ Results already available, no need to trigger filtering');
+      setHasAttemptedLoad(true);
     }
   }, [hasAttemptedLoad, results.length, isLoading, error, filters]);
 

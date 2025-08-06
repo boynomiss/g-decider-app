@@ -48,23 +48,34 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
     useCache: boolean = true
   ) => {
     console.log('🚀 Starting server-side filtering with filters:', filters);
+    console.log('🔍 Current state before filtering - isLoading:', isLoading, 'error:', error, 'results.length:', results.length);
     
     setIsLoading(true);
     setError(null);
+    
+    console.log('🔍 Set isLoading to true, error to null');
 
     try {
+      console.log('📤 About to call serverFilteringService.filterPlaces...');
       const rawResponse = await serverFilteringService.filterPlaces(filters, minResults, useCache);
+      console.log('📤 serverFilteringService.filterPlaces completed, rawResponse:', rawResponse);
       
       // Validate and sanitize the response
+      console.log('🔍 Validating and sanitizing response...');
       const validatedResponse = validateAndSanitizeResponse(rawResponse);
+      console.log('🔍 Response validated:', validatedResponse);
       
       // Convert server response to client format with proper error handling
+      console.log('🔍 Converting server response to client format...');
       const { placeDataResults, performance, metadata } = convertServerResponse(validatedResponse);
+      console.log('🔍 Response converted - placeDataResults.length:', placeDataResults.length);
 
       setResults(placeDataResults);
       setLastResponse(validatedResponse);
       setPerformance(performance);
       setMetadata(metadata);
+      
+      console.log('🔍 State updated - results set to:', placeDataResults.length, 'items');
 
       console.log('✅ Server filtering completed:', {
         resultsCount: placeDataResults.length,
@@ -76,15 +87,17 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       console.error('❌ Server filtering failed:', errorMessage);
+      console.error('❌ Full error object:', err);
       setError(errorMessage);
       setResults([]);
       setLastResponse(undefined);
       setPerformance(null);
       setMetadata(null);
     } finally {
+      console.log('🔍 Setting isLoading to false');
       setIsLoading(false);
     }
-  }, []);
+  }, [isLoading, error, results.length]);
 
   const clearResults = useCallback(() => {
     setResults([]);

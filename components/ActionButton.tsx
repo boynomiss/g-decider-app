@@ -13,6 +13,8 @@ export default function ActionButton() {
   const router = useRouter();
   const shakeAnimation = React.useRef(new Animated.Value(0)).current;
   const [isRouterReady, setIsRouterReady] = useState(false);
+  const [isButtonPressed, setIsButtonPressed] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     // Small delay to ensure router is ready
@@ -22,12 +24,49 @@ export default function ActionButton() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Reset processing state when loading completes
+  useEffect(() => {
+    if (!isLoading && isProcessing) {
+      console.log('🔍 Loading completed, resetting processing state');
+      setIsProcessing(false);
+    }
+  }, [isLoading, isProcessing]);
+
+  // Reset button states when there's an error
+  useEffect(() => {
+    if (error) {
+      console.log('🔍 Error detected, resetting button states');
+      setIsButtonPressed(false);
+      setIsProcessing(false);
+    }
+  }, [error]);
+
+  // Cleanup effect to reset states on unmount
+  useEffect(() => {
+    return () => {
+      setIsButtonPressed(false);
+      setIsProcessing(false);
+    };
+  }, []);
+
   const handlePress = async () => {
     console.log('🎯 Action button pressed!');
     console.log('🔍 Button state - Category:', filters.category, 'Retries:', retriesLeft, 'Loading:', isLoading);
     console.log('🔍 Current filters:', JSON.stringify(filters, null, 2));
     console.log('🔍 Button disabled state:', isLoading);
     console.log('🔍 Router ready state:', isRouterReady);
+    console.log('🔍 Current results count:', results.length);
+    console.log('🔍 Current error state:', error);
+    console.log('🔍 Processing state:', isProcessing);
+    
+    // Prevent multiple rapid presses
+    if (isButtonPressed || isProcessing) {
+      console.log('⚠️ Button already pressed or processing, ignoring duplicate press');
+      return;
+    }
+    
+    setIsButtonPressed(true);
+    setIsProcessing(true);
     
     try {
       
@@ -67,20 +106,24 @@ export default function ActionButton() {
       
       // Pre-validate the filter before proceeding
       console.log('🔍 Pre-validating filter connectivity...');
-      try {
-        const validationResult = await filterValidationService.validateLookingForFilter(
-          filters.category as 'food' | 'activity' | 'something-new'
-        );
-        
-        if (validationResult.success) {
-          console.log(`✅ Filter validation successful: ${validationResult.placeCount} places detected`);
-        } else {
-          console.warn(`⚠️ Filter validation failed: ${validationResult.error}`);
-          // Continue anyway, but log the warning
+      if (filters.category) {
+        try {
+          const validationResult = await filterValidationService.validateLookingForFilter(
+            filters.category as 'food' | 'activity' | 'something-new'
+          );
+          
+          if (validationResult.success) {
+            console.log(`✅ Filter validation successful: ${validationResult.placeCount} places detected`);
+          } else {
+            console.warn(`⚠️ Filter validation failed: ${validationResult.error}`);
+            // Continue anyway, but log the warning
+          }
+        } catch (error) {
+          console.error('❌ Filter validation error:', error);
+          // Continue with the main search even if validation fails
         }
-      } catch (error) {
-        console.error('❌ Filter validation error:', error);
-        // Continue with the main search even if validation fails
+      } else {
+        console.log('⚠️ No category selected, skipping validation');
       }
       
       // Prepare filters for API call - ensure all required fields are present
@@ -97,13 +140,19 @@ export default function ActionButton() {
       
       // Call server-side filtering with prepared filters
       console.log('📤 Calling filterPlaces with:', apiFilters);
+      
+      // Add a small delay to ensure state is properly set
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('📤 About to call filterPlaces...');
       await filterPlaces(apiFilters, 5, true);
+      console.log('📤 filterPlaces call completed');
       
       // Wait for results to be processed and state to update
       console.log('⏳ Waiting for results to be processed...');
       
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 15; // Increased from 10 to 15
       
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -156,6 +205,7 @@ export default function ActionButton() {
                 // Wait a moment then navigate
                 setTimeout(() => {
                   if (results.length > 0) {
+                    console.log('🔄 Navigating to result after activity retry...');
                     router.push('/result');
                   }
                 }, 1000);
@@ -170,6 +220,7 @@ export default function ActionButton() {
                 // Wait a moment then navigate
                 setTimeout(() => {
                   if (results.length > 0) {
+                    console.log('🔄 Navigating to result after something-new retry...');
                     router.push('/result');
                   }
                 }, 1000);
@@ -182,9 +233,14 @@ export default function ActionButton() {
       }
       
       console.log('🎉 Success! Found', results.length, 'places, navigating to results...');
+      console.log('🔄 About to navigate to /result...');
+      
+      // Add a small delay to ensure state is properly updated before navigation
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Navigate to result screen to display the results
       router.push('/result');
+      console.log('🔄 Navigation to /result completed');
       
     } catch (error) {
       console.error('❌ Error in handlePress:', error);
@@ -193,10 +249,16 @@ export default function ActionButton() {
         'Something went wrong. Please try again.',
         [{ text: 'OK', style: 'default' }]
       );
+    } finally {
+      // Reset button pressed state after a delay to prevent rapid re-presses
+      setTimeout(() => {
+        setIsButtonPressed(false);
+      }, 1000);
     }
   };
 
-
+  // Determine if button should be disabled
+  const isButtonDisabled = isLoading || isButtonPressed || isProcessing;
 
   return (
     <View style={styles.container}>
@@ -204,12 +266,12 @@ export default function ActionButton() {
       
       <Animated.View style={{ transform: [{ translateX: shakeAnimation }] }}>
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, isButtonDisabled && styles.buttonDisabled]}
           onPress={handlePress}
           activeOpacity={0.8}
-          disabled={isLoading}
+          disabled={isButtonDisabled}
         >
-          {isLoading ? (
+          {isLoading || isProcessing ? (
             <ActivityIndicator color="#4A90A4" size="large" />
           ) : (
             <Image 
@@ -254,6 +316,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  buttonDisabled: {
+    backgroundColor: '#B0B0B0',
+    opacity: 0.6,
   },
   buttonImage: {
     width: 50,
