@@ -69,39 +69,6 @@ export default function ActionButton() {
     setIsProcessing(true);
     
     try {
-      
-      console.log('🔍 Category validation - filters.category:', filters.category, 'type:', typeof filters.category);
-      
-      // TEMPORARILY DISABLED: Category validation to allow button press
-      if (!filters.category || filters.category === null || filters.category === undefined) {
-        console.log('⚠️ No category selected, but continuing anyway (validation disabled)');
-        // Don't return early, continue with the process
-      }
-      
-      console.log('🔍 Retries check - retriesLeft:', retriesLeft);
-      
-      // TEMPORARILY DISABLED: Retries check to allow button press
-      if (retriesLeft === 0) {
-        console.log('⚠️ No retries left, but continuing anyway (validation disabled)');
-        // Don't return early, continue with the process
-      }
-      
-      console.log('🔍 Loading check - isLoading:', isLoading);
-      
-      // TEMPORARILY DISABLED: Loading check to allow button press
-      if (isLoading) {
-        console.log('⚠️ Action would be blocked by loading state, but continuing anyway (validation disabled)');
-        // Don't return early, continue with the process
-      }
-      
-      console.log('🔍 Router check - isRouterReady:', isRouterReady);
-      
-      // TEMPORARILY DISABLED: Router check to allow button press
-      if (!isRouterReady) {
-        console.log('⚠️ Router not ready, but continuing anyway (validation disabled)');
-        // Don't return early, continue with the process
-      }
-
       console.log('🚀 Starting server-side filtering with filters:', filters);
       
       // Consolidated into a single filtering process
@@ -118,78 +85,13 @@ export default function ActionButton() {
       };
       
       console.log('📤 Sending filters to API:', apiFilters);
-      
-      // Call server-side filtering with prepared filters
       console.log('📤 Calling filterPlaces with:', apiFilters);
       
-      // Add a small delay to ensure state is properly set
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('📤 About to call filterPlaces...');
+      // Call server-side filtering with prepared filters
       await filterPlaces(apiFilters, 5, true);
       console.log('📤 filterPlaces call completed');
       
-      // Wait for results to be processed and state to update
-      console.log('⏳ Waiting for results to be processed...');
-      
-      let attempts = 0;
-      const maxAttempts = 15; // Increased from 10 to 15
-      
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log(`📊 Attempt ${attempts + 1}: Results count = ${results.length}, Error = ${error}, Loading = ${isLoading}`);
-        
-        if (error) {
-          console.error('❌ Error occurred during filtering:', error);
-          Alert.alert(
-            'Error',
-            `Failed to fetch results: ${error}`,
-            [{ text: 'OK', style: 'default' }]
-          );
-          return;
-        }
-        
-        if (!isLoading && results.length > 0) {
-          console.log('✅ Results received successfully!');
-          break;
-        }
-        
-        attempts++;
-      }
-      
-      console.log('✅ Server filtering completed, checking final results...');
-      console.log('📊 Final results count:', results.length);
-      console.log('📊 Final error state:', error);
-      
-      if (error) {
-        console.error('❌ Error occurred during filtering:', error);
-        Alert.alert(
-          'Error',
-          `Failed to fetch results: ${error}`,
-          [{ text: 'OK', style: 'default' }]
-        );
-        return;
-      }
-      
-      if (results.length === 0) {
-        console.warn('⚠️ No results returned from server');
-        Alert.alert(
-          'No Places Found',
-          'No places found in your area. Try adjusting your filters.',
-          [
-            { text: 'OK', style: 'default' }
-          ]
-        );
-        return;
-      }
-      
-      console.log('🎉 Success! Found', results.length, 'places, navigating to results...');
-      console.log('🔄 About to navigate to /result...');
-      
-      // Add a small delay to ensure state is properly updated before navigation
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Navigate to result screen to display the results
+      // Navigate to result screen immediately after triggering the filter
       router.push('/result');
       console.log('🔄 Navigation to /result completed');
       
