@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, createContext, useContext } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AppProvider } from "../hooks/use-app-store";
+import { AppContext } from "../hooks/use-app-store";
 import { AuthProvider } from "../hooks/use-auth";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import colors from "../constants/colors";
@@ -60,7 +60,7 @@ export default function RootLayout() {
     Stack,
     GestureHandlerRootView,
     SafeAreaProvider,
-    AppProvider,
+    AppContext,
     AuthProvider,
     ErrorBoundary,
     ThemeProvider
@@ -91,13 +91,13 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <AppProvider>
+            <AppContext>
               <ThemeProvider>
                 <GestureHandlerRootView style={{ flex: 1 }}>
                   <RootLayoutNav />
                 </GestureHandlerRootView>
               </ThemeProvider>
-            </AppProvider>
+            </AppContext>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
