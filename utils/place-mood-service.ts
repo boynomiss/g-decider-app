@@ -37,7 +37,6 @@ export interface PlaceData {
   formatted_address?: string;
   location?: { lat: number; lng: number };
   types?: string[];
-  photos?: any[];
   price_level?: number;
   website?: string;
   phone?: string;

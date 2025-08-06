@@ -42,10 +42,15 @@ export default function EnhancedPlaceCard({
 
   // Get the appropriate image based on screen context
   const getDisplayImage = () => {
-    if (!place.photos?.medium || !place.photos.medium.length || place.photos.medium.length === 0) {
+    try {
+      if (!place.photos?.medium || !Array.isArray(place.photos.medium) || place.photos.medium.length === 0) {
+        return null;
+      }
+      return place.photos.medium[currentImageIndex] || (place.photos.medium.length > 0 ? place.photos.medium[0] : null);
+    } catch (error) {
+      console.error('Error getting display image:', error);
       return null;
     }
-    return place.photos.medium[currentImageIndex] || (place.photos.medium.length > 0 ? place.photos.medium[0] : null);
   };
 
   // Handle contact actions
@@ -176,8 +181,12 @@ export default function EnhancedPlaceCard({
 
   // Cycle through images if multiple available
   const handleImagePress = () => {
-    if (place.photos?.medium && place.photos.medium.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % place.photos.medium.length);
+    try {
+      if (place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1) {
+        setCurrentImageIndex((prev) => (prev + 1) % place.photos.medium.length);
+      }
+    } catch (error) {
+      console.error('Error handling image press:', error);
     }
   };
 
@@ -199,7 +208,7 @@ export default function EnhancedPlaceCard({
             scrollEventThrottle={16}
           >
             {/* Display actual place photos if available */}
-            {place.photos && place.photos.medium && place.photos.medium.length > 0 ? (
+            {place.photos && place.photos.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 0 ? (
               place.photos.medium.map((photo, index) => (
                 <View key={index} style={styles.imageWrapper}>
                   <Image
@@ -219,10 +228,10 @@ export default function EnhancedPlaceCard({
             )}
           </ScrollView>
           {/* Carousel Indicators */}
-          {place.photos && place.photos.medium && place.photos.medium.length > 1 && (
+          {place.photos && place.photos.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1 && (
             <View style={styles.imageCounter} pointerEvents="box-none">
               <Text style={styles.imageCounterText}>
-                {currentImageIndex + 1}/{place.photos && place.photos.medium ? place.photos.medium.length : 1}
+                {currentImageIndex + 1}/{place.photos.medium.length}
               </Text>
             </View>
           )}
