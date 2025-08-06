@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, Scroll
 import { LinearGradient } from 'expo-linear-gradient';
 import { Phone, Globe, Star, MapPin, Clock, Users, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceData } from '../utils/place-mood-service';
+import AIDescriptionCard from './AIDescriptionCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -300,6 +301,8 @@ export default function EnhancedPlaceCard({
                 </View>
               );
             })()}
+          {/* AI Description Card */}
+          <AIDescriptionCard placeId={place.place_id} name={place.name} />
           </View>
           {/* Place Actions (Old UI Style) */}
           <View style={styles.placeActions}>
