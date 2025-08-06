@@ -291,8 +291,8 @@ export default function EnhancedPlaceCard({
             description={place.aiDescription || null} 
             isLoading={false} 
             error={null} 
-            onRetry={() => console.log('Retry AI description for', place.place_id)} 
-            onGenerate={() => console.log('Generate AI description for', place.place_id)} 
+            onRetry={() => {}} 
+            onGenerate={() => {}} 
           />
           </View>
           {/* Place Actions (Old UI Style) */}
