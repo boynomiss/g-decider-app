@@ -288,7 +288,7 @@ export default function EnhancedPlaceCard({
             })()}
           {/* AI Description Card */}
           <AIDescriptionCard 
-            description={place.description || null} 
+            description={place.aiDescription || place.description || ''} 
             isLoading={false} 
             error={null} 
             onRetry={() => {}} 
