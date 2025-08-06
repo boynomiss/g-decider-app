@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, Scroll
 import { LinearGradient } from 'expo-linear-gradient';
 import { Phone, Globe, Star, MapPin, Clock, Users, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceData } from '../utils/place-mood-service';
-import AIDescriptionCard from './AIDescriptionCard';
+import { AIDescriptionCard } from './AIDescriptionCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -176,8 +176,8 @@ export default function EnhancedPlaceCard({
 
   // Cycle through images if multiple available
   const handleImagePress = () => {
-    if (place.photos && place.photos.medium && place.photos.medium.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % (place.photos?.medium?.length || 1));
+    if (place.photos?.medium && place.photos.medium.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % place.photos.medium.length);
     }
   };
 
@@ -286,15 +286,16 @@ export default function EnhancedPlaceCard({
                 </View>
               );
             })()}
+          </View>
+          
           {/* AI Description Card */}
           <AIDescriptionCard 
-            description={place.description || ''} 
+            description={place.description || null} 
             isLoading={false} 
             error={null} 
             onRetry={() => {}} 
             onGenerate={() => {}} 
           />
-          </View>
           {/* Place Actions (Old UI Style) */}
           <View style={styles.placeActions}>
             {place.contactActions && place.contactActions.canCall && (

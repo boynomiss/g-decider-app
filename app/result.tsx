@@ -311,12 +311,7 @@ export default function ResultScreen() {
               showFullDetails={true}
               showRemoveButton={false}
             />
-            <AIDescriptionCard
-              description={aiDescription}
-              isLoading={aiLoading}
-              error={aiError}
-              onGenerate={() => generateDescription(results[currentResultIndex])}
-            />
+
           </View>
         )}
 
