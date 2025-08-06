@@ -198,49 +198,34 @@ export default function EnhancedPlaceCard({
             onMomentumScrollEnd={handleImageScroll}
             scrollEventThrottle={16}
           >
-            {/* Temporary 5 images for testing */}
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop' }}
-                style={styles.placeImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop' }}
-                style={styles.placeImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop' }}
-                style={styles.placeImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop' }}
-                style={styles.placeImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=300&fit=crop' }}
-                style={styles.placeImage}
-                resizeMode="cover"
-              />
-            </View>
+            {/* Display actual place photos if available */}
+            {place.photos?.medium?.length > 0 ? (
+              place.photos.medium.map((photo, index) => (
+                <View key={index} style={styles.imageWrapper}>
+                  <Image
+                    source={{ uri: photo }}
+                    style={styles.placeImage}
+                    resizeMode="cover"
+                    onError={() => setImageError(true)}
+                  />
+                </View>
+              ))
+            ) : (
+              <View style={styles.imageWrapper}>
+                <View style={styles.placeholderImage}>
+                  <Text style={styles.placeholderText}>No Image Available</Text>
+                </View>
+              </View>
+            )}
           </ScrollView>
           {/* Carousel Indicators */}
-          <View style={styles.imageCounter} pointerEvents="box-none">
-            <Text style={styles.imageCounterText}>
-              {currentImageIndex + 1}/5
-            </Text>
-          </View>
+          {place.photos?.medium?.length > 1 && (
+            <View style={styles.imageCounter} pointerEvents="box-none">
+              <Text style={styles.imageCounterText}>
+                {currentImageIndex + 1}/{place.photos?.medium?.length || 1}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -252,7 +237,7 @@ export default function EnhancedPlaceCard({
       >
         <View style={styles.placeInfo}>
           <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeLocation}>{place.address}</Text>
+          <Text style={styles.placeLocation}>{place.address || 'Address not available'}</Text>
           {/* Budget Badge (Old UI Style) */}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
@@ -302,7 +287,13 @@ export default function EnhancedPlaceCard({
               );
             })()}
           {/* AI Description Card */}
-          <AIDescriptionCard placeId={place.place_id} name={place.name} />
+          <AIDescriptionCard 
+            description={place.aiDescription || null} 
+            isLoading={false} 
+            error={null} 
+            onRetry={() => console.log('Retry AI description for', place.place_id)} 
+            onGenerate={() => console.log('Generate AI description for', place.place_id)} 
+          />
           </View>
           {/* Place Actions (Old UI Style) */}
           <View style={styles.placeActions}>
