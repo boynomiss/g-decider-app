@@ -142,8 +142,8 @@ export class PlaceDiscoveryLogic {
         }
       }
       
-      // Analyze filter effectiveness before applying filters
-      const filteredPlaces = this.applyFilters(this.placePool, filters);
+      // Directly apply progressive filtering to ensure results
+      const filteredPlaces = this.applyProgressiveFiltering(this.placePool, filters);
       let rankedPlaces = this.rankPlaces(filteredPlaces, filters);
       
       const selectedPlaces = this.selectPlaces(rankedPlaces, this.PLACES_PER_RESULT);
