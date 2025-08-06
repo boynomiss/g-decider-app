@@ -104,27 +104,8 @@ export default function ActionButton() {
 
       console.log('🚀 Starting server-side filtering with filters:', filters);
       
-      // Pre-validate the filter before proceeding
-      console.log('🔍 Pre-validating filter connectivity...');
-      if (filters.category) {
-        try {
-          const validationResult = await filterValidationService.validateLookingForFilter(
-            filters.category as 'food' | 'activity' | 'something-new'
-          );
-          
-          if (validationResult.success) {
-            console.log(`✅ Filter validation successful: ${validationResult.placeCount} places detected`);
-          } else {
-            console.warn(`⚠️ Filter validation failed: ${validationResult.error}`);
-            // Continue anyway, but log the warning
-          }
-        } catch (error) {
-          console.error('❌ Filter validation error:', error);
-          // Continue with the main search even if validation fails
-        }
-      } else {
-        console.log('⚠️ No category selected, skipping validation');
-      }
+      // Skipping pre-validation to consolidate filtering process
+      console.log('🔍 Skipping pre-validation to directly apply useful filtering schemes');
       
       // Prepare filters for API call - ensure all required fields are present
       const apiFilters = {
@@ -194,39 +175,9 @@ export default function ActionButton() {
         console.warn('⚠️ No results returned from server');
         Alert.alert(
           'No Places Found',
-          'No places found in your area. Try a different category or increase your search distance.',
+          'No places found in your area. Try adjusting your filters.',
           [
-            { 
-              text: 'Try Activity', 
-              onPress: async () => {
-                console.log('🔄 Retrying with activity category...');
-                const activityFilters = { ...apiFilters, category: 'activity' as const };
-                await filterPlaces(activityFilters, 5, true);
-                // Wait a moment then navigate
-                setTimeout(() => {
-                  if (results.length > 0) {
-                    console.log('🔄 Navigating to result after activity retry...');
-                    router.push('/result');
-                  }
-                }, 1000);
-              }
-            },
-            { 
-              text: 'Try Something New', 
-              onPress: async () => {
-                console.log('🔄 Retrying with something-new category...');
-                const somethingNewFilters = { ...apiFilters, category: 'something-new' as const };
-                await filterPlaces(somethingNewFilters, 5, true);
-                // Wait a moment then navigate
-                setTimeout(() => {
-                  if (results.length > 0) {
-                    console.log('🔄 Navigating to result after something-new retry...');
-                    router.push('/result');
-                  }
-                }, 1000);
-              }
-            },
-            { text: 'Cancel', style: 'cancel' }
+            { text: 'OK', style: 'default' }
           ]
         );
         return;
