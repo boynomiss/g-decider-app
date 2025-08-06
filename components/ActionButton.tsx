@@ -104,8 +104,8 @@ export default function ActionButton() {
 
       console.log('🚀 Starting server-side filtering with filters:', filters);
       
-      // Skipping pre-validation to consolidate filtering process
-      console.log('🔍 Skipping pre-validation to directly apply useful filtering schemes');
+      // Consolidated into a single filtering process
+      console.log('🔍 Applying the single useful filtering scheme');
       
       // Prepare filters for API call - ensure all required fields are present
       const apiFilters = {
