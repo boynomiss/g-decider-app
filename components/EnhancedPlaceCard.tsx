@@ -183,7 +183,7 @@ export default function EnhancedPlaceCard({
   const handleImagePress = () => {
     try {
       if (place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1) {
-        setCurrentImageIndex((prev) => (prev + 1) % place.photos.medium.length);
+        setCurrentImageIndex((prev) => (prev + 1) % (place.photos?.medium?.length || 1));
       }
     } catch (error) {
       console.error('Error handling image press:', error);

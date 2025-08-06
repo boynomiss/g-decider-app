@@ -280,7 +280,7 @@ export class PlaceMoodService {
     } catch (error) {
       console.error('Error fetching real-time data:', error);
       return {
-        current_busyness: undefined,
+        current_busyness: 0,
         popular_times: []
       };
     }
@@ -550,7 +550,7 @@ export class PlaceMoodService {
         const primaryDescriptor = entityAnalysis.extractedDescriptors[0];
         console.log(`🎯 Using enhanced mood descriptor: ${primaryDescriptor}`);
         return {
-          mood: primaryDescriptor,
+          mood: primaryDescriptor || 'neutral',
           confidence: entityAnalysis.confidence,
           descriptors: entityAnalysis.extractedDescriptors
         };
@@ -585,15 +585,15 @@ export class PlaceMoodService {
     if (moodScore >= 70) {
       // Hype moods
       const hypeIndex = Math.floor((moodScore - 70) / 6); // 0-4 range
-      return MOOD_LABELS.hype[Math.min(hypeIndex, MOOD_LABELS.hype.length - 1)];
+      return MOOD_LABELS.hype[Math.min(hypeIndex, MOOD_LABELS.hype.length - 1)] || 'energetic';
     } else if (moodScore <= 30) {
       // Chill moods
       const chillIndex = Math.floor((30 - moodScore) / 6); // 0-4 range
-      return MOOD_LABELS.chill[Math.min(chillIndex, MOOD_LABELS.chill.length - 1)];
+      return MOOD_LABELS.chill[Math.min(chillIndex, MOOD_LABELS.chill.length - 1)] || 'relaxed';
     } else {
       // Neutral moods
       const neutralIndex = Math.floor((moodScore - 31) / 8); // 0-4 range
-      return MOOD_LABELS.neutral[Math.min(neutralIndex, MOOD_LABELS.neutral.length - 1)];
+      return MOOD_LABELS.neutral[Math.min(neutralIndex, MOOD_LABELS.neutral.length - 1)] || 'balanced';
     }
   }
 
@@ -610,7 +610,7 @@ export class PlaceMoodService {
       
       try {
         console.log(`📍 Processing place ${i + 1}/${placeIds.length}: ${placeId}`);
-        const enhancedPlace = await this.enhancePlaceWithMood(placeId);
+        const enhancedPlace = await this.enhancePlaceWithMood(placeId || '');
         results.push(enhancedPlace);
         
         // Add delay to respect API rate limits
@@ -684,7 +684,7 @@ export const moodUtils = {
    */
   getRandomMoodLabel: (category: 'chill' | 'neutral' | 'hype'): string => {
     const labels = MOOD_LABELS[category];
-    return labels[Math.floor(Math.random() * labels.length)];
+    return labels[Math.floor(Math.random() * labels.length)] || 'balanced';
   },
 
   /**
