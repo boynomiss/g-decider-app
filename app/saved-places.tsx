@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Trash, MapPin, Phone } from 'lucide-react-native';
 import { useSavedPlaces } from '../hooks/use-saved-places';
 import { useContact } from '../hooks/use-contact';
-import { contactService } from '../utils/contact-service';
+import { contactService } from '../utils/results/contact-service';
 import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
 
 const { width } = Dimensions.get('window');

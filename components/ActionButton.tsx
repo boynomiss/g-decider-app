@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated, 
 import { useAppStore } from '../hooks/use-app-store';
 import { useServerFiltering } from '../hooks/use-server-filtering';
 import { useRouter } from 'expo-router';
-import { filterValidationService } from '../utils/filter-validation-service';
+import { filterValidationService } from '../utils/filters/filter-validation-service';
 
 export default function ActionButton() {
   const { filters, retriesLeft, showMoreFilters } = useAppStore();

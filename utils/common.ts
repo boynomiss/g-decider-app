@@ -92,16 +92,12 @@ export const getPartySizeFromSocialContext = (socialContext: string): string => 
   }
 };
 
+// Import consolidated distance configuration
+import { DistanceUtils } from './filters/distance-config';
+
 // Distance radius mapping utility
 export const getDistanceRadius = (distanceRange: number): number => {
-  if (distanceRange < 1) return 1000; // Walking Distance
-  if (distanceRange < 3) return 3000; // Bike Distance
-  if (distanceRange < 5) return 5000; // Short Trip
-  if (distanceRange < 10) return 10000; // Nearby Drive
-  if (distanceRange < 15) return 15000; // Moderate Drive
-  if (distanceRange < 20) return 20000; // Further Out
-  if (distanceRange < 24) return 50000; // Long Drive
-  return 100000; // Any distance
+  return DistanceUtils.getDistanceRadius(distanceRange);
 };
 
 // Budget price level mapping for Google Places API

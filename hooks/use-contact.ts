@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { contactService } from '../utils/contact-service';
+import { contactService } from '../utils/results/contact-service';
 
 interface UseContactReturn {
   contactInfo: {

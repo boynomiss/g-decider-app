@@ -94,16 +94,16 @@ export default function PlaceMoodManager({
   // Get mood color
   const getMoodColor = (moodScore?: number): string => {
     if (moodScore === undefined) return '#999';
-    if (moodScore >= 70) return '#FF6B6B'; // Hype - Red
-    if (moodScore <= 30) return '#4ECDC4'; // Chill - Teal
+    if (moodScore >= 66.66) return '#FF6B6B'; // Hype - Red
+    if (moodScore <= 33.33) return '#4ECDC4'; // Chill - Teal
     return '#45B7D1'; // Neutral - Blue
   };
 
   // Get mood emoji
   const getMoodEmoji = (moodScore?: number): string => {
     if (moodScore === undefined) return '❓';
-    if (moodScore >= 70) return '🔥'; // Hype
-    if (moodScore <= 30) return '😌'; // Chill
+    if (moodScore >= 66.66) return '🔥'; // Hype
+    if (moodScore <= 33.33) return '😌'; // Chill
     return '⚖️'; // Neutral
   };
 

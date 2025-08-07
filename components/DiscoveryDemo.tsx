@@ -7,6 +7,7 @@ import PlaceDiscoveryInterface from '@/components/PlaceDiscoveryInterface';
 import LoadingScreens from '@/components/LoadingScreens';
 import MoodSlider from '@/components/MoodSlider';
 import CategoryButtons from '@/components/CategoryButtons';
+import { DistanceUtils } from '@/utils/filters/distance-config';
 
 // Mock advertised places for demo
 const mockAdvertisedPlaces = [
@@ -226,11 +227,7 @@ const getMoodLabel = (mood: number): string => {
 };
 
 const getDistanceLabel = (distance: number): string => {
-  if (distance <= 20) return 'Very Close (0-250m)';
-  if (distance <= 40) return 'Walking Distance (250m-1km)';
-  if (distance <= 60) return 'Short Car Ride (1-5km)';
-  if (distance <= 80) return 'Long Car Ride (5-10km)';
-  return 'As Far as It Gets (10-20km)';
+  return DistanceUtils.getDistanceLabelForUI(distance);
 };
 
 const styles = StyleSheet.create({

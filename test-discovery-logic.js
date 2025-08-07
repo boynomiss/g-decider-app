@@ -253,11 +253,12 @@ function getMoodLabel(score) {
   return 'Neutral ⚖️';
 }
 
+// Import distance utilities (for Node.js compatibility, we'll define a simple version)
 function getDistanceLabel(percentage) {
-  if (percentage <= 20) return 'Very Close (0-250m)';
-  if (percentage <= 40) return 'Walking Distance (250m-1km)';
-  if (percentage <= 60) return 'Short Car Ride (1-5km)';
-  if (percentage <= 80) return 'Long Car Ride (5-10km)';
+  if (percentage <= 10) return 'Very Close (0-250m)';
+  if (percentage <= 30) return 'Walking Distance (250m-1km)';
+  if (percentage <= 70) return 'Short Drive (1-5km)';
+  if (percentage <= 90) return 'Long Car Ride (5-10km)';
   return 'As Far as It Gets (10-20km)';
 }
 

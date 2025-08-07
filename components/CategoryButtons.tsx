@@ -1,14 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterApiBridge } from '@/utils/filter-api-bridge';
-import { filterValidationService } from '@/utils/filter-validation-service';
-
-const categories = [
-  { id: 'food', label: 'Food', icon: '🍔' },
-  { id: 'activity', label: 'Activity', icon: '🧩' },
-  { id: 'something-new', label: 'Something\nNEW', icon: '✨' },
-] as const;
+import { FilterApiBridge } from '@/utils/filters/filter-api-bridge';
+import { filterValidationService } from '@/utils/filters/filter-validation-service';
+import { categoryOptions, CategoryUtils } from '@/utils/filters/category-config';
 
 export default function CategoryButtons() {
   const { filters, updateFilters } = useAppStore();
@@ -18,7 +13,7 @@ export default function CategoryButtons() {
       <Text style={styles.title}>Looking for:</Text>
       
       <View style={styles.buttonsContainer}>
-        {categories.map((category) => (
+        {categoryOptions.map((category) => (
           <TouchableOpacity
             key={category.id}
             style={[

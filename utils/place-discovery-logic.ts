@@ -1,7 +1,8 @@
 import { PlaceMoodService, PlaceData } from './place-mood-service';
-import { CATEGORY_MOOD_MAPPING } from './mood-config';
+import { CATEGORY_MOOD_MAPPING } from './filters/mood-config';
 import { generatePhotoUrls, getOptimizedPhotoUrls, createFrontendPhotoUrls } from './photo-url-generator';
 import { googlePlacesClient, googleNaturalLanguageClient } from './google-api-clients';
+import { DISTANCE_MAPPINGS, DistanceUtils } from './filters/distance-config';
 
 // Service account configuration for NLP
 const NLP_SERVICE_ACCOUNT_PATH = './nlp-service-account.json';
@@ -59,14 +60,7 @@ export interface DistanceMapping {
   label: string;
 }
 
-// Distance mappings based on your specifications
-const DISTANCE_MAPPINGS: DistanceMapping[] = [
-  { percentage: 20, meters: 250, label: 'Very Close' },
-  { percentage: 40, meters: 1000, label: 'Walking Distance' },
-  { percentage: 60, meters: 5000, label: 'Short Car Ride' },
-  { percentage: 80, meters: 10000, label: 'Long Car Ride' },
-  { percentage: 100, meters: 20000, label: 'As Far as It Gets' }
-];
+// Use consolidated distance mappings from distance-config
 
 // Google Places category mappings for the three main categories
 const CATEGORY_TO_GOOGLE_TYPES: Record<string, string[]> = {
@@ -632,8 +626,8 @@ export class PlaceDiscoveryLogic {
    * Assign final mood category based on score
    */
   private assignFinalMood(moodScore: number): string {
-    if (moodScore >= 70) return 'hype';
-    if (moodScore >= 40) return 'neutral';
+    if (moodScore >= 66.66) return 'hype';
+    if (moodScore >= 33.34) return 'neutral';
     return 'chill';
   }
 
@@ -1102,21 +1096,15 @@ export class PlaceDiscoveryLogic {
    * Convert distance percentage to meters
    */
   private getDistanceInMeters(percentage: number): number {
-    // Find the appropriate distance mapping
-    for (let i = DISTANCE_MAPPINGS.length - 1; i >= 0; i--) {
-      if (percentage >= DISTANCE_MAPPINGS[i].percentage - 10) {
-        return DISTANCE_MAPPINGS[i].meters;
-      }
-    }
-    return DISTANCE_MAPPINGS[0].meters;
+    return DistanceUtils.getDistanceInMeters(percentage);
   }
 
   /**
    * Get mood category from score
    */
   private getMoodCategory(score: number): 'chill' | 'neutral' | 'hype' {
-    if (score >= 70) return 'hype';
-    if (score <= 30) return 'chill';
+    if (score >= 66.66) return 'hype';
+    if (score <= 33.33) return 'chill';
     return 'neutral';
   }
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { aiDescriptionService } from '../utils/ai-description-service';
+import { aiDescriptionService } from '../utils/results/ai-description-service';
 import { Suggestion } from '../types/app';
 import { PlaceData } from '../utils/place-mood-service';
 

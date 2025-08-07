@@ -7,6 +7,7 @@ import { useAuth } from './use-auth';
 import { PlaceDiscoveryLogic, DiscoveryResult, DiscoveryFilters, LoadingState } from '../utils/place-discovery-logic';
 import { PlaceMoodService, PlaceData } from '../utils/place-mood-service';
 import { FilterApiBridge, ApiReadyFilterData } from '../utils/filter-api-bridge';
+import { logFilterChange } from '../utils/filter-logger';
 
 // API Configuration
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
@@ -71,7 +72,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
       budget: null,
       timeOfDay: null,
       socialContext: null,
-      distanceRange: null
+      distanceRange: 0
     },
     retriesLeft: 3,
     currentSuggestion: null,
@@ -92,6 +93,11 @@ const [AppContext, useAppStore] = createContextHook(() => {
     discoveryInitialized: false,
     lastDiscoveryTimestamp: 0
   });
+
+  // Log initial filter state
+  useEffect(() => {
+    logFilterChange(state.filters);
+  }, []);
 
   const moodServiceRef = useRef<PlaceMoodService | null>(null);
   const discoveryLogicRef = useRef<PlaceDiscoveryLogic | null>(null);
@@ -149,7 +155,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
       socialContext: state.filters.socialContext || null,
       budget: state.filters.budget || null,
       timeOfDay: state.filters.timeOfDay || null,
-      distanceRange: Math.max(1, Math.min(100, state.filters.distanceRange || 50)),
+      distanceRange: Math.max(0, Math.min(100, state.filters.distanceRange ?? 0)),
       userLocation
     };
     console.log('🔧 Converted filters:', validatedFilters);
@@ -161,26 +167,36 @@ const [AppContext, useAppStore] = createContextHook(() => {
     setState(prev => {
       const updatedFilters = { ...prev.filters, ...newFilters };
       const newApiFilters = new Map(prev.apiReadyFilters);
+      
+      // Track which filter changed for logging
+      let changedFilter: string | undefined;
+      
       Object.entries(newFilters).forEach(([key, value]) => {
         let filterData: ApiReadyFilterData | null = null;
         switch (key) {
           case 'category':
             filterData = FilterApiBridge.logCategorySelection(value as string);
+            changedFilter = 'category';
             break;
           case 'mood':
             filterData = FilterApiBridge.logMoodSelection(value as number);
+            changedFilter = 'mood';
             break;
           case 'distanceRange':
             filterData = FilterApiBridge.logDistanceSelection(value as number);
+            changedFilter = 'distanceRange';
             break;
           case 'budget':
             filterData = FilterApiBridge.logBudgetSelection(value as any);
+            changedFilter = 'budget';
             break;
           case 'socialContext':
             filterData = FilterApiBridge.logSocialContextSelection(value as any);
+            changedFilter = 'socialContext';
             break;
           case 'timeOfDay':
             filterData = FilterApiBridge.logTimeOfDaySelection(value as any);
+            changedFilter = 'timeOfDay';
             break;
         }
         if (filterData) {
@@ -189,6 +205,10 @@ const [AppContext, useAppStore] = createContextHook(() => {
           newApiFilters.delete(key);
         }
       });
+      
+      // Log the dynamic filter message
+      logFilterChange(updatedFilters, changedFilter);
+      
       return {
         ...prev,
         filters: updatedFilters,
@@ -200,7 +220,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
           budget: updatedFilters.budget || 'P',
           timeOfDay: updatedFilters.timeOfDay || 'afternoon',
           socialContext: updatedFilters.socialContext || 'solo',
-          distanceRange: updatedFilters.distanceRange || 50
+          distanceRange: updatedFilters.distanceRange ?? 0
         },
         isDiscovering: false,
         loadingState: 'initial',

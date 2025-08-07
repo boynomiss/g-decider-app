@@ -4,7 +4,10 @@ import { PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming } from 'react-native-reanimated';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterApiBridge } from '@/utils/filter-api-bridge';
+import { FilterApiBridge } from '@/utils/filters/filter-api-bridge';
+import { DISTANCE_CATEGORIES, DistanceUtils } from '@/utils/filters/distance-config';
+import { socialOptions, SocialUtils } from '@/utils/filters/social-config';
+import { MoodUtils, MOOD_DETAILED_LABELS } from '@/utils/filters/mood-config';
 
 export const budgetOptions = [
   { 
@@ -58,89 +61,18 @@ export const timeOptions = [
     description: 'Dinner, nightlife, and evening entertainment'
   },
 ] as const;
-export const socialOptions = [
-  { 
-    id: 'solo', 
-    label: 'Solo', 
-    icon: '🧍',
-    groupSize: 1,
-    placeTypes: ['library', 'cafe', 'park', 'museum', 'gym'],
-    description: 'Individual activities and quiet spaces'
-  },
-  { 
-    id: 'with-bae', 
-    label: 'With Bae', 
-    icon: '❤️',
-    groupSize: 2,
-    placeTypes: ['restaurant', 'cafe', 'movie_theater', 'park', 'spa'],
-    description: 'Romantic activities for couples'
-  },
-  { 
-    id: 'barkada', 
-    label: 'Barkada', 
-    icon: '🎉',
-    groupSize: { min: 3, max: 8 },
-    placeTypes: ['restaurant', 'bar', 'bowling_alley', 'karaoke', 'amusement_park'],
-    description: 'Group activities and social gatherings'
-  },
-] as const;
+// socialOptions now imported from social-config.ts
 
-const moodLabels = {
-  1: { emoji: '😌', text: 'Chill' },
-  2: { emoji: '🧘‍♀️', text: 'Zen' },
-  3: { emoji: '☕', text: 'Mellow' },
-  4: { emoji: '🏞️', text: 'Tranquil' },
-  5: { emoji: '👀', text: 'Eager' },
-  6: { emoji: '🎶', text: 'Upbeat' },
-  7: { emoji: '🥳', text: 'Lively' },
-  8: { emoji: '💪', text: 'Pumped' },
-  9: { emoji: '🤩', text: 'Thrilled' },
-  10: { emoji: '🔥', text: 'Hype' }
-} as const;
+// moodLabels now imported from mood-config.ts as MOOD_DETAILED_LABELS
 
-export const distanceCategories = [
-  { 
-    emoji: '📍', 
-    text: 'Very Close', 
-    range: [0, 20], 
-    distanceMeters: { min: 0, max: 250 },
-    distanceKm: { min: 0, max: 0.25 }
-  },
-  { 
-    emoji: '🚶‍♀️', 
-    text: 'Walking Distance', 
-    range: [20, 40], 
-    distanceMeters: { min: 250, max: 1000 },
-    distanceKm: { min: 0.25, max: 1 }
-  },
-  { 
-    emoji: '🚗', 
-    text: 'Short Car Ride', 
-    range: [40, 60], 
-    distanceMeters: { min: 1000, max: 5000 },
-    distanceKm: { min: 1, max: 5 }
-  },
-  { 
-    emoji: '🛣️', 
-    text: 'Long Car Ride', 
-    range: [60, 80], 
-    distanceMeters: { min: 5000, max: 10000 },
-    distanceKm: { min: 5, max: 10 }
-  },
-  { 
-    emoji: '🚀', 
-    text: 'As Far as It Gets', 
-    range: [80, 100], 
-    distanceMeters: { min: 10000, max: 20000 },
-    distanceKm: { min: 10, max: 20 }
-  }
-] as const;
+// Use consolidated distance categories from distance-config
+export const distanceCategories = DISTANCE_CATEGORIES;
 
 export default function MoodSlider() {
   const { filters, updateFilters, showMoreFilters, toggleMoreFilters } = useAppStore();
   const [isDragging, setIsDragging] = useState(false);
   const translateX = useSharedValue((filters.mood / 100) * 280);
-  const distanceTranslateX = useSharedValue(filters.distanceRange ? ((filters.distanceRange / 100) * 280) : 140);
+  const distanceTranslateX = useSharedValue(filters.distanceRange !== null ? ((filters.distanceRange / 100) * 280) : 0);
   
   // Animation values for the expand button
   const buttonScale = useSharedValue(1);
@@ -152,8 +84,7 @@ export default function MoodSlider() {
     // Enhanced logging with API-ready data (null-safe)
     const filterData = FilterApiBridge.logMoodSelection(newMood);
     updateFilters({ 
-      mood: newMood,
-      _moodApiData: filterData // Store API-ready data (may be null)
+      mood: newMood
     });
   };
 
@@ -165,28 +96,22 @@ export default function MoodSlider() {
     return Math.max(1, Math.min(10, Math.round((moodValue / 100) * 10) || 1));
   };
 
-  // New function to convert 10-level mood to 3-level mood
+  // New function to convert 0-100 mood to 3-level mood
   const getSimplifiedMood = (moodValue: number): 'chill' | 'neutral' | 'hype' => {
-    const level = getMoodLevel(moodValue);
-    if (level <= 3) return 'chill';
-    if (level <= 7) return 'neutral';
-    return 'hype';
+    return MoodUtils.getMoodCategoryId(moodValue);
   };
 
   const getCurrentMoodLabel = () => {
     const level = getMoodLevel(filters.mood);
-    return moodLabels[level as keyof typeof moodLabels];
+    return MOOD_DETAILED_LABELS[level as keyof typeof MOOD_DETAILED_LABELS];
   };
 
   const getDistanceCategory = (value: number) => {
-    const normalizedValue = Math.max(0, Math.min(100, value));
-    return distanceCategories.find(category => 
-      normalizedValue >= category.range[0] && normalizedValue <= category.range[1]
-    ) || distanceCategories[0];
+    return DistanceUtils.getDistanceCategory(value);
   };
 
   const getCurrentDistanceLabel = () => {
-    const distance = filters.distanceRange || 50;
+    const distance = filters.distanceRange ?? 0;
     return getDistanceCategory(distance);
   };
 
@@ -195,8 +120,7 @@ export default function MoodSlider() {
     // Enhanced logging with API-ready data (null-safe)
     const filterData = FilterApiBridge.logDistanceSelection(newDistance);
     updateFilters({ 
-      distanceRange: newDistance,
-      _distanceApiData: filterData // Store API-ready data (may be null)
+      distanceRange: newDistance
     });
   };
 
@@ -230,13 +154,12 @@ export default function MoodSlider() {
     if (filters.socialContext === socialId) {
       // Deselecting
       console.log('Social context deselected');
-      updateFilters({ socialContext: null, _socialApiData: null });
+      updateFilters({ socialContext: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
       const filterData = FilterApiBridge.logSocialContextSelection(socialId);
       updateFilters({ 
-        socialContext: socialId,
-        _socialApiData: filterData // Store API-ready data (may be null)
+        socialContext: socialId
       });
     }
   };
@@ -245,13 +168,12 @@ export default function MoodSlider() {
     if (filters.budget === budgetValue) {
       // Deselecting
       console.log('Budget deselected');
-      updateFilters({ budget: null, _budgetApiData: null });
+      updateFilters({ budget: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
       const filterData = FilterApiBridge.logBudgetSelection(budgetValue);
       updateFilters({ 
-        budget: budgetValue,
-        _budgetApiData: filterData // Store API-ready data (may be null)
+        budget: budgetValue
       });
     }
   };
@@ -262,13 +184,12 @@ export default function MoodSlider() {
     if (filters.timeOfDay === timeId) {
       // Deselecting
       console.log('Time of day deselected');
-      updateFilters({ timeOfDay: null, _timeApiData: null });
+      updateFilters({ timeOfDay: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
       const filterData = FilterApiBridge.logTimeOfDaySelection(timeId);
       updateFilters({ 
-        timeOfDay: timeId,
-        _timeApiData: filterData // Store API-ready data (may be null)
+        timeOfDay: timeId
       });
     }
   };

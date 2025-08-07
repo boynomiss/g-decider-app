@@ -1,4 +1,4 @@
-import { Suggestion } from '../types/app';
+import { Suggestion } from '../../types/app';
 
 // Google Gemini API configuration
 const GEMINI_API_KEY = 'AIzaSyDFDP5a0_AwD-ZC9igtkZWCiwjpf_SfY2E';

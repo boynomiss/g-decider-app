@@ -582,17 +582,17 @@ export class PlaceMoodService {
    * Step 5: Assign final descriptive mood based on score (fallback method)
    */
   private assignFinalMood(moodScore: number): string {
-    if (moodScore >= 70) {
+    if (moodScore >= 66.66) {
       // Hype moods
-      const hypeIndex = Math.floor((moodScore - 70) / 6); // 0-4 range
+      const hypeIndex = Math.floor((moodScore - 66.66) / 11.11); // 0-3 range
       return MOOD_LABELS.hype[Math.min(hypeIndex, MOOD_LABELS.hype.length - 1)] || 'energetic';
-    } else if (moodScore <= 30) {
+    } else if (moodScore <= 33.33) {
       // Chill moods
-      const chillIndex = Math.floor((30 - moodScore) / 6); // 0-4 range
+      const chillIndex = Math.floor((33.33 - moodScore) / 11.11); // 0-3 range
       return MOOD_LABELS.chill[Math.min(chillIndex, MOOD_LABELS.chill.length - 1)] || 'relaxed';
     } else {
       // Neutral moods
-      const neutralIndex = Math.floor((moodScore - 31) / 8); // 0-4 range
+      const neutralIndex = Math.floor((moodScore - 33.34) / 11.11); // 0-3 range
       return MOOD_LABELS.neutral[Math.min(neutralIndex, MOOD_LABELS.neutral.length - 1)] || 'balanced';
     }
   }
@@ -652,9 +652,9 @@ export class PlaceMoodService {
       if (place.mood_score !== undefined) {
         totalScore += place.mood_score;
         
-        if (place.mood_score >= 70) {
+        if (place.mood_score >= 66.66) {
           stats.hype++;
-        } else if (place.mood_score <= 30) {
+        } else if (place.mood_score <= 33.33) {
           stats.chill++;
         } else {
           stats.neutral++;
@@ -674,8 +674,8 @@ export const moodUtils = {
    * Get mood category from score
    */
   getMoodCategory: (score: number): 'chill' | 'neutral' | 'hype' => {
-    if (score >= 70) return 'hype';
-    if (score <= 30) return 'chill';
+    if (score >= 66.66) return 'hype';
+    if (score <= 33.33) return 'chill';
     return 'neutral';
   },
 

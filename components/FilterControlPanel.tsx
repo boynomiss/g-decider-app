@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { Filter, X, RotateCcw, Settings, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { UserFilters } from '@/types/app';
+import { DistanceUtils } from '@/utils/filters/distance-config';
 
 interface FilterControlPanelProps {
   filters: UserFilters;
@@ -118,11 +119,7 @@ export default function FilterControlPanel({
   const renderDistanceSlider = () => {
     const distance = filters.distanceRange || 50;
     const getDistanceLabel = (value: number) => {
-      if (value <= 20) return 'Very Close (1-2km)';
-      if (value <= 40) return 'Close (3-5km)';
-      if (value <= 60) return 'Moderate (6-10km)';
-      if (value <= 80) return 'Far (11-20km)';
-      return 'Very Far (20km+)';
+      return DistanceUtils.getDistanceLabelForUI(value);
     };
 
     return (

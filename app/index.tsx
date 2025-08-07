@@ -9,6 +9,7 @@ import MoodSlider from '../components/MoodSlider';
 import ActionButton from '../components/ActionButton';
 import Footer from '../components/Footer';
 import APIStatus from '../components/APIStatus';
+import FilterLogDisplay from '../components/FilterLogDisplay';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAppStore } from '../hooks/use-app-store';
 
@@ -34,6 +35,9 @@ const FixedContent = React.memo(() => (
         </ErrorBoundary>
         <ErrorBoundary componentName="ActionButton">
           <ActionButton />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="FilterLogDisplay">
+          <FilterLogDisplay visible={true} showPlaceTypes={true} />
         </ErrorBoundary>
       </View>
       <View style={styles.spacer} />
@@ -62,6 +66,9 @@ const ScrollableContent = React.memo(() => (
       </ErrorBoundary>
       <ErrorBoundary componentName="ActionButton">
         <ActionButton />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="FilterLogDisplay">
+        <FilterLogDisplay visible={true} showPlaceTypes={true} />
       </ErrorBoundary>
       <View style={styles.spacer} />
     </ScrollView>

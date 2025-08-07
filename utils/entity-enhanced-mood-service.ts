@@ -1,5 +1,5 @@
 import { googleNaturalLanguageClient } from './google-api-clients';
-import { ENTITY_ENHANCED_MOOD_LABELS, ENTITY_ANALYSIS_CONFIG, MOOD_RANGES } from './mood-config';
+import { ENTITY_ENHANCED_MOOD_LABELS, ENTITY_ANALYSIS_CONFIG, MOOD_RANGES } from './filters/mood-config';
 
 export interface EntityAnalysisResult {
   name: string;
