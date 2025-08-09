@@ -22,7 +22,7 @@ import { useAIDescription } from '../hooks/use-ai-description';
 import { useDiscounts } from '../hooks/use-discounts';
 import { useBookingIntegration } from '../hooks/use-booking-integration';
 import { useSavedPlaces } from '../hooks/use-saved-places';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceData } from '../utils/filtering/place-mood-service';
 import { AIDescriptionCard } from '../components/AIDescriptionCard';
 import { ActiveDiscountsCard } from '../components/ActiveDiscountsCard';
 import { BookingOptionsCard } from '../components/BookingOptionsCard';

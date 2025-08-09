@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { adMonetizationService } from '../utils/ad-monetization-service';
+import { adMonetizationService } from '../utils/monetization/ad-monetization-service';
 
 interface AdUnit {
   id: string;

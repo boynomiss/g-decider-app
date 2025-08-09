@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
-import { LoadingState } from '@/utils/place-discovery-logic';
+import { LoadingState } from '@/utils/filtering/unified-filtering-system';
 
 interface LoadingScreensProps {
   loadingState: LoadingState;

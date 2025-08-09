@@ -168,7 +168,7 @@ export default function AuthScreen() {
 
                   <ErrorBoundary componentName="ToggleMode">
                     <TouchableOpacity style={styles.toggleButton} onPress={toggleMode}>
-                      <Text style={styles.toggleButtonText}>
+                      <Text style={styles.toggleText}>
                         {isSignUp 
                           ? 'Already have an account? Sign In' 
                           : "Don't have an account? Sign Up"

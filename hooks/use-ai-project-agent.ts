@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { aiProjectAgent } from '../utils/ai-project-agent';
+import { aiProjectAgent } from '../utils/content/ai-project-agent';
 
 interface ProjectTask {
   id: string;

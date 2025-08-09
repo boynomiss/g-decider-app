@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { PlaceDiscoveryLogic, DiscoveryFilters, DiscoveryResult, LoadingState, AdvertisedPlace } from '@/utils/place-discovery-logic';
-import { PlaceMoodService } from '@/utils/place-mood-service';
+import { PlaceDiscoveryLogic, DiscoveryFilters, DiscoveryResult, LoadingState, AdvertisedPlace } from '@/utils/filtering/unified-filter-service';
+import { moodAnalysis } from '@/utils/filtering';
 import { useAppStore } from '@/hooks/use-app-store';
 
 interface UsePlaceDiscoveryOptions {

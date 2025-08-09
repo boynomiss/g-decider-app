@@ -4,10 +4,10 @@ import { PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming } from 'react-native-reanimated';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterApiBridge } from '@/utils/filters/filter-api-bridge';
-import { DISTANCE_CATEGORIES, DistanceUtils } from '@/utils/filters/distance-config';
-import { socialOptions, SocialUtils } from '@/utils/filters/social-config';
-import { MoodUtils, MOOD_DETAILED_LABELS } from '@/utils/filters/mood-config';
+import { FilterUtilities } from '@/utils/filtering/filter-utils';
+import { DISTANCE_CATEGORIES, DistanceUtils } from '@/utils/filtering/configs/distance-config';
+import { socialOptions, SocialUtils } from '@/utils/filtering/configs/social-config';
+import { MoodUtils, MOOD_DETAILED_LABELS } from '@/utils/filtering/configs/mood-config';
 
 export const budgetOptions = [
   { 

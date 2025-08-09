@@ -1,3 +1,37 @@
+/**
+ * Unified Filter Interface
+ * 
+ * Consolidates all filter interfaces from:
+ * - UserFilters (types/app.ts)
+ * - DiscoveryFilters (utils/place-discovery-logic.ts)
+ * - QueryParams (utils/firebase-cache.ts)
+ * - ServerFilteringRequest (types/server-filtering.ts)
+ */
+export interface UnifiedFilters {
+  // Core filter types
+  category: 'food' | 'activity' | 'something-new' | null;
+  mood: number | null; // 0-100, 0 = chill, 100 = hype
+  budget: 'P' | 'PP' | 'PPP' | null;
+  timeOfDay: 'morning' | 'afternoon' | 'night' | null;
+  socialContext: 'solo' | 'with-bae' | 'barkada' | null;
+  distanceRange: number | null; // 0-100 percentage mapped to actual distances
+  
+  // Optional context
+  location?: string;
+  userLocation?: {
+    lat: number;
+    lng: number;
+  };
+  
+  // Query options
+  minResults?: number;
+  tags?: string[];
+}
+
+/**
+ * @deprecated Use UnifiedFilters instead
+ * Kept for backward compatibility
+ */
 export interface UserFilters {
   mood: number; // 0-100, 0 = chill, 100 = hype
   category: 'food' | 'activity' | 'something-new' | null;

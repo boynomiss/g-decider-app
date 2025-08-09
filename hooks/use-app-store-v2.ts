@@ -9,18 +9,18 @@ import * as Location from 'expo-location';
 // Import our new systems
 import { 
   PlaceDiscoveryLogic, 
-  UserFilters as DiscoveryFilters, 
+  DiscoveryFilters, 
   PlaceResult,
   LoadingState 
-} from '../utils/place-discovery-logic';
+} from '../utils/filtering/unified-filter-service';
 import { 
   PlaceMoodService, 
   PlaceData 
-} from '../utils/place-mood-service';
+} from '../types/filtering';
 import { 
   FilterApiBridge, 
   ApiReadyFilterData 
-} from '../utils/filter-api-bridge';
+} from '../types/filtering';
 
 // API Configuration
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';

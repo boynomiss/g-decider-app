@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, MapPin, Clock, TrendingUp, Star } from 'lucide-react-native';
-import { PlaceData } from '@/utils/place-mood-service';
+import { PlaceMoodData } from '@/types/filtering';
 import EnhancedPlaceCard from './EnhancedPlaceCard';
 
 interface InstantRecommendationsProps {

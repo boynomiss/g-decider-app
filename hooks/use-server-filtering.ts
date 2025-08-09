@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { UserFilters } from '../types/app';
-import { PlaceData } from '../utils/place-mood-service';
-import { serverFilteringService } from '../utils/filters/server-filtering-service';
+import { PlaceMoodData } from '../types/filtering';
+import { serverFilteringService } from '../utils/data/server-filtering-service';
 import { ServerFilteringResponse } from '../types/server-filtering';
-import { convertServerResponse, validateAndSanitizeResponse } from '../utils/server-data-converter';
+import { convertServerResponse, validateAndSanitizeResponse } from '../utils/data/server-data-converter';
 
 export interface UseServerFilteringReturn {
   // State

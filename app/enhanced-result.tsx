@@ -5,7 +5,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Settings, ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceData } from '../utils/filtering/place-mood-service';
 import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
 import FilterFeedbackBanner, { FilterRelaxationInfo, createFilterRelaxationInfo } from '../components/FilterFeedbackBanner';
 import FilterControlPanel from '../components/FilterControlPanel';

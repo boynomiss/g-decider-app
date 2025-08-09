@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { Filter, X, RotateCcw, Settings, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { UserFilters } from '@/types/app';
-import { DistanceUtils } from '@/utils/filters/distance-config';
+import { DistanceUtils } from '@/utils/filtering/configs/distance-config';
 
 interface FilterControlPanelProps {
   filters: UserFilters;

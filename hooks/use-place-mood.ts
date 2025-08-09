@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { PlaceMoodService, PlaceData, type MoodConfig } from '@/utils/place-mood-service';
+import { moodAnalysis } from '@/utils/filtering';
+import { PlaceMoodData, MoodAnalysisConfig } from '@/types/filtering';
 
 interface UsePlaceMoodOptions {
   googlePlacesApiKey: string;

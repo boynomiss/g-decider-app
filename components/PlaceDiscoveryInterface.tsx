@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { usePlaceDiscovery } from '@/hooks/use-place-discovery';
 import { useAppStore } from '@/hooks/use-app-store';
-import { locationService } from '../utils/location-service';
+import { locationService } from '../utils/mobile/location-service';
 import LoadingScreens from './LoadingScreens';
 import GoButton from './GoButton';
 

@@ -44,7 +44,7 @@ const FILE_RULES = {
     'hooks/use-server-filtering.ts',
     'utils/place-mood-service.ts',
     'utils/place-discovery-logic.ts',
-    'utils/filter-api-bridge.ts',
+  
     'utils/enhanced-caching-service.ts',
     'utils/enhanced-filtering-with-cache.ts',
     'utils/firebase-cache.ts',

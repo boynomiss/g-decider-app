@@ -4,10 +4,11 @@ import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
 import { useAuth } from './use-auth';
-import { PlaceDiscoveryLogic, DiscoveryResult, DiscoveryFilters, LoadingState } from '../utils/place-discovery-logic';
-import { PlaceMoodService, PlaceData } from '../utils/place-mood-service';
-import { FilterApiBridge, ApiReadyFilterData } from '../utils/filter-api-bridge';
-import { logFilterChange } from '../utils/filter-logger';
+import { PlaceDiscoveryLogic, DiscoveryResult, DiscoveryFilters, LoadingState } from '../utils/filtering/unified-filter-service';
+import { moodAnalysis } from '@/utils/filtering';
+import { PlaceMoodData } from '../types/filtering';
+import { FilterCoreUtils as FilterUtilities } from '../utils/filtering/filter-core-utils';
+import { logFilterChange } from '../utils/filtering/filter-logger';
 
 // API Configuration
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
@@ -50,7 +51,7 @@ const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
     coordinates: typeof place.location === 'object' && place.location ? {
       lat: place.location.lat,
       lng: place.location.lng
-    } : undefined,
+    } : { lat: 0, lng: 0 },
     rating: place.rating,
     reviewCount: place.user_ratings_total,
     reviews: place.reviews?.map(review => ({
@@ -377,7 +378,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
   const openInMaps = useCallback((place: Suggestion | PlaceData) => {
     const location = 'coordinates' in place ? place.coordinates : place.location;
     const name = place.name;
-    if (!location) {
+    if (!location || typeof location === 'string') {
       console.error('❌ No location data for place:', name);
       return;
     }
@@ -485,5 +486,8 @@ const [AppContext, useAppStore] = createContextHook(() => {
     }), [state.currentResults, state.loadingState, state.apiReadyFilters.size])
   };
 });
+
+// Export the context provider for use in App layout
+export const AppProvider = AppContext;
 
 export { AppContext, useAppStore };

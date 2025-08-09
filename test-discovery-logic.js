@@ -3,7 +3,7 @@
  * Demonstrates the comprehensive filtering, expansion, and selection logic
  */
 
-const { PlaceDiscoveryLogic } = require('./utils/place-discovery-logic');
+const { PlaceDiscoveryLogic } = require('./utils/filtering/unified-filter-service');
 const { PlaceMoodService } = require('./utils/place-mood-service');
 
 // Mock advertised places

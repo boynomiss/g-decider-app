@@ -1,63 +1,110 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import * as React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { getFilterSummary } from '@/utils/filters/filter-logger';
+import { useSearchPreview, useFilterChangeTracker } from '@/hooks/use-dynamic-filter-logger';
 
 interface FilterLogDisplayProps {
   visible?: boolean;
   showPlaceTypes?: boolean;
+  showSearchPreview?: boolean;
 }
 
 export default function FilterLogDisplay({ 
   visible = true, 
-  showPlaceTypes = true 
+  showPlaceTypes = true,
+  showSearchPreview = true
 }: FilterLogDisplayProps) {
   const { filters } = useAppStore();
+  const { searchPreview, searchKeywords, placeTypes, atmosphereKeywords } = useSearchPreview(filters);
+  
+  // Track filter changes automatically
+  useFilterChangeTracker(filters);
+  
+  const [expanded, setExpanded] = React.useState(false);
   
   if (!visible) return null;
   
-  const filterSummary = getFilterSummary(filters);
-  
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Current Filter Settings:</Text>
+      <TouchableOpacity 
+        style={styles.header}
+        onPress={() => setExpanded(!expanded)}
+      >
+        <Text style={styles.title}>Current Filter Settings</Text>
+        <Text style={styles.expandButton}>{expanded ? '▼' : '▶'}</Text>
+      </TouchableOpacity>
       
       <View style={styles.logContainer}>
+        {/* Basic Filter Settings */}
         <Text style={styles.logLine}>
-          Looking for: <Text style={styles.value}>{filterSummary.category}</Text>
+          Looking for: <Text style={styles.value}>{filters.category || 'none'}</Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Mood: <Text style={styles.value}>{filterSummary.mood}</Text>
+          Mood: <Text style={styles.value}>
+            {filters.mood !== null ? filters.mood.toString() : 'none'}
+          </Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Social Context: <Text style={styles.value}>{filterSummary.socialContext}</Text>
+          Social Context: <Text style={styles.value}>
+            {filters.socialContext || 'none'}
+          </Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Budget: <Text style={styles.value}>{filterSummary.budget}</Text>
+          Budget: <Text style={styles.value}>{filters.budget || 'none'}</Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Time of day: <Text style={styles.value}>{filterSummary.timeOfDay}</Text>
+          Time of day: <Text style={styles.value}>
+            {filters.timeOfDay || 'none'}
+          </Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Distance range: <Text style={styles.value}>{filterSummary.distanceRange}</Text>
+          Distance range: <Text style={styles.value}>
+            {filters.distanceRange !== null ? filters.distanceRange.toString() : 'none'}
+          </Text>
         </Text>
         
-        {showPlaceTypes && (
-          <View style={styles.placeTypesContainer}>
-            <Text style={styles.logLine}>
-              Place types: <Text style={styles.value}>{filterSummary.placeTypes.length}</Text>
-            </Text>
-            {filterSummary.placeTypes.length > 0 && (
-              <Text style={styles.placeTypesList}>
-                {filterSummary.placeTypes.join(', ')}
-              </Text>
-            )}
+        {/* Search Preview Section */}
+        {showSearchPreview && (
+          <View style={styles.searchPreviewContainer}>
+            <Text style={styles.sectionTitle}>🔍 Generated Search Query</Text>
+            <Text style={styles.searchPreview}>{searchPreview}</Text>
           </View>
+        )}
+        
+        {/* Expanded Details */}
+        {expanded && (
+          <>
+            {/* Keywords Section */}
+            <View style={styles.keywordsContainer}>
+              <Text style={styles.sectionTitle}>🏷️ Search Keywords</Text>
+              <Text style={styles.keywordsList}>
+                {searchKeywords.length > 0 ? searchKeywords.join(', ') : 'None'}
+              </Text>
+            </View>
+            
+            {/* Place Types Section */}
+            {showPlaceTypes && (
+              <View style={styles.placeTypesContainer}>
+                <Text style={styles.sectionTitle}>🏢 Place Types</Text>
+                <Text style={styles.placeTypesList}>
+                  {placeTypes.length > 0 ? placeTypes.join(', ') : 'None'}
+                </Text>
+              </View>
+            )}
+            
+            {/* Atmosphere Keywords Section */}
+            <View style={styles.atmosphereContainer}>
+              <Text style={styles.sectionTitle}>🌟 Atmosphere Keywords</Text>
+              <Text style={styles.atmosphereList}>
+                {atmosphereKeywords.length > 0 ? atmosphereKeywords.join(', ') : 'None'}
+              </Text>
+            </View>
+          </>
         )}
       </View>
     </View>
@@ -73,11 +120,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: '#495057',
-    marginBottom: 12,
+  },
+  expandButton: {
+    fontSize: 14,
+    color: '#6c757d',
   },
   logContainer: {
     backgroundColor: '#ffffff',
@@ -96,14 +152,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#495057',
   },
+  searchPreviewContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 6,
+  },
+  searchPreview: {
+    fontSize: 13,
+    color: '#6c757d',
+    fontFamily: 'monospace',
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  keywordsContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  keywordsList: {
+    fontSize: 13,
+    color: '#6c757d',
+    lineHeight: 18,
+  },
   placeTypesContainer: {
-    marginTop: 4,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   placeTypesList: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6c757d',
-    lineHeight: 16,
-    marginTop: 4,
-    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  atmosphereContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  atmosphereList: {
+    fontSize: 13,
+    color: '#6c757d',
+    lineHeight: 18,
   },
 }); 

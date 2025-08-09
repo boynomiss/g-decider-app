@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { aiDescriptionService } from '../utils/results/ai-description-service';
+import { aiDescriptionService } from '../utils/content/results/ai-description-service';
 import { Suggestion } from '../types/app';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceMoodData } from '../types/filtering';
 
 type DescriptionInput = Suggestion | PlaceData;
 

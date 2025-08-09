@@ -7,7 +7,7 @@ import PlaceDiscoveryInterface from '@/components/PlaceDiscoveryInterface';
 import LoadingScreens from '@/components/LoadingScreens';
 import MoodSlider from '@/components/MoodSlider';
 import CategoryButtons from '@/components/CategoryButtons';
-import { DistanceUtils } from '@/utils/filters/distance-config';
+import { DistanceUtils } from '@/utils/filtering/configs/distance-config';
 
 // Mock advertised places for demo
 const mockAdvertisedPlaces = [

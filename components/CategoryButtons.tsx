@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterApiBridge } from '@/utils/filters/filter-api-bridge';
-import { filterValidationService } from '@/utils/filters/filter-validation-service';
-import { categoryOptions, CategoryUtils } from '@/utils/filters/category-config';
+import { FilterUtilities } from '@/utils/filtering/filter-utils';
+import { categoryOptions, CategoryUtils } from '@/utils/filtering/configs/category-config';
 
 export default function CategoryButtons() {
   const { filters, updateFilters } = useAppStore();

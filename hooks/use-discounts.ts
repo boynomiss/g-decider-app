@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { discountService, DiscountInfo } from '../utils/discount-service';
+import { discountService, DiscountInfo } from '../utils/monetization/discount-service';
 import { Suggestion } from '../types/app';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceMoodData } from '../types/filtering';
 
 type DiscountInput = Suggestion | PlaceData;
 

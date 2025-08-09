@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { bookingIntegrationService } from '../utils/booking-integration';
+import { bookingIntegrationService } from '../utils/api/booking-integration';
 import { Suggestion } from '../types/app';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceMoodData } from '../types/filtering';
 
 type BookingInput = Suggestion | PlaceData;
 

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { scrapingService } from '../utils/scraping-service';
+import { scrapingService } from '../utils/api/scraping-service';
 
 interface ScrapedDeal {
   id: string;

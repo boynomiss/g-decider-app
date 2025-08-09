@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ExternalLink, Clock, AlertCircle, Star } from 'lucide-react-native';
-import { DiscountInfo } from '../utils/discount-service';
+import { DiscountInfo } from '../utils/monetization/discount-service';
 
 interface ActiveDiscountsCardProps {
   discounts: DiscountInfo[];

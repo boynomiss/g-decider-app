@@ -10,7 +10,7 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { usePlaceMood, useMoodFiltering } from '@/hooks/use-place-mood';
-import type { PlaceData } from '@/utils/place-mood-service';
+import type { PlaceMoodData } from '@/types/filtering';
 
 interface PlaceMoodManagerProps {
   googlePlacesApiKey: string;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Suggestion } from '../types/app';
-import { PlaceData } from '../utils/place-mood-service';
+import { PlaceMoodData } from '../types/filtering';
 
 type SaveablePlace = Suggestion | PlaceData;
 

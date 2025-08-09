@@ -35,7 +35,7 @@ import { CategoryUtils } from '../../utils/filters/category-config';
 import { MoodUtils } from '../../utils/filters/mood-config';
 
 // Import consolidated social context configuration
-import { SocialUtils } from '../../utils/filters/social-config';
+import { SocialUtils } from '../../utils/filtering/configs/social-config';
 
 // Budget to Google Places price_level mapping
 const BUDGET_PRICE_MAPPING = {
@@ -45,10 +45,10 @@ const BUDGET_PRICE_MAPPING = {
 } as const;
 
 // Import consolidated time configuration
-import { TimeUtils } from '../../utils/filters/time-config';
+import { TimeUtils } from '../../utils/filtering/configs/time-config';
 
 // Import consolidated distance configuration
-import { DISTANCE_RANGES, DistanceUtils } from '../../utils/filters/distance-config';
+import { DISTANCE_RANGES, DistanceUtils } from '../../utils/filtering/configs/distance-config';
 
 // For TSLint: DISTANCE_RANGES will be used in future expansions
 void DISTANCE_RANGES;
