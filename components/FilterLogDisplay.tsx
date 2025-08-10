@@ -2,6 +2,12 @@ import * as React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useSearchPreview, useFilterChangeTracker } from '@/hooks/use-dynamic-filter-logger';
+import { getCategoryFilter } from '@/utils/filtering/configs/category-config';
+import { getMoodCategory } from '@/utils/filtering/configs/mood-config';
+import { getSocialContext } from '@/utils/filtering/configs/social-config';
+import { getBudgetCategory } from '@/utils/filtering/configs/budget-config-refactored';
+import { getTimeCategory } from '@/utils/filtering/configs/time-config';
+import { getDistanceCategory } from '@/utils/filtering/configs/distance-config';
 
 interface FilterLogDisplayProps {
   visible?: boolean;
@@ -37,34 +43,38 @@ export default function FilterLogDisplay({
       <View style={styles.logContainer}>
         {/* Basic Filter Settings */}
         <Text style={styles.logLine}>
-          Looking for: <Text style={styles.value}>{filters.category || 'none'}</Text>
+          Looking for: <Text style={styles.value}>
+            {filters.category ? getCategoryFilter(filters.category)?.label || filters.category : 'none'}
+          </Text>
         </Text>
         
         <Text style={styles.logLine}>
           Mood: <Text style={styles.value}>
-            {filters.mood !== null ? filters.mood.toString() : 'none'}
+            {filters.mood !== null ? getMoodCategory(filters.mood)?.label || filters.mood.toString() : 'none'}
           </Text>
         </Text>
         
         <Text style={styles.logLine}>
           Social Context: <Text style={styles.value}>
-            {filters.socialContext || 'none'}
+            {filters.socialContext ? getSocialContext(filters.socialContext)?.label || filters.socialContext : 'none'}
           </Text>
         </Text>
         
         <Text style={styles.logLine}>
-          Budget: <Text style={styles.value}>{filters.budget || 'none'}</Text>
+          Budget: <Text style={styles.value}>
+            {filters.budget ? getBudgetCategory(filters.budget)?.display || filters.budget : 'none'}
+          </Text>
         </Text>
         
         <Text style={styles.logLine}>
           Time of day: <Text style={styles.value}>
-            {filters.timeOfDay || 'none'}
+            {filters.timeOfDay ? getTimeCategory(filters.timeOfDay)?.label || filters.timeOfDay : 'none'}
           </Text>
         </Text>
         
         <Text style={styles.logLine}>
           Distance range: <Text style={styles.value}>
-            {filters.distanceRange !== null ? filters.distanceRange.toString() : 'none'}
+            {filters.distanceRange !== null ? getDistanceCategory(filters.distanceRange).text : 'none'}
           </Text>
         </Text>
         
@@ -76,35 +86,70 @@ export default function FilterLogDisplay({
           </View>
         )}
         
-        {/* Expanded Details */}
+        {/* Dynamic Text Search Section */}
         {expanded && (
-          <>
-            {/* Keywords Section */}
-            <View style={styles.keywordsContainer}>
-              <Text style={styles.sectionTitle}>🏷️ Search Keywords</Text>
-              <Text style={styles.keywordsList}>
-                {searchKeywords.length > 0 ? searchKeywords.join(', ') : 'None'}
-              </Text>
-            </View>
-            
-            {/* Place Types Section */}
-            {showPlaceTypes && (
-              <View style={styles.placeTypesContainer}>
-                <Text style={styles.sectionTitle}>🏢 Place Types</Text>
-                <Text style={styles.placeTypesList}>
-                  {placeTypes.length > 0 ? placeTypes.join(', ') : 'None'}
-                </Text>
-              </View>
-            )}
-            
-            {/* Atmosphere Keywords Section */}
-            <View style={styles.atmosphereContainer}>
-              <Text style={styles.sectionTitle}>🌟 Atmosphere Keywords</Text>
-              <Text style={styles.atmosphereList}>
-                {atmosphereKeywords.length > 0 ? atmosphereKeywords.join(', ') : 'None'}
-              </Text>
-            </View>
-          </>
+          <View style={styles.dynamicSearchContainer}>
+            <Text style={styles.sectionTitle}>🔍 Dynamic Text Search</Text>
+            <Text style={styles.dynamicSearchText}>
+              {(() => {
+                const searchTerms: string[] = [];
+                
+                // Add category-based terms
+                if (filters.category) {
+                  const category = getCategoryFilter(filters.category);
+                  if (category) {
+                    searchTerms.push(category.label.toLowerCase());
+                    searchTerms.push(...category.searchKeywords);
+                  }
+                }
+                
+                // Add mood-based terms
+                if (filters.mood !== null) {
+                  const mood = getMoodCategory(filters.mood);
+                  if (mood) {
+                    searchTerms.push(mood.label.toLowerCase());
+                    searchTerms.push(...mood.atmosphereKeywords);
+                  }
+                }
+                
+                // Add social context terms
+                if (filters.socialContext) {
+                  const social = getSocialContext(filters.socialContext);
+                  if (social) {
+                    searchTerms.push(social.label.toLowerCase());
+                    searchTerms.push(...social.atmosphereKeywords);
+                  }
+                }
+                
+                // Add budget terms
+                if (filters.budget) {
+                  const budget = getBudgetCategory(filters.budget);
+                  if (budget) {
+                    searchTerms.push(budget.label.toLowerCase());
+                    searchTerms.push(...budget.atmosphereKeywords);
+                  }
+                }
+                
+                // Add time-based terms
+                if (filters.timeOfDay) {
+                  const time = getTimeCategory(filters.timeOfDay);
+                  if (time) {
+                    searchTerms.push(time.label.toLowerCase());
+                  }
+                }
+                
+                // Add place types
+                if (placeTypes.length > 0) {
+                  searchTerms.push(...placeTypes);
+                }
+                
+                // Remove duplicates and filter out empty strings
+                const uniqueTerms = [...new Set(searchTerms)].filter(term => term.trim().length > 0);
+                
+                return uniqueTerms.length > 0 ? uniqueTerms.join(', ') : 'No search terms available';
+              })()}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -206,5 +251,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6c757d',
     lineHeight: 18,
+  },
+  dynamicSearchContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  dynamicSearchText: {
+    fontSize: 13,
+    color: '#6c757d',
+    lineHeight: 18,
+    fontFamily: 'monospace',
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
 }); 

@@ -57,7 +57,39 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       ...config
     };
 
-    ConsolidatedFilterLogger.getInstance().info('place-mood-service', 'Place Mood Analysis Service initialized');
+    // Initialize logger lazily to avoid initialization issues
+    try {
+      const logger = ConsolidatedFilterLogger.getInstance();
+      logger.info('place-mood-service', 'Place Mood Analysis Service initialized');
+    } catch (error) {
+      // Logger not ready yet, will initialize when first used
+      console.log('Place Mood Analysis Service initialized (logger not ready yet)');
+    }
+  }
+
+  // Lazy logger methods
+  private logInfo(context: string, message: string, ...args: any[]): void {
+    try {
+      ConsolidatedFilterLogger.getInstance().info(context, message, ...args);
+    } catch (e) {
+      console.log(`[${context}] ${message}`, ...args);
+    }
+  }
+
+  private logWarn(context: string, message: string, ...args: any[]): void {
+    try {
+      ConsolidatedFilterLogger.getInstance().warn(context, message, ...args);
+    } catch (e) {
+      console.warn(`[${context}] ${message}`, ...args);
+    }
+  }
+
+  private logError(context: string, message: string, ...args: any[]): void {
+    try {
+      ConsolidatedFilterLogger.getInstance().error(context, message, ...args);
+    } catch (e) {
+      console.error(`[${context}] ${message}`, ...args);
+    }
   }
 
   /**
@@ -77,7 +109,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
    */
   async analyzeFromReviews(reviews: ReviewEntity[], category: string): Promise<MoodAnalysisResult> {
     try {
-      ConsolidatedFilterLogger.getInstance().info('place-mood-from-reviews', `Analyzing mood from ${reviews.length} reviews for ${category}`);
+      this.logInfo('place-mood-from-reviews', `Analyzing mood from ${reviews.length} reviews for ${category}`);
 
       // Convert reviews to expected format
       const convertedReviews = reviews.map(review => ({
@@ -90,12 +122,12 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       const entityAnalysis = await this.entityAnalyzer.analyzeFromReviews(convertedReviews, category);
       
       if (entityAnalysis.confidence >= this.config.highConfidenceThreshold) {
-        ConsolidatedFilterLogger.getInstance().info('place-mood-from-reviews', `Using entity analysis (${entityAnalysis.confidence}% confidence)`);
+        this.logInfo('place-mood-from-reviews', `Using entity analysis (${entityAnalysis.confidence}% confidence)`);
         return entityAnalysis;
       }
 
       // Fallback to sentiment analysis
-      ConsolidatedFilterLogger.getInstance().info('place-mood-from-reviews', 'Entity analysis confidence low, using sentiment analysis');
+      this.logInfo('place-mood-from-reviews', 'Entity analysis confidence low, using sentiment analysis');
       const sentimentAnalysis = await this.performSentimentAnalysis(convertedReviews);
       const moodScore = this.calculateMoodScoreFromSentiment(sentimentAnalysis, category);
       
@@ -108,7 +140,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       };
 
     } catch (error) {
-      ConsolidatedFilterLogger.getInstance().error('place-mood-from-reviews', 'Analysis failed', error);
+      this.logError('place-mood-from-reviews', 'Analysis failed', error);
       return this.getFallbackAnalysis(category);
     }
   }
@@ -118,19 +150,19 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
    */
   async enhancePlaceWithMood(placeId: string): Promise<PlaceMoodData> {
     try {
-      ConsolidatedFilterLogger.getInstance().info('place-enhancement', `Starting mood enhancement for place: ${placeId}`);
+      this.logInfo('place-enhancement', `Starting mood enhancement for place: ${placeId}`);
       
       // Step 1: Get core place data
       const coreData = await this.getCorePlaceData(placeId);
-      ConsolidatedFilterLogger.getInstance().info('place-enhancement', `Core data collected for: ${coreData.name}`);
+      this.logInfo('place-enhancement', `Core data collected for: ${coreData.name}`);
       
       // Step 2: Get real-time data
       const realTimeData = await this.getRealTimeData(placeId);
-      ConsolidatedFilterLogger.getInstance().info('place-enhancement', `Real-time data collected: busyness ${realTimeData.current_busyness || 'N/A'}`);
+      this.logInfo('place-enhancement', `Real-time data collected: busyness ${realTimeData.current_busyness || 'N/A'}`);
       
       // Step 3: Perform mood analysis
       const moodAnalysis = await this.analyzePlaceMood(placeId);
-      ConsolidatedFilterLogger.getInstance().info('place-enhancement', `Mood analysis completed: ${moodAnalysis.category} (${moodAnalysis.score}/100)`);
+      this.logInfo('place-enhancement', `Mood analysis completed: ${moodAnalysis.category} (${moodAnalysis.score}/100)`);
       
       // Combine all data
       const enhancedPlace: PlaceMoodData = {
@@ -148,7 +180,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       return enhancedPlace;
       
     } catch (error) {
-      ConsolidatedFilterLogger.getInstance().error('place-enhancement', `Failed to enhance place ${placeId}`, error);
+      this.logError('place-enhancement', `Failed to enhance place ${placeId}`, error);
       throw error;
     }
   }
@@ -157,7 +189,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
    * Batch process multiple places
    */
   async enhanceMultiplePlaces(placeIds: string[]): Promise<PlaceMoodData[]> {
-    ConsolidatedFilterLogger.getInstance().info('place-batch-enhancement', `Starting batch processing of ${placeIds.length} places`);
+    this.logInfo('place-batch-enhancement', `Starting batch processing of ${placeIds.length} places`);
     
     const results: PlaceMoodData[] = [];
     
@@ -165,7 +197,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       const placeId = placeIds[i];
       
       try {
-        ConsolidatedFilterLogger.getInstance().info('place-batch-enhancement', `Processing place ${i + 1}/${placeIds.length}: ${placeId}`);
+        this.logInfo('place-batch-enhancement', `Processing place ${i + 1}/${placeIds.length}: ${placeId}`);
         const enhancedPlace = await this.enhancePlaceWithMood(placeId);
         results.push(enhancedPlace);
         
@@ -175,12 +207,12 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
         }
         
       } catch (error) {
-        ConsolidatedFilterLogger.getInstance().error('place-batch-enhancement', `Failed to process place ${placeId}`, error);
+        this.logError('place-batch-enhancement', `Failed to process place ${placeId}`, error);
         continue;
       }
     }
     
-    ConsolidatedFilterLogger.getInstance().info('place-batch-enhancement', `Batch processing complete: ${results.length}/${placeIds.length} successful`);
+    this.logInfo('place-batch-enhancement', `Batch processing complete: ${results.length}/${placeIds.length} successful`);
     return results;
   }
 
@@ -238,7 +270,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
   updateConfig(newConfig: Partial<MoodAnalysisConfig>): void {
     this.config = { ...this.config, ...newConfig };
     this.entityAnalyzer.updateConfig(newConfig);
-    ConsolidatedFilterLogger.getInstance().info('place-mood-service', 'Configuration updated');
+    this.logInfo('place-mood-service', 'Configuration updated');
   }
 
   // =================
@@ -254,7 +286,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       const placeData = await this.getCorePlaceData(placeId);
       
       if (!placeData.reviews || placeData.reviews.length === 0) {
-        ConsolidatedFilterLogger.getInstance().info('place-mood-analysis', 'No reviews found, using category-based analysis');
+        this.logInfo('place-mood-analysis', 'No reviews found, using category-based analysis');
         return this.getCategoryBasedAnalysis(placeData.category || 'establishment');
       }
 
@@ -285,7 +317,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       };
 
     } catch (error) {
-      ConsolidatedFilterLogger.getInstance().error('place-mood-analysis', 'Analysis failed', error);
+      this.logError('place-mood-analysis', 'Analysis failed', error);
       return this.getFallbackAnalysis('establishment');
     }
   }
@@ -314,7 +346,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       };
       
     } catch (error) {
-      ConsolidatedFilterLogger.getInstance().error('place-data-fetch', 'Failed to fetch place data', error);
+      this.logError('place-data-fetch', 'Failed to fetch place data', error);
       throw error;
     }
   }
@@ -333,7 +365,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       };
       
     } catch (error) {
-      ConsolidatedFilterLogger.getInstance().warn('real-time-data', 'Failed to fetch real-time data', error);
+      this.logWarn('real-time-data', 'Failed to fetch real-time data', error);
       return {
         current_busyness: 0,
         popular_times: []

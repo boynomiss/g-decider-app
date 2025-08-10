@@ -10,7 +10,7 @@
  */
 
 import { UnifiedFilters } from '../../types/app';
-import { PlaceMoodData, PlaceResult, ReviewEntity } from '../../types/filtering';
+import { PlaceMoodData, PlaceResult, ReviewEntity, ApiReadyFilterData } from '../../types/filtering';
 import { googlePlacesClient } from '../api/google-api-clients';
 
 // API configuration
@@ -164,7 +164,7 @@ export class FilterAPIService {
       types.push('restaurant', 'movie_theater', 'park');
     }
 
-    return [...new Set(types)]; // Remove duplicates
+    return Array.from(new Set(types)); // Remove duplicates
   }
 
   /**
@@ -440,5 +440,94 @@ export class FilterAPIService {
       rateLimitHits: 0,
       retryAttempts: 0
     };
+  }
+}
+
+/**
+ * FilterApiBridge Implementation
+ * 
+ * Provides logging and consolidation methods for filter operations.
+ * This bridges the gap between the old FilterApiBridge interface and the new system.
+ */
+export class FilterApiBridge {
+  /**
+   * Log category selection and return API-ready filter data
+   */
+  static logCategorySelection(value: string): ApiReadyFilterData {
+    console.log('📊 Logging category selection:', value);
+    return {
+      category: value
+    };
+  }
+
+  /**
+   * Log mood selection and return API-ready filter data
+   */
+  static logMoodSelection(value: number): ApiReadyFilterData {
+    console.log('📊 Logging mood selection:', value);
+    return {
+      mood: value
+    };
+  }
+
+  /**
+   * Log distance selection and return API-ready filter data
+   */
+  static logDistanceSelection(value: number): ApiReadyFilterData {
+    console.log('📊 Logging distance selection:', value);
+    return {
+      distance: value
+    };
+  }
+
+  /**
+   * Log budget selection and return API-ready filter data
+   */
+  static logBudgetSelection(value: any): ApiReadyFilterData {
+    console.log('📊 Logging budget selection:', value);
+    return {
+      budget: value
+    };
+  }
+
+  /**
+   * Log social context selection and return API-ready filter data
+   */
+  static logSocialContextSelection(value: any): ApiReadyFilterData {
+    console.log('📊 Logging social context selection:', value);
+    return {
+      socialContext: value
+    };
+  }
+
+  /**
+   * Log time of day selection and return API-ready filter data
+   */
+  static logTimeOfDaySelection(value: any): ApiReadyFilterData {
+    console.log('📊 Logging time of day selection:', value);
+    return {
+      timeOfDay: value
+    };
+  }
+
+  /**
+   * Consolidate multiple filters for API consumption
+   */
+  static consolidateFiltersForApi(filters: any[]): ApiReadyFilterData {
+    console.log('📊 Consolidating filters for API:', filters);
+    
+    const consolidated: ApiReadyFilterData = {};
+
+    filters.forEach(filter => {
+      if (filter.category) consolidated.category = filter.category;
+      if (filter.mood !== undefined) consolidated.mood = filter.mood;
+      if (filter.socialContext) consolidated.socialContext = filter.socialContext;
+      if (filter.budget) consolidated.budget = filter.budget;
+      if (filter.timeOfDay) consolidated.timeOfDay = filter.timeOfDay;
+      if (filter.distance !== undefined) consolidated.distance = filter.distance;
+      if (filter.userLocation) consolidated.userLocation = filter.userLocation;
+    });
+
+    return consolidated;
   }
 }

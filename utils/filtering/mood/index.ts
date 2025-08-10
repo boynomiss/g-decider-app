@@ -6,24 +6,10 @@
  */
 
 // =================
-// MAIN SERVICES
-// =================
-
-export {
-  EntityMoodAnalysisService,
-  entityMoodUtils
-} from './entity-mood-analysis.service';
-
-export {
-  PlaceMoodAnalysisService,
-  placeMoodUtils
-} from './place-mood-analysis.service';
-
-// =================
 // TYPES (Re-exported from centralized types)
 // =================
 
-export type {
+import type {
   MoodAnalysisResult,
   EntityAnalysisResult,
   ReviewEntity,
@@ -36,6 +22,43 @@ export type {
   IEntityMoodService
 } from '../../../types/filtering';
 
+export type {
+  MoodAnalysisResult,
+  EntityAnalysisResult,
+  ReviewEntity,
+  SentimentAnalysis,
+  PlaceMoodData,
+  PopularTimes,
+  EntityMoodInsights,
+  MoodAnalysisConfig,
+  IMoodAnalysisService,
+  IEntityMoodService
+};
+
+// Type alias for backward compatibility
+export type PlaceData = PlaceMoodData;
+
+// =================
+// MAIN SERVICES
+// =================
+
+import {
+  createEntityMoodAnalysisService,
+  entityMoodUtils
+} from './entity-mood-analysis.service';
+
+import {
+  createPlaceMoodAnalysisService,
+  placeMoodUtils
+} from './place-mood-analysis.service';
+
+export {
+  createEntityMoodAnalysisService,
+  entityMoodUtils,
+  createPlaceMoodAnalysisService,
+  placeMoodUtils
+};
+
 // =================
 // CONVENIENCE EXPORTS
 // =================
@@ -45,13 +68,17 @@ export type {
  */
 export const moodAnalysis = {
   // Entity-level analysis - create new instance
-  entity: new EntityMoodAnalysisService(),
+  get entity() {
+    return createEntityMoodAnalysisService();
+  },
   
   // Place-level analysis - create new instance
-  place: new PlaceMoodAnalysisService(
-    process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
-    process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY
-  ),
+  get place() {
+    return createPlaceMoodAnalysisService(
+      process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
+      process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY
+    );
+  },
   
   // Utilities
   utils: {
@@ -68,7 +95,7 @@ export const moodAnalysis = {
  * Create a new EntityMoodAnalysisService instance with custom config
  */
 export function createEntityMoodService(config?: Partial<import('../../../types/filtering').MoodAnalysisConfig>) {
-  return new EntityMoodAnalysisService(config);
+  return createEntityMoodAnalysisService(config);
 }
 
 /**
@@ -79,7 +106,7 @@ export function createPlaceMoodService(
   naturalLanguageApiKey?: string,
   config?: Partial<import('../../../types/filtering').MoodAnalysisConfig>
 ) {
-  return new PlaceMoodAnalysisService(placesApiKey, naturalLanguageApiKey, config);
+  return createPlaceMoodAnalysisService(placesApiKey, naturalLanguageApiKey, config);
 }
 
 // =================

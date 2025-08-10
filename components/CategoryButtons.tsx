@@ -28,21 +28,8 @@ export default function CategoryButtons() {
               });
               console.log('✅ Filters updated');
               
-              // Trigger validation
-              try {
-                console.log('🔍 Starting filter validation...');
-                const validationResult = await filterValidationService.validateLookingForFilter(
-                  category.id as 'food' | 'activity' | 'something-new'
-                );
-                
-                if (validationResult.success) {
-                  console.log(`✅ Validation successful: ${validationResult.placeCount} places found for ${category.id}`);
-                } else {
-                  console.warn(`⚠️ Validation failed for ${category.id}: ${validationResult.error}`);
-                }
-              } catch (error) {
-                console.error('❌ Validation error:', error);
-              }
+              // Filter validation removed for now to fix runtime errors
+              console.log('✅ Category filter applied successfully');
             }}
           >
             <Text style={styles.icon}>{category.icon}</Text>

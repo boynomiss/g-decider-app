@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Phone, Globe, Star, MapPin, Clock, Users, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
-import { PlaceMoodData } from '../types/filtering';
+import { PlaceMoodData as PlaceData } from '../types/filtering';
 import { AIDescriptionCard } from './AIDescriptionCard';
 
 const { width: screenWidth } = Dimensions.get('window');

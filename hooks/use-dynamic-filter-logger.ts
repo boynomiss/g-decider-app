@@ -65,9 +65,17 @@ export function useDynamicFilterLogger(): UseDynamicFilterLoggerReturn {
   const loggerRef = useRef<ConsolidatedFilterLogger | null>(null);
   const debugEnabled = useRef(false);
 
-  // Initialize logger
-  useEffect(() => {
+  // Initialize logger immediately if not already initialized
+  if (!loggerRef.current) {
     loggerRef.current = ConsolidatedFilterLogger.getInstance();
+  }
+
+  // Ensure logger is available for all callbacks
+  const getLogger = useCallback((): ConsolidatedFilterLogger => {
+    if (!loggerRef.current) {
+      loggerRef.current = ConsolidatedFilterLogger.getInstance();
+    }
+    return loggerRef.current;
   }, []);
 
   const logFilterChange = useCallback((
@@ -75,9 +83,8 @@ export function useDynamicFilterLogger(): UseDynamicFilterLoggerReturn {
     newFilters: UnifiedFilters, 
     changedField: string
   ) => {
-    if (!loggerRef.current) return;
-
-    loggerRef.current.logFilterChange(previousFilters, newFilters, changedField);
+    const logger = getLogger();
+    logger.logFilterChange(previousFilters, newFilters, changedField);
     
     if (debugEnabled.current) {
       console.group('🔧 Debug: Filter Change Details');
@@ -86,57 +93,54 @@ export function useDynamicFilterLogger(): UseDynamicFilterLoggerReturn {
       console.log('Changed field:', changedField);
       console.groupEnd();
     }
-  }, []);
+  }, [getLogger]);
 
   const getSearchPreview = useCallback((filters: UnifiedFilters): string => {
-    if (!loggerRef.current) return '';
-    return loggerRef.current.getSearchPreview(filters);
-  }, []);
+    const logger = getLogger();
+    return logger.getSearchPreview(filters);
+  }, [getLogger]);
 
   const generateSearchQuery = useCallback((filters: UnifiedFilters): DynamicSearchQuery => {
-    if (!loggerRef.current) {
-      throw new Error('ConsolidatedFilterLogger not initialized');
-    }
-    return loggerRef.current.generateDynamicSearchQuery(filters);
-  }, []);
+    const logger = getLogger();
+    return logger.generateDynamicSearchQuery(filters);
+  }, [getLogger]);
 
   const getChangeHistory = useCallback((): FilterChangeLog[] => {
-    if (!loggerRef.current) return [];
-    return loggerRef.current.getChangeLog();
-  }, []);
+    const logger = getLogger();
+    return logger.getChangeLog();
+  }, [getLogger]);
 
   const getQueryHistory = useCallback((): DynamicSearchQuery[] => {
-    if (!loggerRef.current) return [];
-    return loggerRef.current.getQueryHistory();
-  }, []);
+    const logger = getLogger();
+    return logger.getQueryHistory();
+  }, [getLogger]);
 
   const enableDebugLogging = useCallback((enabled: boolean) => {
     debugEnabled.current = enabled;
-    if (loggerRef.current) {
-      loggerRef.current.setDebugMode(enabled);
-    }
+    const logger = getLogger();
+    logger.setDebugMode(enabled);
     console.log(`🔧 Dynamic filter logging debug mode: ${enabled ? 'enabled' : 'disabled'}`);
-  }, []);
+  }, [getLogger]);
 
   const startProgress = useCallback((operation: string, message: string, data?: any): string => {
-    if (!loggerRef.current) return '';
-    return loggerRef.current.startProgress(operation, message, data);
-  }, []);
+    const logger = getLogger();
+    return logger.startProgress(operation, message, data);
+  }, [getLogger]);
 
   const updateProgress = useCallback((trackerId: string, progress: number, message: string, data?: any): void => {
-    if (!loggerRef.current) return;
-    loggerRef.current.updateProgress(trackerId, progress, message, data);
-  }, []);
+    const logger = getLogger();
+    logger.updateProgress(trackerId, progress, message, data);
+  }, [getLogger]);
 
   const completeProgress = useCallback((trackerId: string, message?: string, data?: any): void => {
-    if (!loggerRef.current) return;
-    loggerRef.current.completeProgress(trackerId, message, data);
-  }, []);
+    const logger = getLogger();
+    logger.completeProgress(trackerId, message, data);
+  }, [getLogger]);
 
   const getActiveProgress = useCallback((): any[] => {
-    if (!loggerRef.current) return [];
-    return loggerRef.current.getActiveProgress();
-  }, []);
+    const logger = getLogger();
+    return logger.getActiveProgress();
+  }, [getLogger]);
 
   return {
     logFilterChange,

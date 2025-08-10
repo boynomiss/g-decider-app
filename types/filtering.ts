@@ -13,7 +13,8 @@ export type LookingForOption = 'food' | 'activity' | 'something_new';
 export type MoodOption = 'chill' | 'neutral' | 'hype';
 export type SocialContext = 'solo' | 'withBae' | 'barkada';
 export type TimeOfDay = 'morning' | 'afternoon' | 'night' | 'any';
-export type BudgetOption = '0-2' | '2-3' | '2-4';
+export type BudgetOption = 'P' | 'PP' | 'PPP';
+export type LegacyBudgetOption = '0-2' | '2-3' | '2-4';
 export type LoadingState = 'initial' | 'searching' | 'expanding-distance' | 'limit-reach' | 'complete' | 'error';
 
 // =================
@@ -297,6 +298,9 @@ export interface ReviewEntity {
   entities?: EntityAnalysisResult[];
 }
 
+// Legacy compatibility type
+export type Review = ReviewEntity;
+
 export interface SentimentAnalysis {
   score: number; // -1 to 1 (negative to positive)
   magnitude: number; // 0 to infinity (intensity)
@@ -346,6 +350,9 @@ export interface PlaceMoodData {
   editorial_summary?: string;
 }
 
+// Type alias for backward compatibility
+export type PlaceData = PlaceMoodData;
+
 export interface PopularTimes {
   day: number;
   data: Array<{
@@ -385,6 +392,315 @@ export interface IMoodAnalysisService {
 
 export interface IEntityMoodService {
   analyzeEntities(text: string): Promise<EntityAnalysisResult[]>;
-  extractMoodDescriptors(entities: EntityAnalysisResult[]): string[];
+  extractMoodDescriptors(entities: EntityAnalysisResult[]): Promise<string[]>;
   calculateConfidence(entities: EntityAnalysisResult[], reviewCount: number): number;
+}
+
+// =================
+// FILTER API BRIDGE TYPES
+// =================
+
+export interface ApiReadyFilterData {
+  category?: string;
+  mood?: number;
+  socialContext?: string;
+  budget?: string;
+  timeOfDay?: string;
+  distance?: number;
+  userLocation?: {
+    lat: number;
+    lng: number;
+  };
+}
+
+export interface FilterApiBridge {
+  logCategorySelection(value: string): ApiReadyFilterData;
+  logMoodSelection(value: number): ApiReadyFilterData;
+  logDistanceSelection(value: number): ApiReadyFilterData;
+  logBudgetSelection(value: any): ApiReadyFilterData;
+  logSocialContextSelection(value: any): ApiReadyFilterData;
+  logTimeOfDaySelection(value: any): ApiReadyFilterData;
+  consolidateFiltersForApi(filters: any[]): ApiReadyFilterData;
+}
+
+// =================
+// MOOD SERVICE TYPES
+// =================
+
+export interface PlaceMoodService {
+  enhancePlaceWithMood(placeId: string): Promise<PlaceMoodData | null>;
+  enhanceMultiplePlaces(placeIds: string[]): Promise<PlaceMoodData[]>;
+  analyzePlaceMood(placeId: string): Promise<MoodAnalysisResult>;
+  analyzeFromReviews(reviews: ReviewEntity[], category: string): Promise<MoodAnalysisResult>;
+}
+
+export interface MoodConfig {
+  [key: string]: {
+    label: string;
+    color: string;
+    icon: string;
+    description: string;
+  };
+}
+
+// =================
+// USER FILTERS INTERFACE
+// =================
+
+export interface UserFilters {
+  category?: LookingForOption;
+  mood?: number;
+  socialContext?: SocialContext;
+  budget?: BudgetOption;
+  timeOfDay?: TimeOfDay;
+  distance?: number;
+  userLocation?: {
+    lat: number;
+    lng: number;
+  };
+}
+
+// =================
+// AUTH STATE INTERFACE
+// =================
+
+export interface AuthState {
+  user: any;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
+// =================
+// SUGGESTION INTERFACE
+// =================
+
+export interface Suggestion {
+  id: string;
+  name: string;
+  location: { lat: number; lng: number };
+  images: string[];
+  budget: BudgetOption;
+  tags: string[];
+  description: string;
+  openHours: string;
+  discount?: string;
+  category: LookingForOption;
+  mood: MoodOption;
+  socialContext: SocialContext[];
+  timeOfDay: TimeOfDay[];
+  rating: number;
+  reviews: number;
+  website?: string;
+  phone?: string;
+}
+
+// =================
+// SERVER FILTERING RESPONSE
+// =================
+
+export interface ServerFilteringResponse {
+  results: PlaceData[];
+  performance: {
+    totalTime: number;
+    apiTime: number;
+    processingTime: number;
+  };
+  metadata: {
+    totalResults: number;
+    filtersApplied: string[];
+    cacheStatus: string;
+  };
+}
+
+// =================
+// HOOK RETURN TYPES
+// =================
+
+export interface UseServerFilteringReturn {
+  isLoading: boolean;
+  error: string | null;
+  results: PlaceData[];
+  lastResponse: ServerFilteringResponse;
+  filterPlaces: (filters: UserFilters, minResults?: number, useCache?: boolean) => Promise<void>;
+  clearResults: () => void;
+  clearError: () => void;
+  performance: {
+    totalTime: number;
+    apiTime: number;
+    processingTime: number;
+  } | null;
+  metadata: {
+    totalResults: number;
+    filtersApplied: string[];
+    cacheStatus: string;
+  } | null;
+}
+
+export interface UsePlaceDiscoveryReturn {
+  places: (PlaceResult | AdvertisedPlace)[];
+  loadingState: LoadingState;
+  expansionInfo?: {
+    expansionCount: number;
+    finalRadius: number;
+    totalPlacesFound: number;
+  };
+  poolInfo: {
+    remainingPlaces: number;
+    totalPoolSize: number;
+    needsRefresh: boolean;
+  };
+  discoverPlaces: (filters: DiscoveryFilters) => Promise<void>;
+  getNextBatch: (filters: DiscoveryFilters) => Promise<void>;
+  resetDiscovery: () => void;
+  restartDiscovery: () => void;
+}
+
+export interface UsePlaceMoodReturn {
+  places: PlaceData[];
+  moodStats: {
+    total: number;
+    chill: number;
+    neutral: number;
+    hype: number;
+    averageRating: number;
+  };
+  enhanceSinglePlace: (placeId: string) => Promise<PlaceData | null>;
+  enhanceMultiplePlaces: (placeIds: string[]) => Promise<PlaceData[]>;
+  updateMoodStats: (placesData: PlaceData[]) => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseSavedPlacesReturn {
+  savedPlaces: Suggestion[];
+  isSaved: (placeId: string) => boolean;
+  savePlace: (place: SaveablePlace) => void;
+  removePlace: (placeId: string) => void;
+  clearAll: () => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export type SaveablePlace = Suggestion | PlaceData;
+
+export interface UseAppStoreReturn {
+  filters: UserFilters;
+  updateFilter: (key: keyof UserFilters, value: any) => void;
+  clearFilters: () => void;
+  resetFilters: () => void;
+  apiReadyFilters: Map<string, ApiReadyFilterData>;
+  convertPlaceToSuggestion: (place: PlaceData) => void;
+  openInMaps: (place: Suggestion | PlaceData) => void;
+  consolidateFilters: () => ApiReadyFilterData;
+  discoveryState: {
+    places: (PlaceResult | AdvertisedPlace)[];
+    loadingState: LoadingState;
+    currentRadius: number;
+  };
+}
+
+export interface UseAppStoreV2Return {
+  filters: UserFilters;
+  updateFilter: (key: keyof UserFilters, value: any) => void;
+  clearFilters: () => void;
+  resetFilters: () => void;
+  apiReadyFilters: Map<string, ApiReadyFilterData>;
+  convertPlaceToSuggestion: (place: PlaceData) => Suggestion;
+  openInMaps: (place: Suggestion | PlaceData) => void;
+  consolidateFilters: () => ApiReadyFilterData;
+  discoveryState: {
+    places: (PlaceResult | AdvertisedPlace)[];
+    loadingState: LoadingState;
+    currentRadius: number;
+  };
+}
+
+export interface UseBookingIntegrationReturn {
+  isBookingAvailable: (place: BookingInput) => boolean;
+  openBooking: (place: BookingInput) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export type BookingInput = Suggestion | PlaceData;
+
+export interface UseDiscountsReturn {
+  discounts: any[];
+  applyDiscount: (place: DiscountInput) => void;
+  removeDiscount: (placeId: string) => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export type DiscountInput = Suggestion | PlaceData;
+
+export interface UseAiDescriptionReturn {
+  generateDescription: (place: DescriptionInput) => Promise<string>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export type DescriptionInput = Suggestion | PlaceData;
+
+export interface UseComponentValidationReturn<T extends React.ComponentType<any>> {
+  isValid: boolean;
+  errors: string[];
+  ValidatedComponent: T;
+  validateProps: (props: any) => boolean;
+}
+
+export interface UseContactReturn {
+  contact: any;
+  actions: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseAdMonetizationReturn {
+  ads: any[];
+  loadAds: () => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseAiProjectAgentReturn {
+  generatePRD: (description: string) => Promise<any>;
+  generateTasks: (prd: any) => Promise<any>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseScrapingServiceReturn {
+  scrapePlace: (placeId: string) => Promise<any>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseDynamicFilterLoggerReturn {
+  logs: any[];
+  addLog: (log: any[]) => void;
+  clearLogs: () => void;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface UseServerFilteringReturn {
+  isLoading: boolean;
+  error: string | null;
+  results: PlaceData[];
+  lastResponse: ServerFilteringResponse;
+  filterPlaces: (filters: UserFilters, minResults?: number, useCache?: boolean) => Promise<void>;
+  clearResults: () => void;
+  clearError: () => void;
+  performance: {
+    totalTime: number;
+    apiTime: number;
+    processingTime: number;
+  } | null;
+  metadata: {
+    totalResults: number;
+    filtersApplied: string[];
+    cacheStatus: string;
+  } | null;
 }

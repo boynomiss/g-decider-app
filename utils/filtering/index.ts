@@ -47,6 +47,7 @@ export {
 // ===============================
 
 export * from './filter-api-service';
+export { FilterApiBridge } from './filter-api-service';
 
 // Modern mood analysis services (recommended)
 export * from './mood';

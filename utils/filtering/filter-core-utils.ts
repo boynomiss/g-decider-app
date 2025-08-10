@@ -12,6 +12,7 @@ import {
   SocialContext,
   TimeOfDay,
   BudgetOption,
+  LegacyBudgetOption,
   FilterValidator,
   FilterConverter,
   FilterMatcher,
@@ -61,7 +62,7 @@ export class FilterValidation {
       !value || ['morning', 'afternoon', 'night', 'any'].includes(value),
     
     budget: (value: BudgetOption | null) => 
-      !value || ['0-2', '2-3', '2-4'].includes(value),
+      !value || ['P', 'PP', 'PPP'].includes(value),
     
     moodScore: (value: number | null) => 
       value === null || (typeof value === 'number' && value >= 0 && value <= 100),
@@ -240,8 +241,8 @@ export class FilterConversion {
         return undefined;
       },
       
-      budget: (budget: string | null | undefined): BudgetOption | undefined => {
-        const mapping: Record<string, BudgetOption> = {
+      budget: (budget: string | null | undefined): LegacyBudgetOption | undefined => {
+        const mapping: Record<string, LegacyBudgetOption> = {
           'P': '0-2',
           'PP': '2-3',
           'PPP': '2-4'
@@ -275,8 +276,8 @@ export class FilterConversion {
         return social || null;
       },
       
-      budget: (budget: BudgetOption | undefined): string | null => {
-        const mapping: Record<BudgetOption, string> = {
+      budget: (budget: LegacyBudgetOption | undefined): string | null => {
+        const mapping: Record<LegacyBudgetOption, string> = {
           '0-2': 'P',
           '2-3': 'PP',
           '2-4': 'PPP'
@@ -305,9 +306,15 @@ export class FilterConversion {
       searchParams.socialContext = socialContext;
     }
 
-    const budget = this.CONVERTERS.legacyToNew.budget(filters.budget);
-    if (budget) {
-      searchParams.budget = budget;
+    const legacyBudget = this.CONVERTERS.legacyToNew.budget(filters.budget);
+    if (legacyBudget) {
+      // Convert legacy budget format to new format
+      const budgetMapping: Record<LegacyBudgetOption, BudgetOption> = {
+        '0-2': 'P',
+        '2-3': 'PP',
+        '2-4': 'PPP'
+      };
+      searchParams.budget = budgetMapping[legacyBudget];
     }
 
     return searchParams;

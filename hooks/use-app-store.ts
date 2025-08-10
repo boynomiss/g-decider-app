@@ -3,12 +3,15 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
+import { ApiReadyFilterData } from '../types/filtering';
 import { useAuth } from './use-auth';
 import { PlaceDiscoveryLogic, DiscoveryResult, DiscoveryFilters, LoadingState } from '../utils/filtering/unified-filter-service';
 import { moodAnalysis } from '@/utils/filtering';
 import { PlaceMoodData } from '../types/filtering';
 import { FilterCoreUtils as FilterUtilities } from '../utils/filtering/filter-core-utils';
-import { logFilterChange } from '../utils/filtering/filter-logger';
+import { useDynamicFilterLogger } from './use-dynamic-filter-logger';
+import { FilterApiBridge } from '../utils/filtering/filter-api-service';
+import { PlaceMoodAnalysisService } from '../utils/filtering/mood/place-mood-analysis.service';
 
 // API Configuration
 const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
@@ -33,8 +36,8 @@ interface EnhancedAppState extends AppState {
   lastDiscoveryTimestamp: number;
 }
 
-// Convert PlaceData to legacy Suggestion format
-const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
+// Convert PlaceMoodData to legacy Suggestion format
+const convertPlaceToSuggestion = (place: PlaceMoodData): Suggestion => {
   return {
     id: place.place_id || place.name.replace(/\s+/g, '-').toLowerCase(),
     name: place.name,
@@ -66,6 +69,8 @@ const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
 
 const [AppContext, useAppStore] = createContextHook(() => {
   const auth = useAuth();
+  const { logFilterChange } = useDynamicFilterLogger();
+  
   const [state, setState] = useState<EnhancedAppState>({
     filters: {
       mood: 50,
@@ -97,16 +102,18 @@ const [AppContext, useAppStore] = createContextHook(() => {
 
   // Log initial filter state
   useEffect(() => {
-    logFilterChange(state.filters);
-  }, []);
+    if (logFilterChange) {
+      logFilterChange({} as UserFilters, state.filters, 'initial');
+    }
+  }, [logFilterChange]);
 
-  const moodServiceRef = useRef<PlaceMoodService | null>(null);
+  const moodServiceRef = useRef<PlaceMoodAnalysisService | null>(null);
   const discoveryLogicRef = useRef<PlaceDiscoveryLogic | null>(null);
 
   const getServices = useCallback(() => {
     try {
       if (!moodServiceRef.current) {
-        moodServiceRef.current = new PlaceMoodService(
+        moodServiceRef.current = new PlaceMoodAnalysisService(
           GOOGLE_PLACES_API_KEY,
           GOOGLE_NATURAL_LANGUAGE_API_KEY
         );
@@ -208,7 +215,9 @@ const [AppContext, useAppStore] = createContextHook(() => {
       });
       
       // Log the dynamic filter message
-      logFilterChange(updatedFilters, changedFilter);
+      if (logFilterChange) {
+        logFilterChange(prev.filters, updatedFilters, changedFilter);
+      }
       
       return {
         ...prev,
@@ -228,7 +237,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
         lastDiscoveryTimestamp: Date.now()
       };
     });
-  }, []);
+  }, [logFilterChange]);
 
   const discoverPlaces = useCallback(async (): Promise<DiscoveryResult> => {
     console.log('🎯 Starting place discovery...');

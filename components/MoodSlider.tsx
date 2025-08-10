@@ -8,6 +8,7 @@ import { FilterUtilities } from '@/utils/filtering/filter-utils';
 import { DISTANCE_CATEGORIES, DistanceUtils } from '@/utils/filtering/configs/distance-config';
 import { socialOptions, SocialUtils } from '@/utils/filtering/configs/social-config';
 import { MoodUtils, MOOD_DETAILED_LABELS } from '@/utils/filtering/configs/mood-config';
+import { FilterApiBridge } from '@/utils/filtering';
 
 export const budgetOptions = [
   { 

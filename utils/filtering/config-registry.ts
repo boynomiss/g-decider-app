@@ -379,18 +379,26 @@ export class FilterConfigRegistry {
     const config = this.getConfig(type, id);
     if (!config) return 'Unknown';
 
-    // Handle different display formats
+    // Handle different display formats with proper type checking
     if ('icon' in config && 'label' in config) {
-      return `${config.icon} ${config.label}`;
+      return `${(config as any).icon} ${(config as any).label}`;
     }
     if ('display' in config && 'label' in config) {
-      return `${config.display} ${config.label}`;
+      return `${(config as any).display} ${(config as any).label}`;
     }
     if ('emoji' in config && 'text' in config) {
-      return `${config.emoji} ${config.text}`;
+      return `${(config as any).emoji} ${(config as any).text}`;
     }
     
-    return config.label || config.id || 'Unknown';
+    // Fallback to label or id if available
+    if ('label' in config) {
+      return (config as any).label;
+    }
+    if ('id' in config) {
+      return (config as any).id;
+    }
+    
+    return 'Unknown';
   }
 
   /**

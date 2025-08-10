@@ -1004,6 +1004,11 @@ export class PlaceDiscoveryLogic {
     this.service.setAdvertisedPlaces(advertisedPlaces);
   }
 
+  // Legacy compatibility property
+  get currentRadius(): number {
+    return this.service.getStatistics().pool.currentRadius;
+  }
+
   /**
    * Legacy: Main discovery function
    */
