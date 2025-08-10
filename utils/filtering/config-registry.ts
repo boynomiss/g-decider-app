@@ -21,7 +21,8 @@ import {
   LookingForOption
 } from '../../types/filtering';
 
-import { FilterValidation, FilterLogger } from './filter-core-utils';
+import { FilterValidation } from './filter-core-utils';
+import { ConsolidatedFilterLogger } from './filter-logger';
 
 // Import individual config files
 import { BUDGET_CATEGORIES } from './configs/budget-config';
@@ -70,9 +71,9 @@ export class FilterConfigRegistry {
       this.buildCache();
       this.initialized = true;
 
-      FilterLogger.info('config-registry', 'Filter configuration registry initialized successfully');
+      ConsolidatedFilterLogger.getInstance().info('config-registry', 'Filter configuration registry initialized successfully');
     } catch (error) {
-      FilterLogger.error('config-registry', 'Failed to initialize filter configuration registry', error);
+      ConsolidatedFilterLogger.getInstance().error('config-registry', 'Failed to initialize filter configuration registry', error);
       throw error;
     }
   }
@@ -432,7 +433,7 @@ export class FilterConfigRegistry {
    * Refresh registry (reload configs)
    */
   refresh(): void {
-    FilterLogger.info('config-registry', 'Refreshing filter configuration registry');
+    ConsolidatedFilterLogger.getInstance().info('config-registry', 'Refreshing filter configuration registry');
     this.initialized = false;
     this.configCache.clear();
     this.initializeConfigs();
@@ -444,7 +445,7 @@ export class FilterConfigRegistry {
   clearCache(): void {
     this.configCache.clear();
     this.buildCache();
-    FilterLogger.info('config-registry', 'Filter configuration cache cleared and rebuilt');
+    ConsolidatedFilterLogger.getInstance().info('config-registry', 'Filter configuration cache cleared and rebuilt');
   }
 
   /**

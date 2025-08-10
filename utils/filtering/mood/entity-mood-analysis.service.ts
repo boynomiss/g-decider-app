@@ -13,7 +13,8 @@
 
 import { googleNaturalLanguageClient } from '../../api/google-api-clients';
 import { filterConfigRegistry } from '../config-registry';
-import { FilterCoreUtils as FilterUtilities, FilterLogger } from '../filter-core-utils';
+import { FilterCoreUtils as FilterUtilities } from '../filter-core-utils';
+import { ConsolidatedFilterLogger } from '../filter-logger';
 import {
   EntityAnalysisResult,
   ReviewEntity,
@@ -47,7 +48,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
       ...config
     };
 
-    FilterLogger.info('entity-mood-service', 'Entity Mood Analysis Service initialized');
+    ConsolidatedFilterLogger.getInstance().info('entity-mood-service', 'Entity Mood Analysis Service initialized');
   }
 
   /**
@@ -55,13 +56,13 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
    */
   async analyzeFromReviews(reviews: ReviewEntity[], placeCategory: string): Promise<MoodAnalysisResult> {
     try {
-      FilterLogger.info('entity-mood-analysis', `Starting analysis for ${reviews.length} reviews`);
+      ConsolidatedFilterLogger.getInstance().info('entity-mood-analysis', `Starting analysis for ${reviews.length} reviews`);
 
       // Filter and prepare reviews
       const validReviews = this.filterValidReviews(reviews);
       
       if (validReviews.length < 3) {
-        FilterLogger.warn('entity-mood-analysis', 'Too few valid reviews, using fallback');
+        ConsolidatedFilterLogger.getInstance().warn('entity-mood-analysis', 'Too few valid reviews, using fallback');
         return this.getFallbackAnalysis(placeCategory);
       }
 
@@ -69,7 +70,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
       const allEntities = await this.extractEntitiesFromReviews(validReviews);
       
       if (allEntities.length === 0) {
-        FilterLogger.warn('entity-mood-analysis', 'No entities extracted, using fallback');
+        ConsolidatedFilterLogger.getInstance().warn('entity-mood-analysis', 'No entities extracted, using fallback');
         return this.getFallbackAnalysis(placeCategory);
       }
 
@@ -96,11 +97,11 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
         source: 'entity-analysis'
       };
 
-      FilterLogger.info('entity-mood-analysis', `Analysis completed: ${category} (${score}/100, ${confidence}% confidence)`);
+      ConsolidatedFilterLogger.getInstance().info('entity-mood-analysis', `Analysis completed: ${category} (${score}/100, ${confidence}% confidence)`);
       return result;
 
     } catch (error) {
-      FilterLogger.error('entity-mood-analysis', 'Analysis failed', error);
+      ConsolidatedFilterLogger.getInstance().error('entity-mood-analysis', 'Analysis failed', error);
       return this.getFallbackAnalysis(placeCategory);
     }
   }
@@ -176,7 +177,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
    */
   updateConfig(newConfig: Partial<MoodAnalysisConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    FilterLogger.info('entity-mood-service', 'Configuration updated');
+    ConsolidatedFilterLogger.getInstance().info('entity-mood-service', 'Configuration updated');
   }
 
   /**
@@ -249,9 +250,9 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
         allEntities.push(...entities);
         
         // Small delay to respect rate limits
-        await FilterUtilities.delay(100);
+                  await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        FilterLogger.warn('entity-extraction', `Failed to analyze review: ${error}`);
+        ConsolidatedFilterLogger.getInstance().warn('entity-extraction', `Failed to analyze review: ${error}`);
         continue;
       }
     }
@@ -376,7 +377,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
    * Get fallback analysis when entity analysis fails
    */
   private getFallbackAnalysis(placeCategory: string): MoodAnalysisResult {
-    FilterLogger.info('entity-mood-fallback', `Using fallback analysis for category: ${placeCategory}`);
+    ConsolidatedFilterLogger.getInstance().info('entity-mood-fallback', `Using fallback analysis for category: ${placeCategory}`);
     
     // Simple category-based fallback
     const categoryMoodMap: Record<string, { score: number; category: MoodOption }> = {
@@ -400,8 +401,10 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
   }
 }
 
-// Export singleton instance
-export const entityMoodAnalysisService = new EntityMoodAnalysisService();
+// Export factory function instead of singleton
+export function createEntityMoodAnalysisService(config?: Partial<MoodAnalysisConfig>): EntityMoodAnalysisService {
+  return new EntityMoodAnalysisService(config);
+}
 
 // Export utility functions
 export const entityMoodUtils = {

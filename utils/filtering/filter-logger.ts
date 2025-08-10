@@ -8,7 +8,7 @@
  * - Enhanced debugging and analytics
  */
 
-import { FilterCoreUtils as FilterUtilities, FilterLogger as CoreFilterLogger } from './filter-core-utils';
+// Removed circular dependency - using direct utility functions instead
 import { UnifiedFilters } from '../../types/app';
 
 // =================
@@ -58,7 +58,6 @@ export interface LogEntry {
 
 export class ConsolidatedFilterLogger {
   private static instance: ConsolidatedFilterLogger;
-  private utilities = new FilterUtilities();
   private queryHistory: DynamicSearchQuery[] = [];
   private changeLog: FilterChangeLog[] = [];
   private progressTrackers: Map<string, ProgressTracker> = new Map();

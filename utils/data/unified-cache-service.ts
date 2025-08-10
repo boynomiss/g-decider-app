@@ -134,8 +134,10 @@ export class UnifiedCacheService {
     try {
       initializeFirebaseClient();
       const db = getClientFirestore();
-      this.firestoreCache = db.collection('filter_cache');
-      console.log('✅ Firestore cache initialized');
+      // Use client SDK syntax - collection() is not available in client SDK
+      // For now, disable Firestore cache until we implement proper client-side caching
+      this.firestoreCache = null;
+      console.log('✅ Firestore cache disabled (client SDK limitation)');
     } catch (error) {
       console.warn('⚠️ Firestore cache initialization failed:', error);
       this.firestoreCache = null;
@@ -398,7 +400,7 @@ export class UnifiedCacheService {
       case 'category':
         return filters.category === value;
       case 'location':
-        return filters.location?.toLowerCase().includes(value?.toLowerCase());
+        return filters.location?.toLowerCase().includes(value?.toLowerCase()) ?? false;
       case 'budget':
         return filters.budget === value;
       default:

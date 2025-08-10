@@ -2,6 +2,7 @@
 // This file contains all distance-related configurations used across the application
 
 export interface DistanceCategory {
+  id: string; // Required by config registry
   emoji: string;
   text: string;
   range: [number, number]; // percentage range [min, max]
@@ -15,6 +16,7 @@ export interface DistanceCategory {
 // Single consolidated distance configuration
 export const DISTANCE_CATEGORIES: DistanceCategory[] = [
   { 
+    id: 'very-close',
     emoji: '📍', 
     text: 'Very Close', 
     range: [0, 10], 
@@ -25,6 +27,7 @@ export const DISTANCE_CATEGORIES: DistanceCategory[] = [
     meters: 250
   },
   { 
+    id: 'walking-distance',
     emoji: '🚶‍♀️', 
     text: 'Walking Distance', 
     range: [10, 30], 
@@ -35,6 +38,7 @@ export const DISTANCE_CATEGORIES: DistanceCategory[] = [
     meters: 1000
   },
   { 
+    id: 'short-drive',
     emoji: '🚗', 
     text: 'Short Drive', 
     range: [30, 70], 
@@ -45,6 +49,7 @@ export const DISTANCE_CATEGORIES: DistanceCategory[] = [
     meters: 5000
   },
   { 
+    id: 'long-ride',
     emoji: '🛣️', 
     text: 'Long Car Ride', 
     range: [70, 90], 
@@ -55,6 +60,7 @@ export const DISTANCE_CATEGORIES: DistanceCategory[] = [
     meters: 10000
   },
   { 
+    id: 'far',
     emoji: '🚀', 
     text: 'As Far as It Gets', 
     range: [90, 100], 

@@ -11,13 +11,11 @@
 
 export {
   EntityMoodAnalysisService,
-  entityMoodAnalysisService,
   entityMoodUtils
 } from './entity-mood-analysis.service';
 
 export {
   PlaceMoodAnalysisService,
-  placeMoodAnalysisService,
   placeMoodUtils
 } from './place-mood-analysis.service';
 
@@ -46,11 +44,14 @@ export type {
  * Quick access to main mood analysis functionality
  */
 export const moodAnalysis = {
-  // Entity-level analysis
-  entity: entityMoodAnalysisService,
+  // Entity-level analysis - create new instance
+  entity: new EntityMoodAnalysisService(),
   
-  // Place-level analysis
-  place: placeMoodAnalysisService,
+  // Place-level analysis - create new instance
+  place: new PlaceMoodAnalysisService(
+    process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
+    process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY
+  ),
   
   // Utilities
   utils: {

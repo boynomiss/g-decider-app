@@ -678,186 +678,6 @@ export class FilterCoreUtils {
 }
 
 // =================
-// LOGGER UTILITIES - DEPRECATED
-// =================
-
-// NOTE: FilterLogger has been consolidated into ConsolidatedFilterLogger
-// in filter-logger.ts. Use ConsolidatedFilterLogger.getInstance() instead.
-// This class is kept for backward compatibility but will be removed in future versions.
-
-import { ConsolidatedFilterLogger } from './filter-logger';
-
-export class FilterLogger {
-  private static getLogger() {
-    return ConsolidatedFilterLogger.getInstance();
-  }
-
-  static log(level: 'info' | 'warn' | 'error', category: string, message: string, data?: any): void {
-    console.warn('⚠️ FilterLogger.log is deprecated. Use ConsolidatedFilterLogger.getInstance().log() instead.');
-    this.getLogger().staticLog(level, category, message, data);
-  }
-
-  static info(category: string, message: string, data?: any): void {
-    console.warn('⚠️ FilterLogger.info is deprecated. Use ConsolidatedFilterLogger.getInstance().info() instead.');
-    this.getLogger().info(category, message, data);
-  }
-
-  static warn(category: string, message: string, data?: any): void {
-    console.warn('⚠️ FilterLogger.warn is deprecated. Use ConsolidatedFilterLogger.getInstance().warn() instead.');
-    this.getLogger().warn(category, message, data);
-  }
-
-  static error(category: string, message: string, data?: any): void {
-    console.warn('⚠️ FilterLogger.error is deprecated. Use ConsolidatedFilterLogger.getInstance().error() instead.');
-    this.getLogger().error(category, message, data);
-  }
-
-  static getLogs(): any[] {
-    console.warn('⚠️ FilterLogger.getLogs is deprecated. Use ConsolidatedFilterLogger.getInstance().getLogs() instead.');
-    return this.getLogger().getLogs();
-  }
-
-  static getLogsByCategory(category: string): any[] {
-    console.warn('⚠️ FilterLogger.getLogsByCategory is deprecated. Use ConsolidatedFilterLogger.getInstance().getLogsByCategory() instead.');
-    return this.getLogger().getLogsByCategory(category);
-  }
-
-  static clearLogs(): void {
-    console.warn('⚠️ FilterLogger.clearLogs is deprecated. Use ConsolidatedFilterLogger.getInstance().clearLogs() instead.');
-    this.getLogger().clearLogs();
-  }
-
-  static getFilterSummary(filters: any): string {
-    console.warn('⚠️ FilterLogger.getFilterSummary is deprecated. Use ConsolidatedFilterLogger.getInstance().getFilterSummary() instead.');
-    return this.getLogger().getFilterSummary(filters);
-  }
-
-  static logFilterChange(oldFilters: any, newFilters: any): void {
-    console.warn('⚠️ FilterLogger.logFilterChange is deprecated. Use ConsolidatedFilterLogger.getInstance().logFilterChangeWithSummary() instead.');
-    this.getLogger().logFilterChangeWithSummary(oldFilters, newFilters);
-  }
-
-  /**
-   * Generate filter summary for logging with emojis
-   */
-  static generateFilterSummary(filters: UnifiedFilters): string {
-    const parts: string[] = [];
-
-    if (filters.category) {
-      parts.push(`📂 ${filters.category}`);
-    }
-
-    if (filters.mood !== null) {
-      const moodLabel = filters.mood <= 30 ? '😌 chill' : filters.mood >= 70 ? '🔥 hype' : '😊 neutral';
-      parts.push(`${moodLabel} (${filters.mood})`);
-    }
-
-    if (filters.budget) {
-      const budgetMap = { 'P': '💰', 'PP': '💰💰', 'PPP': '💰💰💰' };
-      parts.push(`${budgetMap[filters.budget]} ${filters.budget}`);
-    }
-
-    if (filters.socialContext) {
-      const socialMap = { 'solo': '👤 solo', 'with-bae': '💕 with-bae', 'barkada': '👥 barkada' };
-      parts.push(socialMap[filters.socialContext]);
-    }
-
-    if (filters.timeOfDay) {
-      const timeMap = { 'morning': '🌅 morning', 'afternoon': '☀️ afternoon', 'night': '🌙 night' };
-      parts.push(timeMap[filters.timeOfDay]);
-    }
-
-    if (filters.distanceRange !== null) {
-      const distance = FilterCoreUtils.getDistanceInMeters(filters.distanceRange);
-      parts.push(`📍 ${(distance / 1000).toFixed(1)}km`);
-    }
-
-    return parts.join(' | ') || 'No filters applied';
-  }
-
-  /**
-   * Log filter change for analytics with dynamic search query
-   */
-  static logFilterChangeEnhanced(filters: UnifiedFilters, changedFilter?: string, previousFilters?: UnifiedFilters): void {
-    const summary = this.generateFilterSummary(filters);
-    const change = changedFilter ? ` (changed: ${changedFilter})` : '';
-    console.log(`🔄 Filter change: ${summary}${change}`);
-    
-    // Enhanced logging with dynamic search preview
-    const dynamicQuery = this.generateDynamicSearchPreview(filters);
-    if (dynamicQuery) {
-      console.log(`🔍 Search preview: "${dynamicQuery}"`);
-    }
-    
-    // Log comparison if previous filters provided
-    if (previousFilters && changedFilter) {
-      const previousQuery = this.generateDynamicSearchPreview(previousFilters);
-      const newQuery = this.generateDynamicSearchPreview(filters);
-      
-      if (previousQuery !== newQuery) {
-        console.log(`📊 Query change: "${previousQuery}" → "${newQuery}"`);
-      }
-    }
-  }
-
-  /**
-   * Generate dynamic search preview based on filters
-   */
-  static generateDynamicSearchPreview(filters: UnifiedFilters): string {
-    const parts: string[] = [];
-
-    // Category-based terms
-    if (filters.category === 'food') {
-      parts.push('restaurant cafe dining');
-    } else if (filters.category === 'activity') {
-      parts.push('activity attraction entertainment');
-    } else if (filters.category === 'something-new') {
-      parts.push('unique interesting hidden gem');
-    }
-
-    // Mood-based keywords
-    if (filters.mood !== null) {
-      if (filters.mood <= 30) {
-        parts.push('chill relaxed quiet');
-      } else if (filters.mood >= 70) {
-        parts.push('lively exciting vibrant');
-      } else {
-        parts.push('casual friendly');
-      }
-    }
-
-    // Social context
-    if (filters.socialContext === 'solo') {
-      parts.push('quiet peaceful');
-    } else if (filters.socialContext === 'barkada') {
-      parts.push('group-friendly fun');
-    } else if (filters.socialContext === 'with-bae') {
-      parts.push('romantic intimate');
-    }
-
-    // Time of day
-    if (filters.timeOfDay === 'morning') {
-      parts.push('breakfast brunch');
-    } else if (filters.timeOfDay === 'afternoon') {
-      parts.push('lunch afternoon');
-    } else if (filters.timeOfDay === 'night') {
-      parts.push('dinner evening');
-    }
-
-    // Budget indicators
-    if (filters.budget === 'P') {
-      parts.push('affordable budget');
-    } else if (filters.budget === 'PP') {
-      parts.push('moderate mid-range');
-    } else if (filters.budget === 'PPP') {
-      parts.push('upscale premium');
-    }
-
-    return parts.join(' ');
-  }
-}
-
-// =================
 // PROGRESS TRACKING
 // =================
 
@@ -866,63 +686,46 @@ export class FilterProgress {
     {
       step: 1,
       name: 'Validation',
-      description: 'Validating and normalizing filters',
+      description: 'Validating filter parameters',
       status: 'pending'
     },
     {
       step: 2,
-      name: 'Cache Check',
-      description: 'Checking cache for existing results',
+      name: 'Conversion',
+      description: 'Converting filters to search format',
       status: 'pending'
     },
     {
       step: 3,
-      name: 'API Query',
-      description: 'Searching places via API',
+      name: 'Matching',
+      description: 'Matching places to filters',
       status: 'pending'
     },
     {
       step: 4,
-      name: 'Processing',
-      description: 'Processing and filtering results',
+      name: 'Ranking',
+      description: 'Ranking results by relevance',
       status: 'pending'
     },
     {
       step: 5,
-      name: 'Ranking',
-      description: 'Ranking and sorting places',
-      status: 'pending'
-    },
-    {
-      step: 6,
-      name: 'Completion',
-      description: 'Finalizing results',
+      name: 'Optimization',
+      description: 'Applying query optimizations',
       status: 'pending'
     }
   ];
 
-  /**
-   * Update filtering progress steps
-   */
   static updateProgress(stepNumber: number, status: FilteringStep['status'], resultsCount?: number): FilteringStep[] {
-    const steps = [...this.FILTERING_STEPS];
-    const step = steps.find(s => s.step === stepNumber);
-    
-    if (step) {
-      step.status = status;
-      if (resultsCount !== undefined) {
-        step.resultsCount = resultsCount;
+    return FilterProgress.FILTERING_STEPS.map(step => {
+      if (step.step === stepNumber) {
+        return { ...step, status, ...(resultsCount !== undefined && { resultsCount }) };
       }
-    }
-
-    return steps;
+      return step;
+    });
   }
 
-  /**
-   * Get filtering steps for progress tracking
-   */
   static getFilteringSteps(): FilteringStep[] {
-    return [...this.FILTERING_STEPS];
+    return [...FilterProgress.FILTERING_STEPS];
   }
 }
 
@@ -935,7 +738,6 @@ export {
   FilterConversion as Conversion,
   FilterMatching as Matching,
   FilterCoreUtils as Utils,
-  FilterLogger as Logger,
   FilterProgress as Progress
 };
 
@@ -951,10 +753,5 @@ export const applyFilters = FilterCoreUtils.applyFilters;
 export const rankPlaces = FilterCoreUtils.rankPlaces;
 export const getAppliedFilters = FilterCoreUtils.getAppliedFilters;
 export const getQueryOptimization = FilterCoreUtils.getQueryOptimization;
-export const getFilterSummary = FilterLogger.getFilterSummary;
-export const generateFilterSummary = FilterLogger.generateFilterSummary;
-export const logFilterChange = FilterLogger.logFilterChange;
-export const logFilterChangeEnhanced = FilterLogger.logFilterChangeEnhanced;
-export const generateDynamicSearchPreview = FilterLogger.generateDynamicSearchPreview;
 export const updateProgress = FilterProgress.updateProgress;
 export const getFilteringSteps = FilterProgress.getFilteringSteps; 

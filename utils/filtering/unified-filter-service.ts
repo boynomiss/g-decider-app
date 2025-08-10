@@ -39,12 +39,10 @@ import {
   FilterCoreUtils as FilterUtilities, 
   FilterValidation, 
   FilterConversion, 
-  FilterMatching, 
-  FilterLogger 
+  FilterMatching
 } from './filter-core-utils';
-import { placeMoodAnalysisService } from './mood/place-mood-analysis.service';
-
-// Note: FilterServiceConfig is now imported from types/filtering.ts
+import { ConsolidatedFilterLogger } from './filter-logger';
+import { createPlaceMoodAnalysisService } from './mood/place-mood-analysis.service';
 
 export class UnifiedFilterService {
   private static instance: UnifiedFilterService;
@@ -309,7 +307,7 @@ export class UnifiedFilterService {
    */
   async searchPlaces(params: SearchParams): Promise<PlaceResult[]> {
     const startTime = Date.now();
-    FilterLogger.info('unified-search', 'Starting place search', params);
+    ConsolidatedFilterLogger.getInstance().info('unified-search', 'Starting place search', params);
     
     try {
       // Try strict filtering first
@@ -317,21 +315,21 @@ export class UnifiedFilterService {
       
       // Apply fallback strategies if needed
       if (results.length < (params.minResults || 8)) {
-        FilterLogger.info('unified-search', 'Insufficient results, applying fallbacks');
+        ConsolidatedFilterLogger.getInstance().info('unified-search', 'Insufficient results, applying fallbacks');
         results = await this.searchWithFallbacks(params);
       }
 
       // Apply mood analysis if requested
       if (params.includeMoodAnalysis && results.length > 0) {
-        FilterLogger.info('unified-search', `Applying mood analysis to ${results.length} results`);
+        ConsolidatedFilterLogger.getInstance().info('unified-search', `Applying mood analysis to ${results.length} results`);
         results = await this.enhanceResultsWithMoodAnalysis(results);
       }
       
-      FilterLogger.info('unified-search', `Search completed: ${results.length} results in ${Date.now() - startTime}ms`);
+      ConsolidatedFilterLogger.getInstance().info('unified-search', `Search completed: ${results.length} results in ${Date.now() - startTime}ms`);
       return results;
       
     } catch (error) {
-      FilterLogger.error('unified-search', 'Search failed', error);
+      ConsolidatedFilterLogger.getInstance().error('unified-search', 'Search failed', error);
       return [];
     }
   }
@@ -358,7 +356,7 @@ export class UnifiedFilterService {
     });
 
     if (!validation.isValid) {
-      FilterLogger.error('search-filters', 'Invalid search parameters', validation.errors);
+      ConsolidatedFilterLogger.getInstance().error('search-filters', 'Invalid search parameters', validation.errors);
       return [];
     }
 
@@ -661,11 +659,11 @@ export class UnifiedFilterService {
     let results = await this.searchWithFilters({...params, strict: true});
     
     if (results.length < (params.minResults || 8)) {
-      FilterLogger.info('fallback-strategy', 'Insufficient results with strict filtering, applying fallbacks...');
+      ConsolidatedFilterLogger.getInstance().info('fallback-strategy', 'Insufficient results with strict filtering, applying fallbacks...');
       
       // Fallback 1: Relax time constraints
       if (params.timeOfDay && params.timeOfDay !== 'any') {
-        FilterLogger.info('fallback-strategy', 'Relaxing time constraints');
+        ConsolidatedFilterLogger.getInstance().info('fallback-strategy', 'Relaxing time constraints');
         results = await this.searchWithFilters({...params, timeOfDay: 'any', strict: true});
       }
       
@@ -678,7 +676,7 @@ export class UnifiedFilterService {
         if (currentBudgetIndex >= 0 && currentBudgetIndex < budgetConfigs.length - 1) {
           const nextBudget = budgetConfigs[currentBudgetIndex + 1];
           if (nextBudget) {
-            FilterLogger.info('fallback-strategy', `Expanding budget from ${params.budget} to ${nextBudget.id}`);
+            ConsolidatedFilterLogger.getInstance().info('fallback-strategy', `Expanding budget from ${params.budget} to ${nextBudget.id}`);
             results = await this.searchWithFilters({...params, budget: nextBudget.id, strict: true});
           }
         }
@@ -686,7 +684,7 @@ export class UnifiedFilterService {
       
       // Fallback 3: Remove strict mode entirely
       if (results.length < (params.minResults || 8)) {
-        FilterLogger.info('fallback-strategy', 'Removing strict mode');
+        ConsolidatedFilterLogger.getInstance().info('fallback-strategy', 'Removing strict mode');
         results = await this.searchWithFilters({...params, strict: false});
       }
     }
@@ -710,7 +708,7 @@ export class UnifiedFilterService {
                 time: new Date(review.publishTime || Date.now()).getTime()
               }));
 
-              const moodAnalysis = await placeMoodAnalysisService.analyzeFromReviews(
+              const moodAnalysis = await createPlaceMoodAnalysisService().analyzeFromReviews(
                 reviews,
                 place.raw?.types?.[0] || 'establishment'
               );
@@ -721,14 +719,14 @@ export class UnifiedFilterService {
               };
             } else {
               // Fallback to place-level analysis
-              const moodAnalysis = await placeMoodAnalysisService.analyzePlaceMood(place.place_id);
+              const moodAnalysis = await createPlaceMoodAnalysisService().analyzePlaceMood(place.place_id);
               return {
                 ...place,
                 mood_analysis: moodAnalysis
               };
             }
           } catch (error) {
-            FilterLogger.warn('mood-enhancement', `Failed to analyze mood for place ${place.place_id}`, error);
+            ConsolidatedFilterLogger.getInstance().warn('mood-enhancement', `Failed to analyze mood for place ${place.place_id}`, error);
             return place; // Return original place if mood analysis fails
           }
         })
@@ -739,11 +737,11 @@ export class UnifiedFilterService {
         .filter((result): result is PromiseFulfilledResult<PlaceResult> => result.status === 'fulfilled')
         .map(result => result.value);
 
-      FilterLogger.info('mood-enhancement', `Enhanced ${results.length}/${places.length} places with mood analysis`);
+      ConsolidatedFilterLogger.getInstance().info('mood-enhancement', `Enhanced ${results.length}/${places.length} places with mood analysis`);
       return results;
 
     } catch (error) {
-      FilterLogger.error('mood-enhancement', 'Mood enhancement failed', error);
+      ConsolidatedFilterLogger.getInstance().error('mood-enhancement', 'Mood enhancement failed', error);
       return places; // Return original places if enhancement fails
     }
   }
