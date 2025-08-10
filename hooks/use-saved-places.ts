@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Suggestion } from '../types/app';
-import { PlaceMoodData } from '../types/filtering';
+import { PlaceMoodData, PlaceData } from '../types/filtering';
 
 type SaveablePlace = Suggestion | PlaceData;
 
@@ -28,17 +28,22 @@ function toSuggestion(place: SaveablePlace): Suggestion {
     budget: place.price_level === 1 ? 'P' : place.price_level === 2 ? 'PP' : 'PPP',
     tags: place.types || [],
     description: place.description || `${place.name} is a great place to visit.`,
-    openHours: place.opening_hours ? 'Open' : undefined,
-    discount: undefined,
+    openHours: place.opening_hours ? 'Open' : 'Unknown',
+    discount: 'No discount available',
     category: place.category as any || 'food',
-    mood: (place.final_mood as any) || 'both',
+    mood: (place.final_mood as any) || 'neutral',
     socialContext: ['solo', 'with-bae', 'barkada'],
     timeOfDay: ['morning', 'afternoon', 'night'],
-    coordinates: place.location,
+    ...(place.location && { coordinates: place.location }),
     rating: place.rating,
     reviewCount: place.user_ratings_total,
-    reviews: place.reviews || [],
-    website: place.website
+    reviews: place.reviews ? place.reviews.map(review => ({
+      author: 'Anonymous',
+      rating: review.rating || 0,
+      text: review.text || '',
+      time: review.time ? new Date(review.time).toISOString() : new Date().toISOString()
+    })) : [],
+    ...(place.website && { website: place.website })
   };
 }
 

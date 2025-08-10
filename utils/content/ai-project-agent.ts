@@ -44,7 +44,7 @@ export class AIProjectAgent {
   private GEMINI_API_KEY: string;
 
   private constructor() {
-    this.GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'your-gemini-api-key-here';
+    this.GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
     this.memoryBank = this.initializeMemoryBank();
   }
 
@@ -361,12 +361,12 @@ Format as a structured list of recommended tasks.`;
       id: `prd_${Date.now()}`,
       title: lines.find(line => line.includes('TITLE:'))?.split(':')[1]?.trim() || 'New Feature',
       description: lines.find(line => line.includes('DESCRIPTION:'))?.split(':')[1]?.trim() || '',
-      objectives: lines.filter(line => line.includes('OBJECTIVE:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
-      userStories: lines.filter(line => line.includes('USER STORY:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
-      acceptanceCriteria: lines.filter(line => line.includes('ACCEPTANCE CRITERIA:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
-      technicalRequirements: lines.filter(line => line.includes('TECHNICAL REQUIREMENT:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
-      risks: lines.filter(line => line.includes('RISK:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
-      successMetrics: lines.filter(line => line.includes('SUCCESS METRIC:')).map(line => line.split(':')[1]?.trim()).filter(Boolean),
+      objectives: lines.filter(line => line.includes('OBJECTIVE:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
+      userStories: lines.filter(line => line.includes('USER STORY:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
+      acceptanceCriteria: lines.filter(line => line.includes('ACCEPTANCE CRITERIA:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
+      technicalRequirements: lines.filter(line => line.includes('TECHNICAL REQUIREMENT:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
+      risks: lines.filter(line => line.includes('RISK:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
+      successMetrics: lines.filter(line => line.includes('SUCCESS METRIC:')).map(line => line.split(':')[1]?.trim()).filter((item): item is string => Boolean(item)),
       createdAt: new Date()
     };
   }
@@ -401,9 +401,15 @@ Format as a structured list of recommended tasks.`;
       } else if (line.includes('CATEGORY:')) {
         currentTask.category = (line.split(':')[1]?.trim() as 'feature' | 'bug' | 'improvement' | 'research') || 'feature';
       } else if (line.includes('ESTIMATED_HOURS:')) {
-        currentTask.estimatedHours = parseInt(line.split(':')[1]?.trim()) || 2;
+        const hoursStr = line.split(':')[1]?.trim();
+        currentTask.estimatedHours = hoursStr ? parseInt(hoursStr) || 2 : 2;
       } else if (line.includes('DEPENDENCIES:')) {
-        currentTask.dependencies = line.split(':')[1]?.trim().split(',').map(d => d.trim()).filter(Boolean);
+        const depsStr = line.split(':')[1]?.trim();
+        if (depsStr) {
+          currentTask.dependencies = depsStr.split(',').map(d => d.trim()).filter(Boolean);
+        } else {
+          currentTask.dependencies = [];
+        }
       }
     }
     

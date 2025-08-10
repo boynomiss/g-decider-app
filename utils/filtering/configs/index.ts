@@ -13,7 +13,6 @@ export * from './distance-config';
 export {
   BUDGET_CATEGORIES,
   BUDGET_PRICE_MAPPING,
-  BudgetCategory,
   BudgetUtils,
   budgetCategories,
   budgetOptions,
@@ -32,11 +31,12 @@ export {
   getPreferredPlaceTypes as getBudgetPreferredPlaceTypes
 } from './budget-config';
 
+export type { BudgetCategory } from './budget-config';
+
 // Explicit re-exports for mood-config to resolve naming conflicts
 export {
   MOOD_CATEGORIES,
   MOOD_DETAILED_LABELS,
-  MoodCategory,
   MoodUtils,
   moodCategories,
   moodOptions,
@@ -60,10 +60,11 @@ export {
   isCompatibleWithSocialContext as isMoodCompatibleWithSocialContext
 } from './mood-config';
 
+export type { MoodCategory } from './mood-config';
+
 // Explicit re-exports for social-config to resolve naming conflicts
 export {
   SOCIAL_CONTEXTS,
-  SocialContext,
   SocialUtils,
   getSocialContext,
   isPlaceCompatibleWithSocialContext,
@@ -81,11 +82,12 @@ export {
   isCompatibleWithMood as isSocialCompatibleWithMood
 } from './social-config';
 
+export type { SocialContext } from './social-config';
+
 // Explicit re-exports for category-config to resolve naming conflicts
 export {
   CATEGORY_FILTERS,
   categoryOptions,
-  CategoryFilter,
   CategoryUtils,
   getCategoryFilter,
   isPlaceCompatibleWithCategory,
@@ -106,6 +108,8 @@ export {
   isCompatibleWithMood as isCategoryCompatibleWithMood,
   isCompatibleWithSocialContext as isCategoryCompatibleWithSocialContext
 } from './category-config';
+
+export type { CategoryFilter } from './category-config';
 
 // Export filter utilities and services
 // Note: The following services have been consolidated into the unified filtering system:

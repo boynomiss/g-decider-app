@@ -66,6 +66,10 @@ export interface PlaceResult {
   phone?: string; // Place phone number
   location?: { lat: number; lng: number }; // Location coordinates
   business_status?: string; // Google Places business status
+  
+  // Additional properties for compatibility
+  coordinates?: { lat: number; lng: number }; // Alternative location format
+  images?: string[] | { urls: string[] }; // Image data for compatibility
 }
 
 export interface ScoredPlace extends PlaceResult {
@@ -119,6 +123,9 @@ export interface DiscoveryResult {
     totalPoolSize: number;
     needsRefresh: boolean;
   };
+  // Additional properties for compatibility
+  hasMore?: boolean;
+  advertisedPlace?: AdvertisedPlace;
 }
 
 // =================
@@ -133,6 +140,7 @@ export interface BudgetCategory {
   googlePriceLevel: number;
   description: string;
   preferredPlaceTypes: string[];
+  atmosphereKeywords: string[]; // For compatibility with existing code
 }
 
 export interface MoodCategory {
@@ -326,6 +334,10 @@ export interface PlaceMoodData {
     large: string[];
     count: number;
   };
+  // Legacy images property for backward compatibility
+  images?: {
+    urls: string[];
+  };
   // Enhanced contact information
   contact?: {
     website?: string;
@@ -334,6 +346,13 @@ export interface PlaceMoodData {
     internationalPhone?: string;
     email?: string;
     hasContact: boolean;
+  };
+  // Contact actions for UI interactions
+  contactActions?: {
+    canCall: boolean;
+    canVisitWebsite: boolean;
+    callUrl?: string;
+    websiteUrl?: string;
   };
   // Additional fields
   vicinity?: string;
@@ -348,6 +367,9 @@ export interface PlaceMoodData {
   description?: string;
   business_status?: string;
   editorial_summary?: string;
+  // Legacy mood properties for backward compatibility
+  mood_score?: number;
+  final_mood?: MoodOption;
 }
 
 // Type alias for backward compatibility
@@ -538,38 +560,53 @@ export interface UseServerFilteringReturn {
 }
 
 export interface UsePlaceDiscoveryReturn {
-  places: (PlaceResult | AdvertisedPlace)[];
+  // State
+  isLoading: boolean;
   loadingState: LoadingState;
+  discoveredPlaces: (PlaceResult | AdvertisedPlace)[];
   expansionInfo?: {
     expansionCount: number;
     finalRadius: number;
     totalPlacesFound: number;
   };
-  poolInfo: {
+  poolInfo?: {
     remainingPlaces: number;
     totalPoolSize: number;
     needsRefresh: boolean;
   };
-  discoverPlaces: (filters: DiscoveryFilters) => Promise<void>;
-  getNextBatch: (filters: DiscoveryFilters) => Promise<void>;
+  error: string | null;
+  
+  // Actions
+  discoverPlaces: () => Promise<void>;
+  getMorePlaces: () => Promise<void>;
   resetDiscovery: () => void;
   restartDiscovery: () => void;
+  
+  // Loading state helpers
+  isSearching: boolean;
+  isExpandingDistance: boolean;
+  hasReachedLimit: boolean;
+  isComplete: boolean;
+  
+  // Additional properties for compatibility
+  currentRadius: number;
+  expansionCount: number;
 }
 
 export interface UsePlaceMoodReturn {
-  places: PlaceData[];
+  places: PlaceMoodData[];
   moodStats: {
     total: number;
     chill: number;
     neutral: number;
     hype: number;
-    averageRating: number;
-  };
-  enhanceSinglePlace: (placeId: string) => Promise<PlaceData | null>;
-  enhanceMultiplePlaces: (placeIds: string[]) => Promise<PlaceData[]>;
-  updateMoodStats: (placesData: PlaceData[]) => void;
-  isLoading: boolean;
-  error: string | null;
+    averageScore: number;
+    averageConfidence: number;
+  } | null;
+  enhanceSinglePlace: (placeId: string) => Promise<PlaceMoodData | null>;
+  enhanceMultiplePlaces: (placeIds: string[]) => Promise<PlaceMoodData[]>;
+  updateMoodStats: (placesData: PlaceMoodData[]) => void;
+  getRandomMoodLabel: (moodType: 'chill' | 'neutral' | 'hype') => string;
 }
 
 export interface UseSavedPlacesReturn {
@@ -683,24 +720,4 @@ export interface UseDynamicFilterLoggerReturn {
   clearLogs: () => void;
   isLoading: boolean;
   error: string | null;
-}
-
-export interface UseServerFilteringReturn {
-  isLoading: boolean;
-  error: string | null;
-  results: PlaceData[];
-  lastResponse: ServerFilteringResponse;
-  filterPlaces: (filters: UserFilters, minResults?: number, useCache?: boolean) => Promise<void>;
-  clearResults: () => void;
-  clearError: () => void;
-  performance: {
-    totalTime: number;
-    apiTime: number;
-    processingTime: number;
-  } | null;
-  metadata: {
-    totalResults: number;
-    filtersApplied: string[];
-    cacheStatus: string;
-  } | null;
 }

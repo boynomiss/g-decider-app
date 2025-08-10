@@ -1,5 +1,4 @@
 // Simple API test to verify Google Places API is working
-const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
 const PLACES_PROXY_URL = 'https://toolkit.rork.com/places/search';
 
 async function testGooglePlacesAPI() {
@@ -9,7 +8,7 @@ async function testGooglePlacesAPI() {
     location: '14.5995,120.9842', // Manila coordinates
     radius: 5000,
     type: 'restaurant',
-    apiKey: GOOGLE_API_KEY,
+    apiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
     minprice: 0,
     maxprice: 2
   };

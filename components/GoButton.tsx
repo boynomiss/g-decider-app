@@ -37,6 +37,7 @@ export default function GoButton({
       pulseAnimation.start();
       return () => pulseAnimation.stop();
     }
+    return undefined;
   }, [disabled, loading, pulseAnim]);
 
   const handlePressIn = () => {

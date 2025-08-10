@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, TextInput, Image } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../hooks/use-app-store';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -119,7 +119,7 @@ export default function BookingScreen() {
               <ErrorBoundary componentName="PlaceInfo">
                 <View style={styles.placeInfo}>
                   <Text style={styles.placeName}>{currentSuggestion.name}</Text>
-                  <Text style={styles.placeAddress}>{currentSuggestion.address}</Text>
+                  <Text style={styles.placeAddress}>{currentSuggestion.location}</Text>
                 </View>
               </ErrorBoundary>
 

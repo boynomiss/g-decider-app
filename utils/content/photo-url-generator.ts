@@ -7,9 +7,10 @@
  * - Smart validation to prevent generic/unrelated images
  */
 
-// Get API keys from environment
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
-const BLOGGER_API_KEY = process.env.BLOGGER_API_KEY || '';
+// Environment variables for API keys
+const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
+const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
 
 
 export interface PhotoReference {
@@ -339,8 +340,10 @@ async function validateGooglePlacesPhoto(
 
     if (photo.authorAttributions && photo.authorAttributions.length > 0) {
       const author = photo.authorAttributions[0];
-      attribution = `Photo by ${author.displayName}`;
-      confidence = 95; // Higher confidence with user attribution
+      if (author && author.displayName) {
+        attribution = `Photo by ${author.displayName}`;
+        confidence = 95; // Higher confidence with user attribution
+      }
     }
 
     return {
@@ -350,7 +353,7 @@ async function validateGooglePlacesPhoto(
       attribution,
       confidence,
       metadata: {
-        author: photo.authorAttributions?.[0]?.displayName,
+        ...(photo.authorAttributions?.[0]?.displayName && { author: photo.authorAttributions[0].displayName }),
         verificationMethod: 'google_places_api'
       }
     };
@@ -458,8 +461,12 @@ async function generateStreetViewPhotos(
     const headingIndex = i % headings.length;
     const pitchIndex = Math.floor(i / headings.length) % pitches.length;
     
+    // Safe array access with bounds checking
     const heading = headings[headingIndex];
     const pitch = pitches[pitchIndex];
+    
+    // Skip if we can't get valid values (shouldn't happen with our logic, but safety first)
+    if (heading === undefined || pitch === undefined) continue;
     
     const url = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&key=${GOOGLE_PLACES_API_KEY}`;
     
@@ -601,8 +608,32 @@ function generateVerifiedFallbackUrl(placeInfo: PlacePhotoSearch, index: number 
     placeType.includes(key) || key.includes(placeType)
   ) || 'restaurant';
   
-  const collection = unsplashCollections[collectionKey];
+  const collection = unsplashCollections[collectionKey] || unsplashCollections['restaurant'];
+  if (!collection) {
+    // Fallback to restaurant collection if something goes wrong
+    const fallbackCollection = unsplashCollections['restaurant'];
+    if (!fallbackCollection || fallbackCollection.length === 0) {
+      // Ultimate fallback
+      return 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80';
+    }
+    const fallbackImage = fallbackCollection[index % fallbackCollection.length];
+    if (!fallbackImage) {
+      // Fallback to first image if index is out of bounds
+      return fallbackCollection[0] || 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80';
+    }
+    return fallbackImage;
+  }
+  
   const imageUrl = collection[index % collection.length];
+  if (!imageUrl) {
+    // Fallback to first image if index is out of bounds
+    const firstImage = collection[0];
+    if (!firstImage) {
+      // Ultimate fallback if even the first image is undefined
+      return 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80';
+    }
+    return firstImage;
+  }
   
   return imageUrl;
 }
@@ -613,7 +644,13 @@ function generateVerifiedFallbackUrl(placeInfo: PlacePhotoSearch, index: number 
 function extractCityFromAddress(address: string): string {
   // Simple extraction - in production you'd use a proper address parser
   const parts = address.split(',');
-  return parts.length >= 2 ? parts[parts.length - 2].trim() : '';
+  if (parts.length >= 2) {
+    const cityPart = parts[parts.length - 2];
+    if (cityPart) {
+      return cityPart.trim();
+    }
+  }
+  return '';
 }
 
 /**

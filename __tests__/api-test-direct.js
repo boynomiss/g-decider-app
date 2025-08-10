@@ -1,5 +1,6 @@
 // Test direct Google Places API (New)
-const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+import { getAPIKey, validateAPIKeys } from '../config/api-keys';
+
 const PLACES_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 async function testDirectGooglePlacesAPI() {
@@ -20,7 +21,7 @@ async function testDirectGooglePlacesAPI() {
     includedTypes: ["restaurant"]
   };
 
-  const url = `${PLACES_SEARCH_URL}?key=${GOOGLE_API_KEY}`;
+  const url = `${PLACES_SEARCH_URL}?key=${getAPIKey.places()}`;
   console.log('📡 Requesting:', url);
   console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
 
@@ -29,7 +30,7 @@ async function testDirectGooglePlacesAPI() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_API_KEY,
+        'X-Goog-Api-Key': getAPIKey.places(),
         'X-Goog-FieldMask': 'places.displayName,places.location,places.rating,places.userRatingCount,places.types,places.photos'
       },
       body: JSON.stringify(requestBody)

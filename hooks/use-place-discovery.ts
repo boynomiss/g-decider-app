@@ -1,7 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { PlaceDiscoveryLogic, DiscoveryFilters, DiscoveryResult, LoadingState, AdvertisedPlace } from '@/utils/filtering/unified-filter-service';
-import { moodAnalysis } from '@/utils/filtering';
-import { useAppStore } from '@/hooks/use-app-store';
+import { PlaceDiscoveryLogic } from '../utils/filtering/unified-filter-service';
+import { 
+  DiscoveryFilters, 
+  DiscoveryResult, 
+  LoadingState, 
+  AdvertisedPlace 
+} from '../types/filtering';
+import { createPlaceMoodService } from '../utils/filtering/mood';
+import { useAppStore } from './use-app-store';
 
 interface UsePlaceDiscoveryOptions {
   googlePlacesApiKey: string;
@@ -22,12 +28,17 @@ interface UsePlaceDiscoveryReturn {
   discoverPlaces: () => Promise<void>;
   getMorePlaces: () => Promise<void>;
   resetDiscovery: () => void;
+  restartDiscovery: () => void;
   
   // Loading state helpers
   isSearching: boolean;
   isExpandingDistance: boolean;
   hasReachedLimit: boolean;
   isComplete: boolean;
+  
+  // Additional properties for compatibility
+  currentRadius: number;
+  expansionCount: number;
 }
 
 export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDiscoveryReturn => {
@@ -38,21 +49,21 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
   const [poolInfo, setPoolInfo] = useState<DiscoveryResult['poolInfo']>();
   const [error, setError] = useState<string | null>(null);
 
-  // Get filters from app store
-  const { filters } = useAppStore();
+  // Get filters and location from app store
+  const { filters, userLocation } = useAppStore();
 
   // Create service instances (memoized)
   const servicesRef = useRef<{
-    moodService: PlaceMoodService | null;
+    moodService: any | null;
     discoveryLogic: PlaceDiscoveryLogic | null;
   }>({ moodService: null, discoveryLogic: null });
 
   // Initialize services
   useEffect(() => {
-    if (!servicesRef.current.moodService) {
-      servicesRef.current.moodService = new PlaceMoodService(
+    if (!servicesRef.current.moodService && options.googlePlacesApiKey) {
+      servicesRef.current.moodService = createPlaceMoodService(
         options.googlePlacesApiKey,
-        options.googleCloudCredentials
+        options.googleCloudCredentials?.naturalLanguageApiKey
       );
     }
 
@@ -68,7 +79,7 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
   // Build discovery filters from app store filters
   const buildDiscoveryFilters = useCallback((): DiscoveryFilters | null => {
     // Validate required filters
-    if (!filters.category || !filters.userLocation) {
+    if (!filters.category || !userLocation) {
       setError('Please select a category and enable location');
       return null;
     }
@@ -84,10 +95,10 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
       socialContext: filters.socialContext,
       budget: filters.budget,
       timeOfDay: filters.timeOfDay,
-      distanceRange: filters.distanceRange,
-      userLocation: filters.userLocation
+      distanceRange: filters.distanceRange || 0,
+      userLocation: userLocation
     };
-  }, [filters]);
+  }, [filters, userLocation]);
 
   // Main discovery function
   const discoverPlaces = useCallback(async () => {
@@ -183,10 +194,6 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
 
   // Reset discovery session
   const resetDiscovery = useCallback(() => {
-    if (servicesRef.current.discoveryLogic) {
-      servicesRef.current.discoveryLogic.reset();
-    }
-    
     setDiscoveredPlaces([]);
     setLoadingState('initial');
     setExpansionInfo(undefined);
@@ -196,40 +203,25 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
     console.log('🔄 Discovery session reset');
   }, []);
 
+  // Restart discovery (alias for resetDiscovery)
+  const restartDiscovery = useCallback(() => {
+    resetDiscovery();
+  }, [resetDiscovery]);
+
   // Loading state helpers
   const isSearching = loadingState === 'searching';
   const isExpandingDistance = loadingState === 'expanding-distance';
   const hasReachedLimit = loadingState === 'limit-reach';
   const isComplete = loadingState === 'complete';
 
-  // Get specific loading message for each state
-  const getLoadingMessage = useCallback((): string => {
-    switch (loadingState) {
-      case 'initial':
-        return 'Getting ready to find amazing places...';
-      case 'searching':
-        return 'Fetching pool of results based on your preferences...';
-      case 'expanding-distance':
-        return `Expanding search area to ${Math.round(expansionInfo?.finalRadius || 0)}m radius...`;
-      case 'limit-reach':
-        return 'We\'ve ran out of places to suggest in your area';
-      case 'complete':
-        return 'Search complete!';
-      default:
-        return 'Loading...';
-    }
-  }, [loadingState, expansionInfo]);
-
   // Check if limit has been reached
   const isLimitReached = useCallback((): boolean => {
     return loadingState === 'limit-reach';
   }, [loadingState]);
 
-  // Restart the entire discovery process
-  const restartDiscovery = useCallback(() => {
-    resetDiscovery();
-    console.log('🔄 Discovery restarted - all filters and state cleared');
-  }, [resetDiscovery]);
+  // Additional properties for compatibility
+  const currentRadius = expansionInfo?.finalRadius || 0;
+  const expansionCount = expansionInfo?.expansionCount || 0;
 
   return {
     // State
@@ -237,7 +229,11 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
     loadingState,
     discoveredPlaces,
     expansionInfo,
-    poolInfo,
+    poolInfo: poolInfo || {
+      remainingPlaces: 0,
+      totalPoolSize: 0,
+      needsRefresh: false
+    },
     error,
     
     // Actions
@@ -252,15 +248,9 @@ export const usePlaceDiscovery = (options: UsePlaceDiscoveryOptions): UsePlaceDi
     hasReachedLimit,
     isComplete,
     
-    // Loading screen specific
-    getLoadingMessage,
-    isLimitReached,
-    
-    // Expansion info
-    expansionCount: expansionInfo?.expansionCount || 0,
-    maxExpansions: 3,
-    canExpand: (expansionInfo?.expansionCount || 0) < 3,
-    currentRadius: expansionInfo?.finalRadius || 0,
+    // Additional properties for compatibility
+    currentRadius,
+    expansionCount,
   };
 };
 
@@ -299,7 +289,7 @@ export const useDiscoveryLoadingScreen = (loadingState: LoadingState, expansionI
       case 'complete':
         setMessage('Discovery complete!');
         setSubMessage('Swipe through your personalized recommendations');
-        setShowLimitReached(expansionInfo && expansionInfo.expansionCount >= 2);
+        setShowLimitReached(expansionInfo && expansionInfo.expansionCount >= 2 ? true : false);
         break;
         
       case 'error':

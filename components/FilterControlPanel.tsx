@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Filter, X, RotateCcw, Settings, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Filter, X, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { UserFilters } from '@/types/app';
 import { DistanceUtils } from '@/utils/filtering/configs/distance-config';
 
@@ -237,7 +237,7 @@ export default function FilterControlPanel({
                   filters.category === category.id && styles.activeOption
                 ]}
                 onPress={() => onFiltersChange({ 
-                  category: filters.category === category.id ? null : category.id as any 
+                  category: filters.category === category.id ? null : category.id as 'food' | 'activity' | 'something-new' 
                 })}
               >
                 <Text style={styles.optionIcon}>{category.icon}</Text>
@@ -278,7 +278,7 @@ export default function FilterControlPanel({
                   filters.socialContext === social.id && styles.activeOption
                 ]}
                 onPress={() => onFiltersChange({ 
-                  socialContext: filters.socialContext === social.id ? null : social.id as any 
+                  socialContext: filters.socialContext === social.id ? null : social.id as 'solo' | 'with-bae' | 'barkada' 
                 })}
               >
                 <Text style={styles.optionIcon}>{social.icon}</Text>
@@ -311,7 +311,7 @@ export default function FilterControlPanel({
                   filters.budget === budget.id && styles.activeOption
                 ]}
                 onPress={() => onFiltersChange({ 
-                  budget: filters.budget === budget.id ? null : budget.id as any 
+                  budget: filters.budget === budget.id ? null : budget.id as 'P' | 'PP' | 'PPP' 
                 })}
               >
                 <Text style={[
@@ -349,7 +349,7 @@ export default function FilterControlPanel({
                   filters.timeOfDay === time.id && styles.activeOption
                 ]}
                 onPress={() => onFiltersChange({ 
-                  timeOfDay: filters.timeOfDay === time.id ? null : time.id as any 
+                  timeOfDay: filters.timeOfDay === time.id ? null : time.id as 'morning' | 'afternoon' | 'night' 
                 })}
               >
                 <Text style={styles.optionIcon}>{time.icon}</Text>

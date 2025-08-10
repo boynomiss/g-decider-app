@@ -100,4 +100,20 @@ export interface AppState {
     distanceRange: number;
   } | null;
   auth: AuthState;
+  // Additional properties for the new filtering system
+  loadingState: 'initial' | 'searching' | 'expanding-distance' | 'limit-reach' | 'complete' | 'error';
+  userLocation: {
+    lat: number;
+    lng: number;
+  } | null;
+  apiReadyFilters: Map<string, any>;
+  serverFilteringEnabled: boolean;
+  serverFilteringError: string | null;
+  lastServerResponse: any;
+  isLegacyMode: boolean;
+  discoveryInitialized: boolean;
+  lastDiscoveryTimestamp: number;
+  currentResults: any;
+  isDiscovering: boolean;
+  discoveryError: string | null;
 }

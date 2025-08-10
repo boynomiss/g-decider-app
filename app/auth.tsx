@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Lock, User, Phone } from 'lucide-react-native';
-import Mail from 'lucide-react-native/dist/esm/icons/mail';
+import { Mail } from 'lucide-react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../hooks/use-auth';
 
@@ -48,7 +48,7 @@ export default function AuthScreen() {
         await login(formData.email, formData.password);
       }
       router.back();
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Authentication failed. Please try again.');
     }
   };
@@ -56,6 +56,37 @@ export default function AuthScreen() {
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
     setFormData({ email: '', password: '', name: '', phone: '' });
+  };
+
+  const handleBackPress = () => router.back();
+  
+  const handleNameChange = (text: string) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      newData.name = text;
+      return newData;
+    });
+  };
+  const handleEmailChange = (text: string) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      newData.email = text;
+      return newData;
+    });
+  };
+  const handlePasswordChange = (text: string) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      newData.password = text;
+      return newData;
+    });
+  };
+  const handlePhoneChange = (text: string) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      newData.phone = text;
+      return newData;
+    });
   };
 
   return (
@@ -73,7 +104,7 @@ export default function AuthScreen() {
               {/* Header */}
               <ErrorBoundary componentName="AuthHeader">
                 <View style={styles.header}>
-                  <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                  <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
                     <ArrowLeft size={24} color="#666" />
                   </TouchableOpacity>
                   <Text style={styles.headerTitle}>
@@ -100,7 +131,7 @@ export default function AuthScreen() {
                         <TextInput
                           style={styles.input}
                           value={formData.name}
-                          onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+                          onChangeText={handleNameChange}
                           placeholder="Full Name"
                           placeholderTextColor="#999"
                           autoCapitalize="words"
@@ -115,7 +146,7 @@ export default function AuthScreen() {
                       <TextInput
                         style={styles.input}
                         value={formData.email}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+                                                  onChangeText={handleEmailChange}
                         placeholder="Email Address"
                         placeholderTextColor="#999"
                         keyboardType="email-address"
@@ -130,7 +161,7 @@ export default function AuthScreen() {
                       <TextInput
                         style={styles.input}
                         value={formData.password}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
+                                                  onChangeText={handlePasswordChange}
                         placeholder="Password"
                         placeholderTextColor="#999"
                         secureTextEntry
@@ -145,7 +176,7 @@ export default function AuthScreen() {
                         <TextInput
                           style={styles.input}
                           value={formData.phone}
-                          onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
+                          onChangeText={handlePhoneChange}
                           placeholder="Phone Number (Optional)"
                           placeholderTextColor="#999"
                           keyboardType="phone-pad"

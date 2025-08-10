@@ -53,7 +53,7 @@ export default function LoadingScreens({
               Animated.timing(animValue, {
                 toValue: 1,
                 duration: 2000,
-                useNativeDriver: true,
+            useNativeDriver: true,
               }),
               Animated.timing(animValue, {
                 toValue: 0,
@@ -73,6 +73,8 @@ export default function LoadingScreens({
 
       rippleAnimation();
     }
+    
+    return undefined;
   }, [loadingState]);
   
   const renderInitialLoadingScreen = () => (

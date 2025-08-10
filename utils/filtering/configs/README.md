@@ -12,18 +12,15 @@ utils/filtering/configs/
 ├── FILTER_FOUNDATION_GUIDE.md        # Guide for using the foundation (NEW)
 ├── mood-config.ts                     # Mood filter configuration
 ├── budget-config.ts                   # Budget filter configuration
-├── budget-config-refactored.ts       # Example refactored budget config (NEW)
 ├── category-config.ts                 # Category filter configuration
-├── category-config-refactored.ts     # Example refactored category config (NEW)
 ├── time-config.ts                     # Time of day filter configuration
 ├── distance-config.ts                 # Distance filter configuration
 ├── social-config.ts                   # Social context filter configuration
-├── filter-logger.ts                   # Filter logging utilities
-├── filter-api-bridge.ts               # API integration for filters
-├── filter-validation-service.ts       # Filter validation services
-├── filtering-progress.ts              # Filtering progress tracking
-├── enhanced-filtering-with-cache.ts   # Enhanced filtering with caching
-└── server-filtering-service.ts        # Server-side filtering service
+├── filter-logger.ts                   # Filter logging utilities (in parent directory)
+├── filter-api-service.ts              # API integration for filters (in parent directory)
+├── unified-filter-service.ts          # Unified filtering service (in parent directory)
+├── unified-filtering-system.ts        # Unified filtering system (in parent directory)
+└── filter-core-utils.ts               # Core filter utilities (in parent directory)
 ```
 
 ## Filter Foundation (NEW)
@@ -74,33 +71,28 @@ utils/filtering/configs/
 
 ### 1. Filter Logger (`filter-logger.ts`)
 - **Purpose**: Provides logging utilities for filter changes and debugging
-- **Key Exports**: `getFilterSummary`, `logFilterChange`
+- **Key Exports**: `FilterLogger`, `getFilterSummary`, `logFilterChange`
 - **Usage**: Used throughout the app to track filter state changes
 
-### 2. Filter API Bridge (`filter-api-bridge.ts`)
-- **Purpose**: Bridges filter configurations with API calls
-- **Key Exports**: `FilterApiBridge`
+### 2. Filter API Service (`filter-api-service.ts`)
+- **Purpose**: Handles API integration for filter operations
+- **Key Exports**: `FilterAPIService`, `filterAPIService`
 - **Usage**: Used to prepare filter data for API requests
 
-### 3. Filter Validation Service (`filter-validation-service.ts`)
-- **Purpose**: Validates filter configurations and combinations
-- **Key Exports**: `FilterValidationService`, `filterValidationService`
-- **Usage**: Used to ensure filter data integrity
+### 3. Unified Filter Service (`unified-filter-service.ts`)
+- **Purpose**: Provides unified filtering operations with caching
+- **Key Exports**: `UnifiedFilterService`, `unifiedFilterService`
+- **Usage**: Used for optimized filtering with caching and validation
 
-### 4. Filtering Progress (`filtering-progress.ts`)
-- **Purpose**: Tracks progress during filtering operations
-- **Key Exports**: `FILTERING_STEPS`, `updateFilteringProgress`
-- **Usage**: Used to show progress indicators during filtering
+### 4. Unified Filtering System (`unified-filtering-system.ts`)
+- **Purpose**: Main entry point for the unified filtering system
+- **Key Exports**: `unifiedFilterService`, `FilterUtilities`
+- **Usage**: Used as the primary interface for all filtering operations
 
-### 5. Enhanced Filtering with Cache (`enhanced-filtering-with-cache.ts`)
-- **Purpose**: Provides caching layer for filtering operations
-- **Key Exports**: `enhancedFilterWithCache`
-- **Usage**: Used to optimize filtering performance with caching
-
-### 6. Server Filtering Service (`server-filtering-service.ts`)
-- **Purpose**: Handles server-side filtering operations
-- **Key Exports**: `ServerFilteringService`, `serverFilteringService`
-- **Usage**: Used for server-side place filtering and data processing
+### 5. Filter Core Utils (`filter-core-utils.ts`)
+- **Purpose**: Core utility functions for filter operations
+- **Key Exports**: `FilterCoreUtils`, `filterCoreUtils`
+- **Usage**: Used for common filter operations and utilities
 
 ## Import Patterns
 
@@ -233,8 +225,8 @@ See `FILTER_FOUNDATION_GUIDE.md` for detailed instructions.
 
 ## Related Files
 
-- `utils/filter-logger.ts` - Logging utilities for filter changes
-- `utils/filter-api-bridge.ts` - API integration for filters
+- `utils/filtering/filter-logger.ts` - Logging utilities for filter changes
+- `utils/filtering/filter-api-service.ts` - API integration for filters
 - `utils/place-discovery-logic.ts` - Discovery logic using filters
 - `components/` - UI components that use filter configurations
 - `hooks/` - Custom hooks that integrate with filter configurations 

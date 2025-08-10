@@ -252,6 +252,12 @@ export class FilterAPIService {
 
     for (const place of places) {
       try {
+        // Ensure location is always defined with fallback coordinates
+        const location = place.location ? {
+          lat: place.location.latitude || place.geometry?.location?.lat || 0,
+          lng: place.location.longitude || place.geometry?.location?.lng || 0
+        } : { lat: 14.5176, lng: 121.0509 }; // Fallback to BGC coordinates
+
         const placeData: PlaceResult = {
           place_id: place.id || place.place_id,
           name: place.displayName?.text || place.name,
@@ -262,10 +268,7 @@ export class FilterAPIService {
           reviews: this.extractReviews(place.reviews || []),
           
           // Location data
-          location: place.location ? {
-            lat: place.location.latitude || place.geometry?.location?.lat,
-            lng: place.location.longitude || place.geometry?.location?.lng
-          } : undefined,
+          location,
           
           // Additional data
           types: place.types,

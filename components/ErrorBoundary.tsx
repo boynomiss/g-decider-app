@@ -1,4 +1,5 @@
-import React, { Component, ReactNode } from 'react';
+import * as React from 'react';
+import { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
     // Call custom error handler if provided
@@ -55,11 +56,13 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('Error Stack:', error.stack);
     console.error('Component Stack:', errorInfo.componentStack);
 
-    this.setState({ errorInfo });
+    this.setState({ errorInfo: errorInfo || undefined });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    this.setState({
+      hasError: false
+    });
   };
 
   handleReportError = () => {
@@ -95,7 +98,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return error.message || 'An unexpected error occurred';
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -149,7 +152,7 @@ export const withErrorBoundary = <P extends object>(
 // Specialized error boundaries for different use cases
 export const NetworkErrorBoundary = ({ children, componentName }: { children: ReactNode; componentName?: string }) => (
   <ErrorBoundary 
-    componentName={componentName}
+    {...(componentName && { componentName })}
     onError={(error, errorInfo) => {
       if (error.message.includes('Network') || error.message.includes('fetch')) {
         console.error('Network error detected:', error.message);
@@ -163,7 +166,7 @@ export const NetworkErrorBoundary = ({ children, componentName }: { children: Re
 
 export const DataErrorBoundary = ({ children, componentName }: { children: ReactNode; componentName?: string }) => (
   <ErrorBoundary 
-    componentName={componentName}
+    {...(componentName && { componentName })}
     onError={(error, errorInfo) => {
       if (error.message.includes('JSON') || error.message.includes('parse')) {
         console.error('Data parsing error detected:', error.message);

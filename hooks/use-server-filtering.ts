@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { UserFilters } from '../types/app';
-import { PlaceMoodData } from '../types/filtering';
+import { PlaceMoodData, PlaceData } from '../types/filtering';
 import { serverFilteringService } from '../utils/data/server-filtering-service';
 import { ServerFilteringResponse } from '../types/server-filtering';
 import { convertServerResponse, validateAndSanitizeResponse } from '../utils/data/server-data-converter';
@@ -10,7 +10,7 @@ export interface UseServerFilteringReturn {
   isLoading: boolean;
   error: string | null;
   results: PlaceData[];
-  lastResponse?: ServerFilteringResponse;
+  lastResponse: ServerFilteringResponse | null;
   
   // Actions
   filterPlaces: (filters: UserFilters, minResults?: number, useCache?: boolean) => Promise<void>;
@@ -38,7 +38,7 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PlaceData[]>([]);
-  const [lastResponse, setLastResponse] = useState<ServerFilteringResponse | undefined>(undefined);
+  const [lastResponse, setLastResponse] = useState<ServerFilteringResponse | null>(null);
   const [performance, setPerformance] = useState<UseServerFilteringReturn['performance']>(null);
   const [metadata, setMetadata] = useState<UseServerFilteringReturn['metadata']>(null);
 
@@ -90,7 +90,7 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
       console.error('❌ Full error object:', err);
       setError(errorMessage);
       setResults([]);
-      setLastResponse(undefined);
+      setLastResponse(null);
       setPerformance(null);
       setMetadata(null);
     } finally {
@@ -101,7 +101,7 @@ export const useServerFiltering = (): UseServerFilteringReturn => {
 
   const clearResults = useCallback(() => {
     setResults([]);
-    setLastResponse(undefined);
+    setLastResponse(null);
     setPerformance(null);
     setMetadata(null);
   }, []);

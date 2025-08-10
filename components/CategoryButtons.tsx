@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterUtilities } from '@/utils/filtering/filter-utils';
+
 import { categoryOptions, CategoryUtils } from '@/utils/filtering/configs/category-config';
 
 export default function CategoryButtons() {

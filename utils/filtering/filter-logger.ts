@@ -193,13 +193,13 @@ export class ConsolidatedFilterLogger {
     const prefix = `[${level.toUpperCase()}][${category}]`;
     switch (level) {
       case 'info':
-        console.log(prefix, message, data || '');
+        console.log(prefix, message, data !== undefined ? data : '');
         break;
       case 'warn':
-        console.warn(prefix, message, data || '');
+        console.warn(prefix, message, data !== undefined ? data : '');
         break;
       case 'error':
-        console.error(prefix, message, data || '');
+        console.error(prefix, message, data !== undefined ? data : '');
         break;
     }
   }
@@ -227,7 +227,7 @@ export class ConsolidatedFilterLogger {
       };
       
       this.logs.push(logEntry);
-      console.log(`[DEBUG][${category}]`, message, data || '');
+      console.log(`[DEBUG][${category}]`, message, data !== undefined ? data : '');
     }
   }
 

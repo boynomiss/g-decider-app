@@ -12,12 +12,12 @@ import { getDatabase } from 'firebase/database';
  */
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
   authDomain: 'g-decider-backend.firebaseapp.com',
   projectId: 'g-decider-backend',
   storageBucket: 'g-decider-backend.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
   databaseURL: 'https://g-decider-backend-default-rtdb.firebaseio.com',
 };
 

@@ -8,23 +8,27 @@ import * as Location from 'expo-location';
 
 // Import our new systems
 import { 
-  PlaceDiscoveryLogic, 
-  DiscoveryFilters, 
-  PlaceResult,
-  LoadingState 
+  PlaceDiscoveryLogic
 } from '../utils/filtering/unified-filter-service';
 import { 
-  PlaceMoodService, 
-  PlaceData 
+  DiscoveryFilters, 
+  LoadingState,
+  DiscoveryResult,
+  PlaceData,
+  PlaceResult,
+  ApiReadyFilterData,
+  AdvertisedPlace
 } from '../types/filtering';
 import { 
-  FilterApiBridge, 
-  ApiReadyFilterData 
-} from '../types/filtering';
+  FilterApiBridge
+} from '../utils/filtering/filter-api-service';
+import { createPlaceMoodService } from '../utils/filtering/mood/mood-service-factory';
+import { getAPIKey, validateAPIKeys } from '../utils/config/api-keys';
 
-// API Configuration
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
+// Environment variables for API keys
+const GOOGLE_PLACES_API_KEY = getAPIKey.places();
+const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
+const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
 
 // Default location (Manila, Philippines)
 const DEFAULT_LOCATION = {
@@ -35,7 +39,7 @@ const DEFAULT_LOCATION = {
 // Enhanced app state interface
 interface EnhancedAppState extends AppState {
   // New place discovery state
-  currentResults: PlaceResult | null;
+  currentResults: DiscoveryResult | null;
   isDiscovering: boolean;
   discoveryError: string | null;
   loadingState: LoadingState;
@@ -45,31 +49,67 @@ interface EnhancedAppState extends AppState {
   
   // API-ready filter data
   apiReadyFilters: Map<string, ApiReadyFilterData>;
+  
+  // Server filtering properties
+  serverFilteringEnabled: boolean;
+  serverFilteringError: string | null;
+  lastServerResponse: any;
+  isLegacyMode: boolean;
+  discoveryInitialized: boolean;
+  lastDiscoveryTimestamp: number;
 }
 
 // Convert PlaceData to legacy Suggestion format for backwards compatibility
 const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
+  // Handle photos array properly - PlaceData has photos.thumbnail structure
+  const images = place.photos?.thumbnail || place.images?.urls || [];
+  
+  // Handle category mapping - convert from PlaceData category to Suggestion category
+  const category = place.category === 'food' || place.category === 'activity' || place.category === 'something-new' 
+    ? place.category 
+    : 'food';
+  
+  // Handle mood mapping - convert from PlaceData mood_analysis to Suggestion mood
+  const mood = place.mood_analysis?.category === 'neutral' ? 'both' : 
+               (place.mood_analysis?.category === 'chill' ? 'chill' : 
+                (place.mood_analysis?.category === 'hype' ? 'hype' : 'both'));
+  
+  // Handle reviews conversion - PlaceData has ReviewEntity[], Suggestion expects Review[]
+  const reviews = place.reviews ? place.reviews.map(review => ({
+    author: 'Anonymous', // Default author since ReviewEntity doesn't have author
+    rating: review.rating || 0,
+    text: review.text || '',
+    time: new Date(review.time || Date.now()).toISOString()
+  })) : [];
+  
+  // Get location string - prefer vicinity, then formatted_address, fallback to coordinates
+  const locationString = place.vicinity || 
+                        place.formatted_address || 
+                        (place.location ? `${place.location.lat}, ${place.location.lng}` : 'Unknown location');
+  
   return {
-    id: place.place_id || place.name.replace(/\s+/g, '-').toLowerCase(),
-    name: place.name,
-    location: place.vicinity || place.formatted_address || 'Unknown location',
-    images: place.photos || [],
-    budget: place.price_level ? (['P', 'PP', 'PPP'][place.price_level - 1] as 'P' | 'PP' | 'PPP') : 'P',
+    id: place.place_id || place.name?.replace(/\s+/g, '-').toLowerCase() || 'unknown-place',
+    name: place.name || 'Unknown Place',
+    location: locationString,
+    images: images,
+    budget: place.price_level ? (['P', 'PP', 'PPP'][Math.max(0, Math.min(2, place.price_level - 1))] as 'P' | 'PP' | 'PPP') : 'P',
     tags: place.types || [],
-    description: place.description || `${place.name} is a great place to visit.`,
+    description: place.description || `${place.name || 'This place'} is a great place to visit.`,
     openHours: place.opening_hours?.weekday_text?.join(', ') || undefined,
-    category: place.category || 'food',
-    mood: place.mood || 'both',
+    category: category,
+    mood: mood,
     socialContext: ['solo', 'with-bae', 'barkada'], // Default to all
     timeOfDay: ['morning', 'afternoon', 'night'], // Default to all
-    coordinates: place.location ? {
-      lat: place.location.lat,
-      lng: place.location.lng
-    } : undefined,
-    rating: place.rating,
-    reviewCount: place.user_ratings_total,
-    reviews: place.reviews,
-    website: place.website
+    ...(place.location && {
+      coordinates: {
+        lat: place.location.lat,
+        lng: place.location.lng
+      }
+    }),
+    rating: place.rating || 0,
+    reviewCount: place.user_ratings_total || 0,
+    reviews: reviews,
+    ...(place.website && { website: place.website })
   };
 };
 
@@ -99,17 +139,25 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     discoveryError: null,
     loadingState: 'initial',
     userLocation: null,
-    apiReadyFilters: new Map()
+    apiReadyFilters: new Map(),
+    
+    // Server filtering properties
+    serverFilteringEnabled: false,
+    serverFilteringError: null,
+    lastServerResponse: null,
+    isLegacyMode: false,
+    discoveryInitialized: false,
+    lastDiscoveryTimestamp: 0
   });
 
   // Services
-  const moodServiceRef = useRef<PlaceMoodService | null>(null);
+  const moodServiceRef = useRef<any | null>(null); // Changed to any to avoid circular dependency
   const discoveryLogicRef = useRef<PlaceDiscoveryLogic | null>(null);
 
   // Initialize services
-  const getServices = useCallback(() => {
+  useEffect(() => {
     if (!moodServiceRef.current) {
-      moodServiceRef.current = new PlaceMoodService(
+      moodServiceRef.current = createPlaceMoodService(
         GOOGLE_PLACES_API_KEY,
         GOOGLE_NATURAL_LANGUAGE_API_KEY
       );
@@ -119,14 +167,9 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       discoveryLogicRef.current = new PlaceDiscoveryLogic(
         moodServiceRef.current,
         GOOGLE_PLACES_API_KEY,
-        [] // TODO: Add advertised places
+        []
       );
     }
-    
-    return {
-      mood: moodServiceRef.current,
-      discovery: discoveryLogicRef.current
-    };
   }, []);
 
   // Get user location
@@ -228,7 +271,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
   }, []);
 
   // Main place discovery function (replaces generateSuggestion)
-  const discoverPlaces = useCallback(async (): Promise<PlaceResult> => {
+  const discoverPlaces = useCallback(async (): Promise<DiscoveryResult> => {
     console.log('🎯 Starting place discovery...');
     
     setState(prev => ({
@@ -240,7 +283,10 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     }));
 
     try {
-      const { discovery } = getServices();
+      const discovery = discoveryLogicRef.current;
+      if (!discovery) {
+        throw new Error('Discovery logic not initialized');
+      }
       const discoveryFilters = await convertToDiscoveryFilters();
       
       // Update loading state
@@ -249,7 +295,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       const results = await discovery.discoverPlaces(discoveryFilters);
       
       // For backwards compatibility, set the first place as currentSuggestion
-      const firstPlace = results.places[0] ? convertPlaceToSuggestion(results.places[0]) : null;
+      const firstPlace = results.places[0] ? convertPlaceToSuggestion(results.places[0] as PlaceData) : null;
       
       setState(prev => ({
         ...prev,
@@ -281,10 +327,10 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
       
       throw error;
     }
-  }, [getServices, convertToDiscoveryFilters]);
+  }, [convertToDiscoveryFilters]);
 
   // Get next batch of places
-  const getNextBatch = useCallback(async (): Promise<PlaceResult | null> => {
+  const getNextBatch = useCallback(async (): Promise<DiscoveryResult | null> => {
     if (!discoveryLogicRef.current) {
       console.error('❌ Discovery logic not initialized');
       return null;
@@ -300,11 +346,15 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     }));
 
     try {
+      const discovery = discoveryLogicRef.current;
+      if (!discovery) {
+        throw new Error('Discovery logic not initialized');
+      }
       const discoveryFilters = await convertToDiscoveryFilters();
-      const results = await discoveryLogicRef.current.getNextBatch(discoveryFilters);
+      const results = await discovery.getNextBatch(discoveryFilters);
       
       // Update current suggestion for legacy compatibility
-      const firstPlace = results.places[0] ? convertPlaceToSuggestion(results.places[0]) : null;
+      const firstPlace = results.places[0] ? convertPlaceToSuggestion(results.places[0] as PlaceData) : null;
       
       setState(prev => ({
         ...prev,
@@ -356,7 +406,7 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
   const generateSuggestion = useCallback(async () => {
     console.log('🔄 generateSuggestion called (legacy) - redirecting to discoverPlaces');
     const results = await discoverPlaces();
-    return results.places[0] ? convertPlaceToSuggestion(results.places[0]) : null;
+    return results.places[0] ? convertPlaceToSuggestion(results.places[0] as PlaceData) : null;
   }, [discoverPlaces]);
 
   const resetSuggestion = useCallback(() => {
@@ -379,11 +429,26 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
 
   // Utility functions
   const openInMaps = useCallback((place: Suggestion | PlaceData) => {
-    const location = 'coordinates' in place ? place.coordinates : place.location;
-    const name = place.name;
+    // Handle both Suggestion and PlaceData types
+    let location: { lat: number; lng: number } | undefined;
+    let name: string;
     
-    if (!location) {
-      console.error('❌ No location data for place:', name);
+    if ('coordinates' in place && place.coordinates) {
+      // Suggestion type with coordinates
+      location = place.coordinates;
+      name = place.name;
+    } else if ('location' in place && typeof place.location === 'object' && place.location) {
+      // PlaceData type with location object
+      location = place.location;
+      name = place.name;
+    } else {
+      // Fallback - no valid location data
+      console.error('❌ No valid location data for place:', place);
+      return;
+    }
+    
+    if (!location || !name) {
+      console.error('❌ No location data or name for place:', place);
       return;
     }
 
@@ -450,6 +515,15 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     discoveryError: state.discoveryError,
     loadingState: state.loadingState,
     userLocation: state.userLocation,
+    apiReadyFilters: state.apiReadyFilters,
+    
+    // Server filtering properties
+    serverFilteringEnabled: state.serverFilteringEnabled,
+    serverFilteringError: state.serverFilteringError,
+    lastServerResponse: state.lastServerResponse,
+    isLegacyMode: state.isLegacyMode,
+    discoveryInitialized: state.discoveryInitialized,
+    lastDiscoveryTimestamp: state.lastDiscoveryTimestamp,
     
     // Core functions
     updateFilters,
@@ -474,22 +548,36 @@ const useNewAppStore = createContextHook<EnhancedAppState>(() => {
     getPoolStats,
     
     // Utility getters
-    hasResults: !!state.currentResults?.places.length,
+    hasResults: !!state.currentResults?.places?.length,
     hasMore: state.currentResults?.hasMore || false,
     isExpanding: state.loadingState === 'expanding-distance',
     isLimitReached: state.loadingState === 'limit-reach',
     currentRadius: discoveryLogicRef.current?.currentRadius || 0,
-    totalPlaces: state.currentResults?.places.length || 0,
+    totalPlaces: state.currentResults?.places?.length || 0,
     
     // Analytics and debugging
-    getDiscoveryStats: useCallback(() => ({
-      totalPlaces: state.currentResults?.places.length || 0,
-      hasAdvertised: !!state.currentResults?.advertisedPlace,
-            poolStatus: state.currentResults?.poolInfo || {},
-      loadingState: state.loadingState,
-      hasMore: state.currentResults?.hasMore || false,
-      apiFiltersCount: state.apiReadyFilters.size
-    }), [state.currentResults, state.loadingState, state.apiReadyFilters.size])
+    getDiscoveryStats: useCallback(() => {
+      const discovery = discoveryLogicRef.current;
+      if (!discovery) {
+        return {
+          totalPlaces: 0,
+          hasAdvertised: false,
+          poolStatus: {},
+          loadingState: 'initial',
+          hasMore: false,
+          apiFiltersCount: 0
+        };
+      }
+      const stats = discovery.getStatistics();
+      return {
+        totalPlaces: stats.totalPlacesInPool,
+        hasAdvertised: !!state.currentResults?.advertisedPlace,
+        poolStatus: stats,
+        loadingState: state.loadingState,
+        hasMore: state.currentResults?.hasMore || false,
+        apiFiltersCount: state.apiReadyFilters.size
+      };
+    }, [state.currentResults, state.loadingState, state.apiReadyFilters.size])
   };
 });
 

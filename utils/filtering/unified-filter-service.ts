@@ -17,9 +17,9 @@
  */
 
 import { 
-  SearchParams, 
-  PlaceResult, 
-  ScoredPlace, 
+  PlaceResult,
+  ScoredPlace,
+  SearchParams,
   FilterResult,
   LookingForOption,
   MoodOption,
@@ -30,8 +30,12 @@ import {
   AdvertisedPlace,
   DiscoveryFilters,
   DiscoveryResult,
-  FilterServiceConfig
+  FilterServiceConfig,
+  PlaceData
 } from '../../types/filtering';
+
+// Types are exported from the main filtering index to avoid conflicts
+
 import { unifiedCacheService, UnifiedCacheService } from '../data/unified-cache-service';
 import { FilterAPIService } from './filter-api-service';
 import { filterConfigRegistry, FilterConfigRegistry } from './config-registry';
@@ -110,7 +114,7 @@ export class UnifiedFilterService {
       
       // Small delay between batches to respect rate limits
       if (batches.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve as () => void, 100));
       }
     }
     
@@ -259,7 +263,11 @@ export class UnifiedFilterService {
     const result = await monitoredFn();
     
     const resultCount = Array.isArray(result) ? result.length : 1;
-    this.filterMetrics.push({ name: filterName, duration: 0, resultCount }); // Duration tracked by monitor
+    this.filterMetrics.push({ 
+      name: filterName, 
+      duration: 0, 
+      resultCount 
+    }); // Duration tracked by monitor
     
     return result;
   }
@@ -280,19 +288,26 @@ export class UnifiedFilterService {
   }
 
   private setCache<T>(key: string, data: T): void {
-    this.filterCache.set(key, {
-      data,
-      timestamp: Date.now()
+    if (this.config.useCache) {
+      this.filterCache.set(key, {
+        data,
+        timestamp: Date.now(),
+        ttl: this.config.cacheExpiry
+      });
+    }
+  }
+
+  private generateCacheKey(params: SearchParams): string {
+    return JSON.stringify({
+      lat: params.lat,
+      lng: params.lng,
+      lookingFor: params.lookingFor,
+      mood: params.mood,
+      timeOfDay: params.timeOfDay,
+      maxRadius: params.maxRadius,
+      minResults: params.minResults,
+      maxResults: params.maxResults
     });
-    
-    setTimeout(() => {
-      if (this.filterCache.has(key)) {
-        const cached = this.filterCache.get(key);
-        if (Date.now() - cached.timestamp > this.config.cacheExpiry) {
-          this.filterCache.delete(key);
-        }
-      }
-    }, this.config.cacheExpiry);
   }
 
   /**
@@ -306,32 +321,31 @@ export class UnifiedFilterService {
    * Main search method - single entry point for all place discovery
    */
   async searchPlaces(params: SearchParams): Promise<PlaceResult[]> {
-    const startTime = Date.now();
-    ConsolidatedFilterLogger.getInstance().info('unified-search', 'Starting place search', params);
-    
-    try {
-      // Try strict filtering first
-      let results = await this.searchWithFilters(params);
+    return this.monitoredFilter('searchPlaces', async () => {
+      console.log('🔍 Starting place search with params:', params);
       
-      // Apply fallback strategies if needed
-      if (results.length < (params.minResults || 8)) {
-        ConsolidatedFilterLogger.getInstance().info('unified-search', 'Insufficient results, applying fallbacks');
-        results = await this.searchWithFallbacks(params);
+      // Check cache first
+      const cacheKey = this.generateCacheKey(params);
+      const cached = this.getCached<PlaceResult[]>(cacheKey);
+      if (cached) {
+        console.log('✅ Returning cached results:', cached.length, 'places');
+        return cached;
       }
 
-      // Apply mood analysis if requested
-      if (params.includeMoodAnalysis && results.length > 0) {
-        ConsolidatedFilterLogger.getInstance().info('unified-search', `Applying mood analysis to ${results.length} results`);
-        results = await this.enhanceResultsWithMoodAnalysis(results);
-      }
+      // Perform search with filters
+      const results = await this.searchWithFilters(params);
       
-      ConsolidatedFilterLogger.getInstance().info('unified-search', `Search completed: ${results.length} results in ${Date.now() - startTime}ms`);
+      // Cache results
+      this.setCache(cacheKey, results);
+      
+      console.log('✅ Search completed, found:', results.length, 'places');
       return results;
-      
-    } catch (error) {
-      ConsolidatedFilterLogger.getInstance().error('unified-search', 'Search failed', error);
-      return [];
-    }
+    });
+  }
+
+  // Alias for backward compatibility
+  async filterPlaces(params: SearchParams): Promise<PlaceResult[]> {
+    return this.searchPlaces(params);
   }
 
   /**
@@ -978,6 +992,16 @@ export class UnifiedFilterService {
 
 // Export singleton instance
 export const unifiedFilterService = UnifiedFilterService.getInstance();
+
+// Re-export types for backward compatibility
+export type {
+  LoadingState,
+  AdvertisedPlace,
+  DiscoveryFilters,
+  DiscoveryResult,
+  PlaceData,
+  PlaceMoodData
+} from '../../types/filtering';
 
 // =================
 // LEGACY COMPATIBILITY CLASS

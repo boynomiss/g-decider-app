@@ -26,9 +26,9 @@ export async function enhancedFilterWithCache(
   });
   
   return {
-    results: result.places,
-    source: result.metadata.source,
-    cacheHit: result.metadata.cacheHit,
-    totalResults: result.metadata.totalResults
+    results: result,
+    source: 'api', // Since unifiedFilterService doesn't return metadata
+    cacheHit: false, // Since unifiedFilterService doesn't return cache info
+    totalResults: result.length
   };
 }

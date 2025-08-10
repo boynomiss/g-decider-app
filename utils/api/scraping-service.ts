@@ -72,7 +72,7 @@ export class ScrapingService {
   private sources: ScrapingSource[];
 
   private constructor() {
-    this.GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'your-gemini-api-key-here';
+    this.GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
     this.config = this.initializeConfig();
     this.sources = this.initializeSources();
   }
@@ -188,9 +188,12 @@ export class ScrapingService {
    * Get random user agent
    */
   private getRandomUserAgent(): string {
+    if (!this.config.userAgents || this.config.userAgents.length === 0) {
+      return 'Mozilla/5.0 (compatible; G-Decider-Bot/1.0)';
+    }
     return this.config.userAgents[
       Math.floor(Math.random() * this.config.userAgents.length)
-    ];
+    ] || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
   }
 
   /**

@@ -23,8 +23,9 @@ async function testGoogleAPIClients() {
   console.log('🔧 Testing Google API Clients Configuration\n');
 
   // Get API keys from environment
-  const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+  const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
   const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
+  const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
 
   // Check for service account credentials files
   const NLP_SERVICE_ACCOUNT_FILE = './nlp-service-account.json';
@@ -33,8 +34,8 @@ async function testGoogleAPIClients() {
   
   // Test API configuration validation
   console.log('📋 Validating API Configuration...');
-  const placesConfigured = !!GOOGLE_PLACES_API_KEY && GOOGLE_PLACES_API_KEY !== 'your-google-places-api-key-here';
-  const nlConfigured = (!!GOOGLE_NATURAL_LANGUAGE_API_KEY && GOOGLE_NATURAL_LANGUAGE_API_KEY !== 'your-google-natural-language-api-key-here') || hasServiceAccount;
+  const placesConfigured = !!GOOGLE_PLACES_API_KEY && GOOGLE_PLACES_API_KEY.length > 0;
+  const nlConfigured = (!!GOOGLE_NATURAL_LANGUAGE_API_KEY && GOOGLE_NATURAL_LANGUAGE_API_KEY.length > 0) || hasServiceAccount;
   
   console.log(`✅ Places API configured: ${placesConfigured ? '✓' : '✗'}`);
   console.log(`✅ Natural Language API configured: ${nlConfigured ? '✓' : '✗'} ${hasServiceAccount ? '(Service Account)' : ''}`);

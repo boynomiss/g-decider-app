@@ -29,10 +29,10 @@ const PLACES_API_BASE_URL = 'https://places.googleapis.com/v1';
 // ==================================================================================
 
 // Import consolidated category configuration
-import { CategoryUtils } from '../../utils/filters/category-config';
+import { CategoryUtils } from '../../utils/filtering/configs/category-config';
 
 // Import consolidated mood configuration
-import { MoodUtils } from '../../utils/filters/mood-config';
+import { MoodUtils } from '../../utils/filtering/configs/mood-config';
 
 // Import consolidated social context configuration
 import { SocialUtils } from '../../utils/filtering/configs/social-config';
@@ -137,11 +137,13 @@ function isPlaceOpenAtTime(place: any, timeOfDay: string | null): boolean {
  * Filter places by budget (price level)
  */
 function filterByBudget(places: any[], budget: string | null): any[] {
-  if (!budget || !BUDGET_PRICE_MAPPING[budget as keyof typeof BUDGET_PRICE_MAPPING]) {
+  if (!budget || !(budget in BUDGET_PRICE_MAPPING)) {
     return places;
   }
   
-  const allowedPriceLevels = BUDGET_PRICE_MAPPING[budget as keyof typeof BUDGET_PRICE_MAPPING];
+  // Type assertion to ensure budget is a valid key and get the correct type
+  const budgetKey = budget as 'P' | 'PP' | 'PPP';
+  const allowedPriceLevels: readonly number[] = BUDGET_PRICE_MAPPING[budgetKey];
   
   return places.filter((place: any) => {
     // If no price level data, include in budget-friendly results
@@ -149,7 +151,13 @@ function filterByBudget(places: any[], budget: string | null): any[] {
       return budget === 'P'; // Only include in budget-friendly
     }
     
-    return allowedPriceLevels.includes(place.price_level);
+    // Ensure price_level is a number and check if it's in allowed levels
+    const priceLevel = Number(place.price_level);
+    if (isNaN(priceLevel)) {
+      return budget === 'P'; // Include unknown price levels in budget-friendly
+    }
+    
+    return allowedPriceLevels.includes(priceLevel);
   });
 }
 
@@ -456,11 +464,7 @@ async function fetchPlacesWithRetry(
 }
 */
 
-// LEGACY: Function preserved for compatibility with existing code
-async function enhancePlaceWithDetails(place: any): Promise<any | null> {
-  // Enhanced place processing will be integrated into the main filtering logic
-  return place;
-}
+
 
 /*
 async function fetchPlaceDetailsWithRetry(placeId: string, maxRetries: number = 2): Promise<any | null> {
@@ -738,7 +742,15 @@ async function performFiltering(
     }
     
     // Limit to requested results
-    const finalResults = filteredPlaces.slice(0, Math.max(minResults, 10));
+    const limitedResults = filteredPlaces.slice(0, Math.max(minResults, 10));
+    
+    // Enhance results with AI descriptions
+    const finalResults = await Promise.all(
+      limitedResults.map(async (place) => ({
+        ...place,
+        description: await generateAIDescription(place, filters)
+      }))
+    );
     
     console.log('✅ Enhanced filtering completed:', {
       totalFound: places.length,
@@ -759,11 +771,21 @@ async function performFiltering(
     
     // Fallback to basic restaurant search
     const fallbackResults = await fetchRealRestaurants(filters);
+    const limitedFallbackResults = fallbackResults.slice(0, minResults);
+    
+    // Enhance fallback results with AI descriptions
+    const enhancedFallbackResults = await Promise.all(
+      limitedFallbackResults.map(async (place) => ({
+        ...place,
+        description: await generateAIDescription(place, filters)
+      }))
+    );
+    
     return {
-      results: fallbackResults.slice(0, minResults),
+      results: enhancedFallbackResults,
       source: 'api',
       cacheHit: false,
-      totalResults: fallbackResults.length
+      totalResults: enhancedFallbackResults.length
     };
   }
 }

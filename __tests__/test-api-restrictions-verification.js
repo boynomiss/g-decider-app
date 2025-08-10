@@ -13,7 +13,7 @@ const testAPIRestrictions = async () => {
   // Test 1: Google Places API with detailed response
   console.log('🔧 Test 1: Google Places API Restrictions');
   try {
-    const apiKey = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
     const testUrl = `https://places.googleapis.com/v1/places:searchNearby`;
     
     const response = await fetch(testUrl, {

@@ -38,7 +38,7 @@ const mockAdvertisedPlaces = [
 ];
 
 export default function DiscoveryDemo() {
-  const { filters, updateFilters } = useAppStore();
+  const { filters, updateUserLocation } = useAppStore();
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
 
   // Get user location on mount
@@ -59,7 +59,7 @@ export default function DiscoveryDemo() {
           lng: location.coords.longitude
         };
         setUserLocation(coords);
-        updateFilters({ userLocation: coords });
+        updateUserLocation(coords);
         console.log('📍 User location obtained:', coords);
       } catch (error) {
         console.error('Error getting location:', error);

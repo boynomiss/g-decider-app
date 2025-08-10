@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as React from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  isPremium: boolean;
+  createdAt: string;
 }
 
 interface AuthContextType {
@@ -14,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  upgradeToPremium: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,6 +50,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: '1',
         name: 'Demo User',
         email: email,
+        isPremium: false,
+        createdAt: new Date().toISOString()
       };
       setUser(mockUser);
     } catch (error) {
@@ -76,6 +82,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: '1',
         name: name,
         email: email,
+        isPremium: false,
+        createdAt: new Date().toISOString()
       };
       setUser(mockUser);
     } catch (error) {
@@ -86,6 +94,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const upgradeToPremium = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user) {
+        return { success: false, error: 'User not authenticated' };
+      }
+      
+      // Simulate premium upgrade - in a real app, this would call your payment API
+      const updatedUser: User = {
+        ...user,
+        isPremium: true
+      };
+      setUser(updatedUser);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Premium upgrade failed:', error);
+      return { success: false, error: 'Failed to upgrade to premium' };
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -93,6 +121,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     logout,
     register,
+    upgradeToPremium,
   };
 
   return (

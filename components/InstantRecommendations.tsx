@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, MapPin, Clock, TrendingUp, Star } from 'lucide-react-native';
+import { Zap, MapPin, Clock, TrendingUp, Star } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '@/types/filtering';
 import EnhancedPlaceCard from './EnhancedPlaceCard';
 
@@ -200,7 +200,7 @@ export default function InstantRecommendations({
           colors={['#C8A8E9', '#B19CD9']}
           style={styles.loadingGradient}
         >
-          <Sparkles size={32} color="#FFFFFF" />
+          <Zap size={32} color="#FFFFFF" />
           <Text style={styles.loadingText}>Loading instant recommendations...</Text>
         </LinearGradient>
       </View>
@@ -214,7 +214,7 @@ export default function InstantRecommendations({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Sparkles size={24} color="#8B5FBF" />
+          <Zap size={24} color="#8B5FBF" />
           <Text style={styles.headerTitle}>Instant Recommendations</Text>
         </View>
         <Text style={styles.headerSubtitle}>

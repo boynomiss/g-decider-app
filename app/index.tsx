@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import * as React from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, ScrollView, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

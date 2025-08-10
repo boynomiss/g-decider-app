@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Sparkles } from 'lucide-react-native';
+import { Settings, Zap } from 'lucide-react-native';
 import Header from '../components/Header';
 import AdPlacement from '../components/AdPlacement';
 import CategoryButtons from '../components/CategoryButtons';
@@ -23,7 +23,7 @@ export default function EnhancedHomeScreen() {
     showMoreFilters, 
     filters, 
     updateFilters,
-    generateSuggestion 
+    userLocation
   } = useAppStore();
   
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -51,29 +51,7 @@ export default function EnhancedHomeScreen() {
   };
 
   const handlePlaceSelect = (place: PlaceData) => {
-    // Convert PlaceData to Suggestion format for compatibility
-    const suggestion = {
-      id: place.place_id,
-      name: place.name,
-      location: place.address,
-      images: place.photos?.medium || [],
-      budget: place.price_level === 1 ? 'P' as const : 
-              place.price_level === 2 ? 'PP' as const : 
-              place.price_level === 3 ? 'PPP' as const : 'PP' as const,
-      tags: place.types?.slice(0, 3) || [],
-      description: place.editorial_summary || `${place.name} is a ${place.category} in ${place.address}`,
-      category: place.category as 'food' | 'activity' | 'something-new',
-      mood: place.final_mood as 'chill' | 'hype' | 'both',
-      socialContext: ['solo', 'with-bae', 'barkada'] as const,
-      timeOfDay: ['morning', 'afternoon', 'night'] as const,
-      coordinates: place.location,
-      rating: place.rating,
-      reviewCount: place.user_ratings_total,
-      website: place.contact?.website
-    };
-    
-    // Update current suggestion and navigate
-    updateFilters({ currentSuggestion: suggestion });
+    // Navigate to result page - the suggestion will be handled by the app store
     router.push('/result');
   };
 
@@ -110,7 +88,7 @@ export default function EnhancedHomeScreen() {
             colors={['#8B5FBF', '#9C6ECC']}
             style={styles.recommendationsGradient}
           >
-            <Sparkles size={20} color="#FFFFFF" />
+            <Zap size={20} color="#FFFFFF" />
             <Text style={styles.recommendationsText}>Instant Recommendations</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -158,7 +136,7 @@ export default function EnhancedHomeScreen() {
         <InstantRecommendations
           onPlaceSelect={handlePlaceSelect}
           onRefresh={handleRefreshRecommendations}
-          userLocation={filters.userLocation}
+          {...(userLocation && { userLocation })}
           maxRecommendations={5}
         />
       </View>
@@ -193,7 +171,7 @@ export default function EnhancedHomeScreen() {
             <InstantRecommendations
               onPlaceSelect={handlePlaceSelect}
               onRefresh={handleRefreshRecommendations}
-              userLocation={filters.userLocation}
+              {...(userLocation && { userLocation })}
             />
           </View>
         </View>
@@ -205,7 +183,7 @@ export default function EnhancedHomeScreen() {
     }
 
     return <ScrollableContent />;
-  }, [showMoreFilters, showRecommendations, filters.userLocation]);
+  }, [showMoreFilters, showRecommendations, userLocation]);
 
   return (
     <LinearGradient

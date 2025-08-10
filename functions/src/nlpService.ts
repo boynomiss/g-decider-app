@@ -410,7 +410,7 @@ export class NLPService {
     
     // Simple entity extraction based on capitalization and common patterns
     words.forEach((word, index) => {
-      if (word.length > 3 && word[0] === word[0].toUpperCase()) {
+      if (word && word.length > 3 && word[0] && word[0] === word[0].toUpperCase()) {
         entities.push({
           name: word,
           type: 'UNKNOWN',

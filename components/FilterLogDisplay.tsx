@@ -5,7 +5,7 @@ import { useSearchPreview, useFilterChangeTracker } from '@/hooks/use-dynamic-fi
 import { getCategoryFilter } from '@/utils/filtering/configs/category-config';
 import { getMoodCategory } from '@/utils/filtering/configs/mood-config';
 import { getSocialContext } from '@/utils/filtering/configs/social-config';
-import { getBudgetCategory } from '@/utils/filtering/configs/budget-config-refactored';
+import { getBudgetCategory } from '@/utils/filtering/configs/budget-config';
 import { getTimeCategory } from '@/utils/filtering/configs/time-config';
 import { getDistanceCategory } from '@/utils/filtering/configs/distance-config';
 

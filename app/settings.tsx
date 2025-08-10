@@ -23,10 +23,7 @@ import {
   Edit,
   Bookmark
 } from 'lucide-react-native';
-import Shield from 'lucide-react-native/dist/esm/icons/shield';
-import CreditCard from 'lucide-react-native/dist/esm/icons/credit-card';
-import LogOut from 'lucide-react-native/dist/esm/icons/log-out';
-import ChevronRight from 'lucide-react-native/dist/esm/icons/chevron-right';
+import { Shield, CreditCard, LogOut, ChevronRight } from 'lucide-react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function SettingsScreen() {

@@ -106,7 +106,7 @@ const generateFallbackDescription = (category: string, placeName: string, budget
   };
   
   const categoryDescriptions = descriptions[category as keyof typeof descriptions] || descriptions.food;
-  const baseDescription = categoryDescriptions[Math.floor(Math.random() * categoryDescriptions.length)];
+  const baseDescription = categoryDescriptions[Math.floor(Math.random() * categoryDescriptions.length)] || 'A great place to visit.';
   
   // Add budget information if available
   if (budget) {
@@ -138,7 +138,7 @@ const generateBlogStyleDescription = (placeName: string, category: string, theme
   };
   
   const templates = blogTemplates[category as keyof typeof blogTemplates] || blogTemplates.food;
-  return templates[Math.floor(Math.random() * templates.length)];
+  return templates[Math.floor(Math.random() * templates.length)] || templates[0] || 'A great place to visit.';
 };
 
 // Main function: Generate comprehensive description
@@ -195,5 +195,5 @@ export const generateShortDescription = (
   };
   
   const templates = shortTemplates[category as keyof typeof shortTemplates] || shortTemplates.food;
-  return templates[Math.floor(Math.random() * templates.length)];
+  return templates[Math.floor(Math.random() * templates.length)] || templates[0] || 'A great place to visit.';
 }; 

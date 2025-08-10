@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
-  ScrollView, 
-  Alert,
-  ActivityIndicator 
-} from 'react-native';
-import { usePlaceMood, useMoodFiltering } from '@/hooks/use-place-mood';
-import type { PlaceMoodData } from '@/types/filtering';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { usePlaceMood } from '../hooks/use-place-mood';
+import { PlaceMoodData as PlaceData } from '../types/filtering';
 
 interface PlaceMoodManagerProps {
   googlePlacesApiKey: string;
@@ -23,31 +14,40 @@ export default function PlaceMoodManager({
 }: PlaceMoodManagerProps) {
   const [placeIdInput, setPlaceIdInput] = useState('');
   const [batchPlaceIds, setBatchPlaceIds] = useState('');
+  const [moodFilter, setMoodFilter] = useState<'all' | 'chill' | 'neutral' | 'hype'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
-    isLoading,
-    error,
     places,
     moodStats,
     enhanceSinglePlace,
-    enhanceMultiplePlaces,
-    clearPlaces,
-    clearError,
-    getMoodCategory,
-    getRandomMoodLabel
+    enhanceMultiplePlaces
   } = usePlaceMood({
     googlePlacesApiKey,
     googleCloudCredentials
   });
 
-  const {
-    moodFilter,
-    setMoodFilter,
-    searchQuery,
-    setSearchQuery,
-    filteredPlaces,
-    totalResults
-  } = useMoodFiltering(places);
+  // Get mood category from score
+  const getMoodCategory = (score: number): 'chill' | 'neutral' | 'hype' => {
+    if (score >= 66.66) return 'hype';
+    if (score <= 33.33) return 'chill';
+    return 'neutral';
+  };
+
+
+
+  // Filter places based on mood and search query
+  const filteredPlaces = places.filter(place => {
+    const matchesMood = moodFilter === 'all' || (place.final_mood && place.final_mood === moodFilter);
+    const matchesSearch = !searchQuery || 
+      (place.name && place.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (place.address && place.address.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesMood && matchesSearch;
+  });
+
+  const totalResults = filteredPlaces.length;
 
   // Handle single place enhancement
   const handleEnhanceSinglePlace = async () => {
@@ -56,13 +56,22 @@ export default function PlaceMoodManager({
       return;
     }
 
-    const result = await enhanceSinglePlace(placeIdInput.trim());
-    if (result) {
-      setPlaceIdInput('');
-      Alert.alert(
-        'Success!', 
-        `Enhanced ${result.name} with mood: ${result.final_mood}`
-      );
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await enhanceSinglePlace(placeIdInput.trim());
+      if (result) {
+        setPlaceIdInput('');
+        Alert.alert(
+          'Success!', 
+          `Enhanced ${result.name || 'Unknown Place'} with mood: ${result.final_mood || 'Not analyzed'}`
+        );
+      }
+    } catch (err) {
+      setError('Failed to enhance place. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -83,12 +92,21 @@ export default function PlaceMoodManager({
       return;
     }
 
-    const results = await enhanceMultiplePlaces(placeIds);
-    setBatchPlaceIds('');
-    Alert.alert(
-      'Batch Complete!', 
-      `Enhanced ${results.length} out of ${placeIds.length} places`
-    );
+    setIsLoading(true);
+    setError(null);
+    try {
+      const results = await enhanceMultiplePlaces(placeIds);
+      setBatchPlaceIds('');
+      Alert.alert(
+        'Batch Complete!', 
+        `Enhanced ${results.length} out of ${placeIds.length} places`
+      );
+    } catch (err) {
+      setError('Failed to enhance batch places. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Get mood color
@@ -120,7 +138,7 @@ export default function PlaceMoodManager({
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={clearError} style={styles.clearErrorButton}>
+          <TouchableOpacity onPress={() => setError(null)} style={styles.clearErrorButton}>
             <Text style={styles.clearErrorText}>Dismiss</Text>
           </TouchableOpacity>
         </View>
@@ -249,14 +267,14 @@ export default function PlaceMoodManager({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Enhanced Places</Text>
-            <TouchableOpacity onPress={clearPlaces} style={styles.clearButton}>
+            <TouchableOpacity onPress={() => {}} style={styles.clearButton}>
               <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
           </View>
 
           {filteredPlaces.map((place, index) => (
             <PlaceCard
-              key={place.place_id}
+              key={place.place_id || `place-${index}`}
               place={place}
               moodColor={getMoodColor(place.mood_score)}
               moodEmoji={getMoodEmoji(place.mood_score)}
@@ -296,42 +314,48 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
     <View style={styles.placeCard}>
       <View style={styles.placeHeader}>
         <View style={styles.placeNameContainer}>
-          <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeCategory}>{place.category}</Text>
+          <Text style={styles.placeName}>{place.name || 'Unknown Place'}</Text>
+          {place.category && (
+            <Text style={styles.placeCategory}>
+              {place.category.charAt(0).toUpperCase() + place.category.slice(1).toLowerCase()}
+            </Text>
+          )}
         </View>
         <View style={styles.moodContainer}>
           <Text style={styles.moodEmoji}>{moodEmoji}</Text>
           <Text style={[styles.moodScore, { color: moodColor }]}>
-            {place.mood_score}
+            {place.mood_score !== undefined ? place.mood_score : 'N/A'}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.placeAddress}>{place.address}</Text>
+      {place.address && <Text style={styles.placeAddress}>{place.address}</Text>}
 
       <View style={styles.placeDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Final Mood:</Text>
-          <Text style={[styles.detailValue, { color: moodColor }]}>
-            {place.final_mood}
-          </Text>
-        </View>
+        {place.final_mood && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Final Mood:</Text>
+            <Text style={[styles.detailValue, { color: moodColor }]}>
+              {place.final_mood}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Category:</Text>
           <Text style={styles.detailValue}>
-            {place.mood_score ? getMoodCategory(place.mood_score) : 'Unknown'}
+            {place.mood_score !== undefined && place.mood_score !== null ? getMoodCategory(place.mood_score) : 'Unknown'}
           </Text>
         </View>
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Rating:</Text>
           <Text style={styles.detailValue}>
-            {place.rating}/5 ({place.user_ratings_total} reviews)
+            {place.rating || 0}/5 ({place.user_ratings_total || 0} reviews)
           </Text>
         </View>
 
-        {place.current_busyness !== undefined && (
+        {place.current_busyness !== undefined && place.current_busyness !== null && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Current Busyness:</Text>
             <Text style={styles.detailValue}>{place.current_busyness}%</Text>
@@ -531,7 +555,6 @@ const styles = StyleSheet.create({
   placeCategory: {
     fontSize: 12,
     color: '#666',
-    textTransform: 'capitalize',
   },
   moodContainer: {
     alignItems: 'center',

@@ -296,9 +296,13 @@ export class FilterConversion {
       timeOfDay: this.CONVERTERS.legacyToNew.timeOfDay(filters.timeOfDay),
       maxRadius: Math.min(20000, Math.max(1000, (filters.distanceRange / 100) * 20000)),
       minResults: 4,
-      maxResults: 20,
-      apiKey: process.env.GOOGLE_MAPS_API_KEY
+      maxResults: 20
     };
+
+    // Add apiKey only if it exists
+    if (process.env.GOOGLE_MAPS_API_KEY) {
+      searchParams.apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    }
 
     // Add optional properties only if they have values
     const socialContext = this.CONVERTERS.legacyToNew.socialContext(filters.socialContext);
@@ -608,7 +612,7 @@ export class FilterCoreUtils {
     func: T,
     wait: number
   ): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout;
+    let timeout: number;
     return (...args: Parameters<T>) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func.apply(null, args), wait);

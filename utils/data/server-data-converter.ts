@@ -1,5 +1,5 @@
-import { PlaceMoodData, ReviewEntity } from '../../types/filtering';
 import { ServerPlaceData, ServerFilteringResponse, isValidServerPlaceData, isValidServerFilteringResponse } from '../../types/server-filtering';
+import { PlaceMoodData as PlaceData, ReviewEntity as Review } from '../../types/filtering';
 
 /**
  * Converts server place data to client PlaceData format
@@ -21,8 +21,9 @@ export function convertServerPlaceToPlaceData(serverPlace: ServerPlaceData): Pla
   // Convert budget to price level
   const priceLevel = serverPlace.budget === 'P' ? 1 : serverPlace.budget === 'PP' ? 2 : 3;
 
-  // Convert mood to mood score
+  // Convert mood to mood score and map 'both' to 'neutral'
   const moodScore = serverPlace.mood === 'chill' ? 25 : serverPlace.mood === 'hype' ? 75 : 50;
+  const finalMood = serverPlace.mood === 'both' ? 'neutral' : serverPlace.mood;
 
   return {
     place_id: serverPlace.id,
@@ -33,13 +34,7 @@ export function convertServerPlaceToPlaceData(serverPlace: ServerPlaceData): Pla
     rating: serverPlace.rating || 0,
     reviews: convertedReviews,
     images: {
-      urls: serverPlace.images || [],
-      metadata: {
-        totalImages: (serverPlace.images || []).length,
-        authenticImages: (serverPlace.images || []).length,
-        averageConfidence: 1.0,
-        sources: ['server']
-      }
+      urls: serverPlace.images || []
     },
     photos: {
       thumbnail: serverPlace.images || [],
@@ -50,7 +45,7 @@ export function convertServerPlaceToPlaceData(serverPlace: ServerPlaceData): Pla
     location: serverPlace.coordinates && serverPlace.coordinates.lat !== 0 && serverPlace.coordinates.lng !== 0 
       ? serverPlace.coordinates 
       : { lat: 14.5176, lng: 121.0509 }, // Fallback to BGC coordinates
-    website: serverPlace.website,
+    ...(serverPlace.website && { website: serverPlace.website }),
     description: serverPlace.description,
     vicinity: serverPlace.location !== 'Unknown Location' ? serverPlace.location : 'BGC, Taguig City',
     formatted_address: serverPlace.location !== 'Unknown Location' ? serverPlace.location : 'BGC, Taguig City',
@@ -58,15 +53,15 @@ export function convertServerPlaceToPlaceData(serverPlace: ServerPlaceData): Pla
     price_level: priceLevel,
     opening_hours: serverPlace.openHours ? { open_now: true } : undefined,
     mood_score: moodScore,
-    final_mood: serverPlace.mood,
+    final_mood: finalMood,
     contact: {
-      website: serverPlace.website,
+      ...(serverPlace.website && { website: serverPlace.website }),
       hasContact: !!serverPlace.website
     },
     contactActions: {
       canCall: false,
       canVisitWebsite: !!serverPlace.website,
-      websiteUrl: serverPlace.website
+      ...(serverPlace.website && { websiteUrl: serverPlace.website })
     }
   };
 }
@@ -110,13 +105,7 @@ export function convertServerResponse(response: any): {
         rating: 0,
         reviews: [],
         images: {
-          urls: [],
-          metadata: {
-            totalImages: 0,
-            authenticImages: 0,
-            averageConfidence: 0,
-            sources: ['fallback']
-          }
+          urls: []
         },
         photos: {
           thumbnail: [],
@@ -151,7 +140,7 @@ export function convertServerResponse(response: any): {
       queryOptimization: response.metadata.queryOptimization,
       source: response.source,
       cacheHit: response.cacheHit,
-      totalResults: response.totalResults
+      totalResults: response.results.length
     }
   };
 }

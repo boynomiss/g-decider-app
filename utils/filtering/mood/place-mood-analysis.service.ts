@@ -193,17 +193,20 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
     
     const results: PlaceMoodData[] = [];
     
-    for (let i = 0; i < placeIds.length; i++) {
-      const placeId = placeIds[i];
+    // Filter out undefined or null place IDs
+    const validPlaceIds = placeIds.filter((id): id is string => Boolean(id) && typeof id === 'string');
+    
+    for (let i = 0; i < validPlaceIds.length; i++) {
+      const placeId = validPlaceIds[i];
       
       try {
-        this.logInfo('place-batch-enhancement', `Processing place ${i + 1}/${placeIds.length}: ${placeId}`);
-        const enhancedPlace = await this.enhancePlaceWithMood(placeId);
+        this.logInfo('place-batch-enhancement', `Processing place ${i + 1}/${validPlaceIds.length}: ${placeId}`);
+        const enhancedPlace = await this.enhancePlaceWithMood(placeId!);
         results.push(enhancedPlace);
         
         // Rate limiting
-        if (i < placeIds.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (i < validPlaceIds.length - 1) {
+          await new Promise(resolve => setTimeout(resolve as () => void, 100));
         }
         
       } catch (error) {
@@ -212,7 +215,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       }
     }
     
-    this.logInfo('place-batch-enhancement', `Batch processing complete: ${results.length}/${placeIds.length} successful`);
+    this.logInfo('place-batch-enhancement', `Batch processing complete: ${results.length}/${validPlaceIds.length} successful`);
     return results;
   }
 
@@ -240,7 +243,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
     let totalConfidence = 0;
 
     places.forEach(place => {
-      if (place.mood_analysis) {
+      if (place.mood_analysis && place.mood_analysis.category) {
         totalScore += place.mood_analysis.score;
         totalConfidence += place.mood_analysis.confidence;
         

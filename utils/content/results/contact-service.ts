@@ -1,7 +1,8 @@
 import { Linking, Platform } from 'react-native';
+import { getAPIKey, validateAPIKeys } from '../../config/api-keys';
 
 // Google Places API configuration
-const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+const GOOGLE_API_KEY = getAPIKey.places();
 const GOOGLE_PLACES_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
 
 interface ContactInfo {
@@ -184,7 +185,7 @@ export class ContactService {
       const randomPhone = phonePatterns[Math.floor(Math.random() * phonePatterns.length)];
       
       // Validate the phone number before returning
-      if (this.isValidPhoneNumber(randomPhone)) {
+      if (randomPhone && this.isValidPhoneNumber(randomPhone)) {
         return randomPhone;
       }
       

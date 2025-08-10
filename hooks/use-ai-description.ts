@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { aiDescriptionService } from '../utils/content/results/ai-description-service';
 import { Suggestion } from '../types/app';
-import { PlaceMoodData } from '../types/filtering';
+import { PlaceMoodData, PlaceData } from '../types/filtering';
 
 type DescriptionInput = Suggestion | PlaceData;
 
@@ -33,13 +33,18 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           location: input.location,
           budget: input.budget,
           tags: input.tags,
-          description: input.description,
-          reviews: input.reviews,
+          description: input.description || `${input.name} is a great place to visit.`,
+          reviews: (input.reviews || []).map(review => ({
+            author: 'Anonymous',
+            rating: review.rating,
+            text: review.text,
+            time: new Date(review.time).toISOString()
+          })),
           images: input.images,
           category: input.category,
           mood: getMoodNumber(input.mood),
-          socialContext: input.socialContext.join(', '),
-          timeOfDay: input.timeOfDay.join(', ')
+          socialContext: input.socialContext?.length ? input.socialContext.join(', ') : 'solo',
+          timeOfDay: input.timeOfDay?.length ? input.timeOfDay.join(', ') : 'morning'
         };
       } else {
         // PlaceData
@@ -48,8 +53,13 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           location: input.address || input.vicinity || input.formatted_address || 'Unknown location',
           budget: input.price_level === 1 ? 'P' : input.price_level === 2 ? 'PP' : 'PPP',
           tags: input.types || [],
-          description: input.description,
-          reviews: input.reviews,
+          description: input.description || `${input.name} is a great place to visit.`,
+          reviews: (input.reviews || []).map(review => ({
+            author: 'Anonymous',
+            rating: review.rating,
+            text: review.text,
+            time: new Date(review.time).toISOString()
+          })),
           images: input.photos?.medium || input.images?.urls || [],
           category: input.category,
           mood: getMoodNumber(input.final_mood || 'both'),

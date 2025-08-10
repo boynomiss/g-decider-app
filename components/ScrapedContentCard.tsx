@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { Search, Star, Calendar, MapPin, ExternalLink, Refresh, AlertCircle } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Search, Star, Calendar, ExternalLink, RefreshCw as Refresh, AlertCircle } from 'lucide-react-native';
 import { useScrapingService } from '../hooks/use-scraping-service';
 
 interface ScrapedDeal {

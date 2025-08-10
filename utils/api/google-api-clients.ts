@@ -10,12 +10,11 @@
  * instead of the Node.js SDKs which are not compatible with React Native.
  */
 
-// Import removed as it's not compatible with React Native
-// import { PlacesClient } from '@googlemaps/places';
+import { getAPIKey, validateAPIKeys } from '../config/api-keys';
 
 // Environment variables for API keys
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
+const GOOGLE_PLACES_API_KEY = getAPIKey.places();
+const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
 const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
 
 // Service account configuration
@@ -290,8 +289,8 @@ export function validateGoogleAPIConfig(): {
   naturalLanguageAPI: boolean;
   allConfigured: boolean;
 } {
-  const placesAPI = !!GOOGLE_PLACES_API_KEY && GOOGLE_PLACES_API_KEY !== 'your-google-places-api-key-here';
-  const naturalLanguageAPI = !!GOOGLE_NATURAL_LANGUAGE_API_KEY && GOOGLE_NATURAL_LANGUAGE_API_KEY !== 'your-google-natural-language-api-key-here';
+  const placesAPI = validateAPIKeys.isPlacesConfigured();
+  const naturalLanguageAPI = validateAPIKeys.isNaturalLanguageConfigured();
   
   return {
     placesAPI,

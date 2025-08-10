@@ -215,7 +215,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
       )
       .map((entity: any) => ({
         name: entity.name || '',
-        type: String(entity.type) || 'UNKNOWN',
+        type: entity.type ? String(entity.type) : 'UNKNOWN',
         salience: entity.salience || 0,
         sentiment: {
           score: entity.sentiment?.score || 0,
@@ -256,7 +256,7 @@ export class EntityMoodAnalysisService implements IEntityMoodService {
         allEntities.push(...entities);
         
         // Small delay to respect rate limits
-                  await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve as () => void, 100));
       } catch (error) {
         this.logWarn('entity-extraction', `Failed to analyze review: ${error}`);
         continue;

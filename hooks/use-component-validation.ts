@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 
 /**
  * Hook for runtime component validation
@@ -71,7 +71,7 @@ export function withComponentValidation<T extends React.ComponentType<any>>(
   });
 
   ValidatedComponent.displayName = `Validated(${componentName})`;
-  return ValidatedComponent as T;
+  return ValidatedComponent as unknown as T;
 }
 
 /**

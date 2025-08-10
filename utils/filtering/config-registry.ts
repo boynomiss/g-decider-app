@@ -38,7 +38,7 @@ import { DISTANCE_CATEGORIES } from './configs/distance-config';
 
 export class FilterConfigRegistry {
   private static instance: FilterConfigRegistry;
-  private configs: FilterConfigs;
+  private configs!: FilterConfigs;
   private configCache: Map<string, any> = new Map();
   private initialized: boolean = false;
 

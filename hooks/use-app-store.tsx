@@ -2,7 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
-import { UserFilters, AppState, Suggestion, AuthState, UnifiedFilters } from '../types/app';
+import { UserFilters, AppState, Suggestion, AuthState } from '../types/app';
 import { ApiReadyFilterData, PlaceMoodData, DiscoveryFilters, DiscoveryResult, LoadingState, PlaceResult, AdvertisedPlace } from '../types/filtering';
 import { useAuth } from './use-auth';
 import { PlaceDiscoveryLogic } from '../utils/filtering/unified-filter-service';
@@ -10,31 +10,13 @@ import { FilterCoreUtils as FilterUtilities } from '../utils/filtering/filter-co
 import { useDynamicFilterLogger } from './use-dynamic-filter-logger';
 import { FilterApiBridge } from '../utils/filtering/filter-api-service';
 import { PlaceMoodAnalysisService } from '../utils/filtering/mood/place-mood-analysis.service';
-import { getAPIKey, validateAPIKeys } from '../utils/config/api-keys';
 
 // API Configuration
-const GOOGLE_PLACES_API_KEY = getAPIKey.places();
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
-const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
+const GOOGLE_PLACES_API_KEY: string = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+const GOOGLE_NATURAL_LANGUAGE_API_KEY: string = process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '';
 
-// Default location (BGC, Philippines)
+// Default location (Manila, Philippines)
 const DEFAULT_LOCATION = { lat: 14.5176, lng: 121.0509 };
-
-// Enhanced app state interface
-interface EnhancedAppState extends AppState {
-  currentResults: DiscoveryResult | null;
-  isDiscovering: boolean;
-  discoveryError: string | null;
-  loadingState: LoadingState;
-  userLocation: { lat: number; lng: number } | null;
-  apiReadyFilters: Map<string, ApiReadyFilterData>;
-  serverFilteringEnabled: boolean;
-  serverFilteringError: string | null;
-  lastServerResponse: any;
-  isLegacyMode: boolean;
-  discoveryInitialized: boolean;
-  lastDiscoveryTimestamp: number;
-}
 
 // Convert PlaceResult or AdvertisedPlace to legacy Suggestion format
 const convertPlaceToSuggestion = (place: PlaceResult | AdvertisedPlace): Suggestion => {
@@ -45,10 +27,10 @@ const convertPlaceToSuggestion = (place: PlaceResult | AdvertisedPlace): Suggest
     images: [], // PlaceResult doesn't have photos property
     budget: place.price_level ? (['P', 'PP', 'PPP'][place.price_level - 1] as 'P' | 'PP' | 'PPP') : 'P',
     tags: place.types || [],
-    description: (place as any).descriptor || `${place.name} is a great place to visit.`,
+    description: place.descriptor || `${place.name} is a great place to visit.`,
     openHours: 'Unknown hours', // PlaceResult doesn't have weekday_text
     category: (place.category as 'food' | 'activity' | 'something-new') || 'food',
-    mood: place.final_mood === 'neutral' ? 'both' : (place.final_mood as 'chill' | 'hype') || 'both',
+    mood: place.final_mood as 'chill' | 'hype' | 'both' || 'both',
     socialContext: ['solo', 'with-bae', 'barkada'],
     timeOfDay: ['morning', 'afternoon', 'night'],
     coordinates: typeof place.location === 'object' && place.location ? {
@@ -70,8 +52,8 @@ const convertPlaceToSuggestion = (place: PlaceResult | AdvertisedPlace): Suggest
 const [AppContext, useAppStore] = createContextHook(() => {
   const auth = useAuth();
   const { logFilterChange } = useDynamicFilterLogger();
-  
-  const [state, setState] = useState<EnhancedAppState>({
+
+  const [state, setState] = useState<AppState>({
     filters: {
       mood: 50,
       category: null,
@@ -86,9 +68,6 @@ const [AppContext, useAppStore] = createContextHook(() => {
     showMoreFilters: false,
     effectiveFilters: null,
     auth: auth,
-    currentResults: null,
-    isDiscovering: false,
-    discoveryError: null,
     loadingState: 'initial',
     userLocation: null,
     apiReadyFilters: new Map(),
@@ -97,7 +76,10 @@ const [AppContext, useAppStore] = createContextHook(() => {
     lastServerResponse: undefined,
     isLegacyMode: false,
     discoveryInitialized: false,
-    lastDiscoveryTimestamp: 0
+    lastDiscoveryTimestamp: 0,
+    currentResults: null,
+    isDiscovering: false,
+    discoveryError: null
   });
 
   // Log initial filter state
@@ -153,10 +135,6 @@ const [AppContext, useAppStore] = createContextHook(() => {
       console.error('❌ Error getting location:', error);
       return DEFAULT_LOCATION;
     }
-  }, []);
-
-  const updateUserLocation = useCallback((location: { lat: number; lng: number }) => {
-    setState(prev => ({ ...prev, userLocation: location }));
   }, []);
 
   const convertToDiscoveryFilters = useCallback(async (): Promise<DiscoveryFilters> => {
@@ -220,7 +198,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
       
       // Log the dynamic filter message
       if (logFilterChange && changedFilter) {
-        logFilterChange(prev.filters as UnifiedFilters, updatedFilters as UnifiedFilters, changedFilter);
+        logFilterChange(prev.filters, updatedFilters, changedFilter);
       }
       
       return {
@@ -470,7 +448,6 @@ const [AppContext, useAppStore] = createContextHook(() => {
     discoveryInitialized: state.discoveryInitialized,
     lastDiscoveryTimestamp: state.lastDiscoveryTimestamp,
     updateFilters,
-    updateUserLocation,
     discoverPlaces,
     getNextBatch,
     resetDiscovery,

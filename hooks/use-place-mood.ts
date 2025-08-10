@@ -1,32 +1,33 @@
 import { useState, useCallback, useRef } from 'react';
-import { moodAnalysis } from '@/utils/filtering';
-import { PlaceMoodData, MoodAnalysisConfig } from '@/types/filtering';
+import { 
+  PlaceMoodData, 
+  MoodConfig 
+} from '../types/filtering';
+import { createPlaceMoodService } from '../utils/filtering/mood/mood-service-factory';
 
 interface UsePlaceMoodOptions {
   googlePlacesApiKey: string;
-  googleCloudCredentials?: any;
+  googleCloudCredentials?: string;
+  config?: Partial<MoodConfig>;
 }
 
 interface UsePlaceMoodReturn {
-  // State
-  isLoading: boolean;
-  error: string | null;
-  places: PlaceData[];
+  places: PlaceMoodData[];
   moodStats: {
     total: number;
     chill: number;
     neutral: number;
     hype: number;
     averageScore: number;
+    averageConfidence: number;
   } | null;
-
-  // Actions
-  enhanceSinglePlace: (placeId: string) => Promise<PlaceData | null>;
-  enhanceMultiplePlaces: (placeIds: string[]) => Promise<PlaceData[]>;
+  enhanceSinglePlace: (placeId: string) => Promise<PlaceMoodData | null>;
+  enhanceMultiplePlaces: (placeIds: string[]) => Promise<PlaceMoodData[]>;
+  updateMoodStats: (placesData: PlaceMoodData[]) => void;
+  isLoading: boolean;
+  error: string | null;
   clearPlaces: () => void;
   clearError: () => void;
-  
-  // Utilities
   getMoodCategory: (score: number) => 'chill' | 'neutral' | 'hype';
   getRandomMoodLabel: (category: 'chill' | 'neutral' | 'hype') => string;
 }
@@ -34,15 +35,15 @@ interface UsePlaceMoodReturn {
 export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [places, setPlaces] = useState<PlaceData[]>([]);
+  const [places, setPlaces] = useState<PlaceMoodData[]>([]);
   const [moodStats, setMoodStats] = useState<UsePlaceMoodReturn['moodStats']>(null);
 
   // Create service instance (memoized)
-  const serviceRef = useRef<PlaceMoodService | null>(null);
+  const serviceRef = useRef<any | null>(null); // Changed to any as PlaceMoodService is removed
   
   const getService = useCallback(() => {
     if (!serviceRef.current) {
-      serviceRef.current = new PlaceMoodService(
+      serviceRef.current = createPlaceMoodService(
         options.googlePlacesApiKey,
         options.googleCloudCredentials
       );
@@ -51,19 +52,19 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
   }, [options.googlePlacesApiKey, options.googleCloudCredentials]);
 
   // Update mood statistics
-  const updateMoodStats = useCallback((placesData: PlaceData[]) => {
-    if (placesData.length === 0) {
-      setMoodStats(null);
-      return;
+  const updateMoodStats = useCallback((placesData: PlaceMoodData[]) => {
+    if (!serviceRef.current) return;
+    
+    try {
+      const stats = serviceRef.current.getMoodStatistics(placesData);
+      setMoodStats(stats);
+    } catch (error) {
+      console.error('Error updating mood stats:', error);
     }
-
-    const service = getService();
-    const stats = service.getMoodStatistics(placesData);
-    setMoodStats(stats);
-  }, [getService]);
+  }, []);
 
   // Enhance a single place
-  const enhanceSinglePlace = useCallback(async (placeId: string): Promise<PlaceData | null> => {
+  const enhanceSinglePlace = useCallback(async (placeId: string): Promise<PlaceMoodData | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -76,7 +77,7 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
       // Add to places array
       setPlaces(prevPlaces => {
         const existingIndex = prevPlaces.findIndex(p => p.place_id === placeId);
-        let newPlaces: PlaceData[];
+        let newPlaces: PlaceMoodData[];
         
         if (existingIndex >= 0) {
           // Update existing place
@@ -107,7 +108,7 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
   }, [getService, updateMoodStats]);
 
   // Enhance multiple places
-  const enhanceMultiplePlaces = useCallback(async (placeIds: string[]): Promise<PlaceData[]> => {
+  const enhanceMultiplePlaces = useCallback(async (placeIds: string[]): Promise<PlaceMoodData[]> => {
     setIsLoading(true);
     setError(null);
 
@@ -121,20 +122,36 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
       setPlaces(prevPlaces => {
         const newPlaces = [...prevPlaces];
         
-        enhancedPlaces.forEach(enhancedPlace => {
-          const existingIndex = newPlaces.findIndex(p => p.place_id === enhancedPlace.place_id);
-          
-          if (existingIndex >= 0) {
-            // Update existing place
-            newPlaces[existingIndex] = enhancedPlace;
-          } else {
-            // Add new place
-            newPlaces.push(enhancedPlace);
+        enhancedPlaces.forEach((enhancedPlace: PlaceMoodData) => {
+          if (enhancedPlace.mood_analysis) {
+            setMoodStats(prev => {
+              if (!prev) return {
+                total: 1,
+                chill: enhancedPlace.mood_analysis!.category === 'chill' ? 1 : 0,
+                neutral: enhancedPlace.mood_analysis!.category === 'neutral' ? 1 : 0,
+                hype: enhancedPlace.mood_analysis!.category === 'hype' ? 1 : 0,
+                averageScore: enhancedPlace.mood_analysis!.score,
+                averageConfidence: enhancedPlace.mood_analysis!.confidence
+              };
+              
+              const newTotal = prev.total + 1;
+              const newChill = prev.chill + (enhancedPlace.mood_analysis!.category === 'chill' ? 1 : 0);
+              const newNeutral = prev.neutral + (enhancedPlace.mood_analysis!.category === 'neutral' ? 1 : 0);
+              const newHype = prev.hype + (enhancedPlace.mood_analysis!.category === 'hype' ? 1 : 0);
+              const newAverageScore = ((prev.averageScore * prev.total) + enhancedPlace.mood_analysis!.score) / newTotal;
+              const newAverageConfidence = ((prev.averageConfidence * prev.total) + enhancedPlace.mood_analysis!.confidence) / newTotal;
+              
+              return {
+                total: newTotal,
+                chill: newChill,
+                neutral: newNeutral,
+                hype: newHype,
+                averageScore: newAverageScore,
+                averageConfidence: newAverageConfidence
+              };
+            });
           }
         });
-        
-        // Update stats
-        updateMoodStats(newPlaces);
         
         return newPlaces;
       });
@@ -172,14 +189,15 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
   }, []);
 
   const getRandomMoodLabel = useCallback((category: 'chill' | 'neutral' | 'hype'): string => {
-    const MOOD_LABELS: MoodConfig = {
+    const MOOD_LABELS = {
       chill: ['Relaxed', 'Low-Key', 'Cozy', 'Mellow', 'Calm'],
       neutral: ['Balanced', 'Standard', 'Casual', 'Average', 'Steady'],
       hype: ['Vibrant', 'Lively', 'Buzzing', 'Energetic', 'Electric']
     };
     
     const labels = MOOD_LABELS[category];
-    return labels[Math.floor(Math.random() * labels.length)];
+    if (!labels || labels.length === 0) return 'Unknown';
+    return labels[Math.floor(Math.random() * labels.length)] || 'Unknown';
   }, []);
 
   return {
@@ -192,6 +210,7 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
     // Actions
     enhanceSinglePlace,
     enhanceMultiplePlaces,
+    updateMoodStats,
     clearPlaces,
     clearError,
 
@@ -202,13 +221,13 @@ export const usePlaceMood = (options: UsePlaceMoodOptions): UsePlaceMoodReturn =
 };
 
 // Additional hook for mood filtering and searching
-export const useMoodFiltering = (places: PlaceData[]) => {
+export const useMoodFiltering = (places: PlaceMoodData[]) => {
   const [moodFilter, setMoodFilter] = useState<'all' | 'chill' | 'neutral' | 'hype'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredPlaces = places.filter(place => {
     // Apply mood filter
-    if (moodFilter !== 'all' && place.mood_score !== undefined) {
+    if (moodFilter !== 'all' && place.mood_score !== undefined && place.mood_score !== null) {
       const category = place.mood_score >= 70 ? 'hype' : 
                      place.mood_score <= 30 ? 'chill' : 'neutral';
       if (category !== moodFilter) return false;
@@ -218,10 +237,10 @@ export const useMoodFiltering = (places: PlaceData[]) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
-        place.name.toLowerCase().includes(query) ||
-        place.address.toLowerCase().includes(query) ||
+        (place.name && place.name.toLowerCase().includes(query)) ||
+        (place.address && place.address.toLowerCase().includes(query)) ||
         place.final_mood?.toLowerCase().includes(query) ||
-        place.category.toLowerCase().includes(query)
+        (place.category && place.category.toLowerCase().includes(query))
       );
     }
 

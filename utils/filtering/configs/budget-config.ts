@@ -9,6 +9,7 @@ export interface BudgetCategory {
   googlePriceLevel: number;
   description: string;
   preferredPlaceTypes: string[];
+  atmosphereKeywords: string[]; // For compatibility with existing code
 }
 
 // Single consolidated budget configuration
@@ -20,7 +21,8 @@ export const BUDGET_CATEGORIES: BudgetCategory[] = [
     priceRange: { min: 0, max: 500 },
     googlePriceLevel: 1,
     description: 'Affordable dining and activities',
-    preferredPlaceTypes: ['cafe', 'bakery', 'food', 'meal_takeaway', 'convenience_store', 'supermarket']
+    preferredPlaceTypes: ['cafe', 'bakery', 'food', 'meal_takeaway', 'convenience_store', 'supermarket'],
+    atmosphereKeywords: ['casual', 'simple', 'basic', 'affordable', 'no-frills']
   },
   { 
     id: 'PP', 
@@ -29,7 +31,8 @@ export const BUDGET_CATEGORIES: BudgetCategory[] = [
     priceRange: { min: 500, max: 1500 },
     googlePriceLevel: 2,
     description: 'Mid-range dining and experiences',
-    preferredPlaceTypes: ['restaurant', 'cafe', 'bar', 'movie_theater', 'museum', 'art_gallery']
+    preferredPlaceTypes: ['restaurant', 'cafe', 'bar', 'movie_theater', 'museum', 'art_gallery'],
+    atmosphereKeywords: ['comfortable', 'pleasant', 'decent', 'moderate', 'balanced']
   },
   { 
     id: 'PPP', 
@@ -38,7 +41,8 @@ export const BUDGET_CATEGORIES: BudgetCategory[] = [
     priceRange: { min: 1500, max: 5000 },
     googlePriceLevel: 3,
     description: 'High-end dining and luxury experiences',
-    preferredPlaceTypes: ['restaurant', 'bar', 'night_club', 'spa', 'casino', 'hotel']
+    preferredPlaceTypes: ['restaurant', 'bar', 'night_club', 'spa', 'casino', 'hotel'],
+    atmosphereKeywords: ['luxurious', 'elegant', 'sophisticated', 'premium', 'exclusive']
   }
 ] as const;
 

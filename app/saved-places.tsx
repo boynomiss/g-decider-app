@@ -8,6 +8,7 @@ import { useSavedPlaces } from '../hooks/use-saved-places';
 import { useContact } from '../hooks/use-contact';
 import { contactService } from '../utils/content/results/contact-service';
 import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
+import { PlaceMoodData } from '../types/filtering';
 
 const { width } = Dimensions.get('window');
 
@@ -104,7 +105,7 @@ export default function SavedPlacesScreen() {
         ) : (
           savedPlaces.map((place, index) => {
             // Convert saved place format to PlaceData format
-            const placeData = {
+            const placeData: PlaceMoodData = {
               place_id: place.id || `saved_${index}`,
               name: place.name,
               address: place.location,
@@ -113,21 +114,21 @@ export default function SavedPlacesScreen() {
               user_ratings_total: place.reviewCount || 0,
               reviews: [],
               mood_score: place.mood === 'hype' ? 80 : place.mood === 'chill' ? 30 : 50,
-              final_mood: place.mood || 'neutral',
+              final_mood: place.mood === 'both' ? 'neutral' : (place.mood as 'chill' | 'hype') || 'neutral',
               photos: {
-                thumbnail: place.images || [],
-                medium: place.images || [],
-                large: place.images || [],
-                count: (place.images || []).length
+                thumbnail: Array.isArray(place.images) ? place.images : [],
+                medium: Array.isArray(place.images) ? place.images : [],
+                large: Array.isArray(place.images) ? place.images : [],
+                count: Array.isArray(place.images) ? place.images.length : 0
               },
               contact: {
-                website: place.website,
+                ...(place.website && { website: place.website }),
                 hasContact: !!place.website
               },
               contactActions: {
                 canCall: false,
                 canVisitWebsite: !!place.website,
-                websiteUrl: place.website
+                ...(place.website && { websiteUrl: place.website })
               },
               price_level: place.budget === 'P' ? 1 : place.budget === 'PP' ? 2 : 3,
               editorial_summary: place.description,

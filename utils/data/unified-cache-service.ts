@@ -90,7 +90,7 @@ export class UnifiedCacheService {
   
   private config: CacheConfig;
   private stats: CacheStats;
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  private cleanupTimer: number | null = null;
 
   private constructor() {
     this.config = {
@@ -241,7 +241,7 @@ export class UnifiedCacheService {
         const firestoreDoc = await this.firestoreCache.doc(key).get();
         if (firestoreDoc.exists) {
           const firestoreEntry = firestoreDoc.data() as UnifiedCacheEntry;
-          if (!this.isExpired(firestoreEntry)) {
+          if (firestoreEntry && !this.isExpired(firestoreEntry)) {
             // Promote to memory and storage caches
             firestoreEntry.source = 'memory';
             firestoreEntry.accessCount++;

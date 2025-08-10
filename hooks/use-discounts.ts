@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { discountService, DiscountInfo } from '../utils/monetization/discount-service';
 import { Suggestion } from '../types/app';
-import { PlaceMoodData } from '../types/filtering';
+import { PlaceMoodData, PlaceData } from '../types/filtering';
 
 type DiscountInput = Suggestion | PlaceData;
 
@@ -31,14 +31,18 @@ export const useDiscounts = (): UseDiscountsReturn => {
         searchParams = {
           placeName: input.name,
           location: input.location,
-          category: input.category,
+          category: (input.category === 'food' || input.category === 'activity' || input.category === 'something-new') 
+            ? input.category as 'food' | 'activity' | 'something-new'
+            : 'food',
           tags: input.tags
         };
       } else {
         searchParams = {
           placeName: input.name,
           location: input.address || input.vicinity || input.formatted_address || 'Unknown location',
-          category: input.category,
+          category: (input.category === 'food' || input.category === 'activity' || input.category === 'something-new') 
+            ? input.category as 'food' | 'activity' | 'something-new'
+            : 'food',
           tags: input.types || []
         };
       }

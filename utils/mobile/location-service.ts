@@ -100,7 +100,6 @@ export class LocationService {
           // Try to get actual location first (in case simulator has location set)
           const location = await Location.getCurrentPositionAsync({
             accuracy: enableHighAccuracy ? Location.Accuracy.BestForNavigation : accuracy,
-            timeout: Math.min(timeout, 5000), // Shorter timeout for simulator
           });
 
           // Check if we got a real location (not 0,0 or other default)
@@ -112,7 +111,7 @@ export class LocationService {
               },
               isSimulated: false,
               source: 'gps',
-              accuracy: location.coords.accuracy || undefined,
+              ...(location.coords.accuracy && { accuracy: location.coords.accuracy }),
               timestamp: Date.now()
             };
             
@@ -126,6 +125,9 @@ export class LocationService {
 
         // Use preset simulator location
         const simulatedCoords = SIMULATOR_LOCATIONS[simulatorLocation];
+        if (!simulatedCoords) {
+          throw new Error(`Invalid simulator location: ${simulatorLocation}`);
+        }
         const result: LocationResult = {
           coords: simulatedCoords,
           isSimulated: true,
@@ -142,7 +144,6 @@ export class LocationService {
       console.log('📱 Getting real device location...');
       const location = await Location.getCurrentPositionAsync({
         accuracy: enableHighAccuracy ? Location.Accuracy.BestForNavigation : accuracy,
-        timeout,
       });
 
       const result: LocationResult = {
@@ -152,7 +153,7 @@ export class LocationService {
         },
         isSimulated: false,
         source: location.coords.accuracy && location.coords.accuracy < 100 ? 'gps' : 'network',
-        accuracy: location.coords.accuracy || undefined,
+        ...(location.coords.accuracy && { accuracy: location.coords.accuracy }),
         timestamp: Date.now()
       };
 

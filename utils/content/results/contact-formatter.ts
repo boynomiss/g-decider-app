@@ -142,8 +142,8 @@ export function createFrontendContactObject(placeData: any): {
   const actions = {
     canCall: !!(contact.phone && isValidPhoneNumber(contact.phone)),
     canVisitWebsite: !!(contact.website && isValidWebsite(contact.website)),
-    callUrl: contact.phone ? `tel:${contact.phone.replace(/[^\d\+]/g, '')}` : undefined,
-    websiteUrl: contact.website
+    ...(contact.phone && { callUrl: `tel:${contact.phone.replace(/[^\d\+]/g, '')}` }),
+    ...(contact.website && { websiteUrl: contact.website })
   };
 
   return {

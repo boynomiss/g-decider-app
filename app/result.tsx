@@ -15,17 +15,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Heart, ArrowLeft, RotateCcw, X } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
 import { useServerFiltering } from '../hooks/use-server-filtering';
-import { useAIDescription } from '../hooks/use-ai-description';
+import { useSavedPlaces } from '../hooks/use-saved-places';
 import { useDiscounts } from '../hooks/use-discounts';
 import { useBookingIntegration } from '../hooks/use-booking-integration';
-import { useSavedPlaces } from '../hooks/use-saved-places';
+import { useAIDescription } from '../hooks/use-ai-description';
 import { PlaceData } from '../utils/filtering/mood';
-import { AIDescriptionCard } from '../components/AIDescriptionCard';
-import { ActiveDiscountsCard } from '../components/ActiveDiscountsCard';
-import { BookingOptionsCard } from '../components/BookingOptionsCard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
 
@@ -33,9 +29,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export default function ResultScreen() {
   const { 
-    filters, 
-    retriesLeft, 
-    effectiveFilters
+    filters
   } = useAppStore();
   
   const { 
@@ -43,7 +37,6 @@ export default function ResultScreen() {
     error, 
     results, 
     performance, 
-    metadata,
     filterPlaces,
     clearResults,
     clearError
@@ -56,41 +49,27 @@ export default function ResultScreen() {
   
   // Saved Places hook
   const {
-    savedPlaces,
     isSaved,
     savePlace,
-    removePlace,
-    isLoading: savedPlacesLoading
+    removePlace
   } = useSavedPlaces();
-  
-  // AI Description hook
-  const {
-    aiDescription,
-    isLoading: aiLoading,
-    error: aiError,
-    generateDescription,
-    clearDescription
-  } = useAIDescription();
 
   // Discounts hook
   const {
-    discounts,
-    isLoading: discountLoading,
-    error: discountError,
     searchDiscounts,
-    openDiscount,
-    clearDiscounts
+    openDiscount
   } = useDiscounts();
 
   // Booking Integration hook
   const {
-    bookingPlatforms,
-    isLoading: bookingLoading,
-    error: bookingError,
     getBookingOptions,
-    openBooking,
-    clearBookingOptions
+    openBooking
   } = useBookingIntegration();
+
+  // AI Description hook
+  const {
+    generateDescription
+  } = useAIDescription();
 
   // Image modal state
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -185,16 +164,18 @@ export default function ResultScreen() {
     try {
       if (results.length > 0) {
         const place = results[currentResultIndex];
-        const success = await openBooking(platform, {
-          restaurantName: place.name,
-          location: place.address,
-          cuisine: place.types?.[0],
-          budget: place.price_level === 1 ? 'P' : place.price_level === 2 ? 'PP' : 'PPP'
-        });
-        if (success) {
-          console.log('✅ Successfully opened booking');
-        } else {
-          console.log('❌ Failed to open booking');
+        if (place) {
+          const success = await openBooking(platform, {
+            restaurantName: place.name,
+            location: place.address,
+            cuisine: place.types?.[0],
+            budget: place.price_level === 1 ? 'P' : place.price_level === 2 ? 'PP' : 'PPP'
+          });
+          if (success) {
+            console.log('✅ Successfully opened booking');
+          } else {
+            console.log('❌ Failed to open booking');
+          }
         }
       }
     } catch (error) {
@@ -252,9 +233,11 @@ export default function ResultScreen() {
   useEffect(() => {
     if (results.length > 0 && !isLoading) {
       const currentPlace = results[currentResultIndex];
-      searchDiscounts(currentPlace);
-      getBookingOptions(currentPlace);
-      generateDescription(currentPlace);
+      if (currentPlace) {
+        searchDiscounts(currentPlace);
+        getBookingOptions(currentPlace);
+        generateDescription(currentPlace);
+      }
     }
   }, [results, isLoading, currentResultIndex, searchDiscounts, getBookingOptions, generateDescription]);
 
@@ -298,22 +281,26 @@ export default function ResultScreen() {
 
 
         {/* Place Details Container */}
-        {results.length > 0 && (
-          <View style={styles.placeDetailsContainer}>
-            <EnhancedPlaceCard
-              key={`${results[currentResultIndex].place_id}-${currentResultIndex}`}
-              place={results[currentResultIndex]}
-              onPress={() => handleImagePress(results[currentResultIndex], 0)}
-              onSave={() => handleSavePlace(results[currentResultIndex])}
-              onPass={handlePass}
-              onRestart={handleRestart}
-              isSaved={isSaved(results[currentResultIndex])}
-              showFullDetails={true}
-              showRemoveButton={false}
-            />
-
-          </View>
-        )}
+        {results.length > 0 && (() => {
+          const currentPlace = results[currentResultIndex];
+          if (!currentPlace) return null;
+          
+          return (
+            <View style={styles.placeDetailsContainer}>
+              <EnhancedPlaceCard
+                key={`${currentPlace.place_id}-${currentResultIndex}`}
+                place={currentPlace}
+                onPress={() => handleImagePress(currentPlace, 0)}
+                onSave={() => handleSavePlace(currentPlace)}
+                onPass={handlePass}
+                onRestart={handleRestart}
+                isSaved={isSaved(currentPlace)}
+                showFullDetails={true}
+                showRemoveButton={false}
+              />
+            </View>
+          );
+        })()}
 
         {/* Image Modal */}
         <Modal

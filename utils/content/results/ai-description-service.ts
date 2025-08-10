@@ -1,7 +1,8 @@
 import { Suggestion } from '../../../types/app';
+import { getAPIKey, validateAPIKeys } from '../../config/api-keys';
 
 // Google Gemini API configuration
-const GEMINI_API_KEY = 'AIzaSyDFDP5a0_AwD-ZC9igtkZWCiwjpf_SfY2E';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 // Service account configuration for server-side usage
@@ -273,7 +274,7 @@ Please create a description that highlights the ambiance, cuisine, and what make
     
     return {
       size: descriptionCache.size,
-      oldestEntry
+      ...(oldestEntry !== undefined && { oldestEntry })
     };
   }
 }

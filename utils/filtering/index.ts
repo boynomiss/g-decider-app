@@ -35,11 +35,11 @@ export {
 
 // Shared utilities to reduce duplication
 export {
-  FilterUtilities,
+  FilterCoreUtils,
   FilterValidation,
   FilterConversion,
   FilterMatching,
-  FilterLogger
+  FilterProgress
 } from './filter-core-utils';
 
 // ===============================
@@ -56,7 +56,88 @@ export * from './mood';
 // 📋 FILTER CONFIGURATIONS
 // ===============================
 
-export * from './configs';
+// Export filter configurations
+export {
+  BUDGET_CATEGORIES,
+  BUDGET_PRICE_MAPPING,
+  budgetCategories,
+  budgetOptions,
+  getBudgetCategory,
+  filterByBudget,
+  getBudgetLabel,
+  getBudgetDisplayText,
+  validateBudget,
+  getAllBudgetCategories,
+  getBudgetMappings,
+  getBudgetPriceMapping,
+  getBudgetContext,
+  priceLevelToBudget,
+  budgetToPriceLevel,
+  isPlaceInBudget,
+  getPreferredPlaceTypes as getBudgetPreferredPlaceTypes
+} from './configs/budget-config';
+
+export {
+  MOOD_CATEGORIES,
+  MOOD_DETAILED_LABELS,
+  moodCategories,
+  moodOptions,
+  getMoodCategory,
+  isPlaceCompatibleWithMood,
+  getMoodLabel,
+  getMoodDisplayText,
+  getDetailedMoodLabel,
+  validateMoodScore,
+  getAllMoodCategories,
+  getMoodMappings,
+  getMoodMappingsForAPI,
+  getMoodContext,
+  getEnergyLevel,
+  getColorScheme,
+  getMoodCategoryId,
+  getMoodScoreRange,
+  getPreferredPlaceTypes as getMoodPreferredPlaceTypes,
+  getActivitySuggestions as getMoodActivitySuggestions,
+  getAtmosphereKeywords as getMoodAtmosphereKeywords,
+  isCompatibleWithSocialContext as isMoodCompatibleWithSocialContext
+} from './configs/mood-config';
+
+export {
+  SOCIAL_CONTEXTS,
+  getSocialContext,
+  isPlaceCompatibleWithSocialContext,
+  getSocialContextLabel,
+  getSocialContextDisplayText,
+  validateSocialContext,
+  getAllSocialContexts,
+  getSocialContextMappings,
+  getSocialContextMappingsForAPI,
+  getSocialContextForAI,
+  getGroupSize,
+  getPreferredPlaceTypes as getSocialPreferredPlaceTypes,
+  getActivitySuggestions as getSocialActivitySuggestions,
+  getAtmosphereKeywords as getSocialAtmosphereKeywords,
+  isCompatibleWithMood as isSocialCompatibleWithMood
+} from './configs/social-config';
+
+export {
+  CATEGORY_FILTERS,
+  categoryOptions,
+  getCategoryFilter,
+  isPlaceCompatibleWithCategory,
+  getCategoryLabel,
+  getCategoryDisplayText,
+  validateCategoryId,
+  getAllCategoryFilters,
+  getCategoryMappings,
+  getCategoryMappingsForAPI,
+  getCategoryContext,
+  getPreferredPlaceTypes as getCategoryPreferredPlaceTypes,
+  getActivitySuggestions as getCategoryActivitySuggestions,
+  getAtmosphereKeywords as getCategoryAtmosphereKeywords,
+  isCompatibleWithMood as isCategoryCompatibleWithMood,
+  isCompatibleWithSocialContext as isCategoryCompatibleWithSocialContext
+} from './configs/category-config';
 
 // ===============================
 // ⚠️ LEGACY SERVICES (Deprecated)
@@ -64,15 +145,10 @@ export * from './configs';
 
 // Legacy compatibility - use unified system instead
 export { 
-  PlaceDiscoveryLogic, 
-  DiscoveryFilters, 
-  DiscoveryResult, 
-  LoadingState, 
-  AdvertisedPlace 
+  PlaceDiscoveryLogic
 } from './unified-filter-service';
 
-// Legacy utilities (deprecated - use new FilterUtilities instead)
-export * from './filter-core-utils';
+// Types are exported from unified system to avoid conflicts
 
 // ===============================
 // 📚 USAGE EXAMPLES

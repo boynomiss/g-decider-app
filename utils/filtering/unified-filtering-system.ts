@@ -13,7 +13,7 @@
  */
 
 // Re-export all core types from centralized location
-export {
+export type {
   LookingForOption,
   MoodOption,
   SocialContext,
@@ -43,8 +43,7 @@ export {
   FilterCoreUtils as FilterUtilities,
   FilterValidation,
   FilterConversion,
-  FilterMatching,
-  FilterLogger
+  FilterMatching
 } from './filter-core-utils';
 
 export {
@@ -98,39 +97,4 @@ export type {
  * };
  * 
  * const results = await unifiedFilterService.searchPlaces(params);
- * console.log(results); // Array of scored places
- * 
- * // Get config data
- * const budgetConfig = filterConfigRegistry.getConfig('budget', '2-3');
- * console.log(budgetConfig?.label); // "Moderate"
- * 
- * // Validate filters
- * const isValid = filterConfigRegistry.validateFilterValue('mood', 'neutral');
- * console.log(isValid); // true
- * 
- * // Check compatibility
- * const compatibility = filterConfigRegistry.checkCompatibility({
- *   mood: 'hype',
- *   socialContext: 'solo',
- *   budget: '0-2'
- * });
- * console.log(compatibility.isCompatible); // false (hype not great for solo)
- * 
- * // Use utilities
- * const distance = FilterUtilities.calculateDistance(
- *   37.7749, -122.4194, // San Francisco
- *   37.7849, -122.4094  // 1 mile north
- * );
- * console.log(distance); // ~1609 meters
- * 
- * // Performance monitoring
- * const monitoredFn = FilterUtilities.createPerformanceMonitor(
- *   'my-operation',
- *   async () => { return 'result'; }
- * );
- * 
- * // Legacy compatibility (deprecated but still works)
- * import { PlaceDiscoveryLogic } from '@/utils/filtering';
- * const legacy = new PlaceDiscoveryLogic(null, 'API_KEY', []);
- * const legacyResult = await legacy.discoverPlaces(filters);
  */

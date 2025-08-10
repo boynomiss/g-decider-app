@@ -51,7 +51,7 @@ const testCriticalFixes = async () => {
   console.log('\n🔧 Test 2: Google Places API Integration');
   try {
     // Test Google Places API key
-    const apiKey = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
     const testUrl = `https://places.googleapis.com/v1/places:searchNearby`;
     
     const response = await fetch(testUrl, {

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { scrapingService } from '../utils/api/scraping-service';
+import { ScrapingService } from '../utils/api/scraping-service';
 
 interface ScrapedDeal {
   id: string;
@@ -93,6 +93,7 @@ export const useScrapingService = (): UseScrapingServiceReturn => {
     setDealsError(null);
 
     try {
+      const scrapingService = ScrapingService.getInstance();
       const scrapedDeals = await scrapingService.scrapeDeals();
       setDeals(scrapedDeals);
       
@@ -111,6 +112,7 @@ export const useScrapingService = (): UseScrapingServiceReturn => {
     setAttractionsError(null);
 
     try {
+      const scrapingService = ScrapingService.getInstance();
       const scrapedAttractions = await scrapingService.scrapeAttractions();
       setAttractions(scrapedAttractions);
       
@@ -129,7 +131,7 @@ export const useScrapingService = (): UseScrapingServiceReturn => {
   }, [scrapeDeals, scrapeAttractions]);
 
   const getScrapingStats = useCallback(() => {
-    return scrapingService.getScrapingStats();
+    return ScrapingService.getInstance().getScrapingStats();
   }, []);
 
   const filterDealsByCategory = useCallback((category: string): ScrapedDeal[] => {

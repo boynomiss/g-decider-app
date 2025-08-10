@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertCircle, X, RefreshCw } from 'lucide-react-native';
+import { AlertCircle, X, RefreshCw as Refresh } from 'lucide-react-native';
 
 export interface FilterRelaxationInfo {
   isRelaxed: boolean;
@@ -68,7 +68,7 @@ export default function FilterFeedbackBanner({
     return null;
   }
 
-  const getSeverityColors = () => {
+  const getSeverityColors = (): [string, string] => {
     switch (relaxationInfo.severity) {
       case 'warning':
         return ['#FFA726', '#FF9800'];
@@ -84,7 +84,7 @@ export default function FilterFeedbackBanner({
       case 'warning':
         return <AlertCircle size={20} color="#FFFFFF" />;
       case 'success':
-        return <RefreshCw size={20} color="#FFFFFF" />;
+        return <Refresh size={20} color="#FFFFFF" />;
       default:
         return <AlertCircle size={20} color="#FFFFFF" />;
     }
@@ -147,7 +147,7 @@ export default function FilterFeedbackBanner({
                 onPress={onRetryStrict}
                 activeOpacity={0.7}
               >
-                <RefreshCw size={16} color="#FFFFFF" />
+                <Refresh size={16} color="#FFFFFF" />
                 <Text style={styles.actionText}>Retry</Text>
               </TouchableOpacity>
             )}

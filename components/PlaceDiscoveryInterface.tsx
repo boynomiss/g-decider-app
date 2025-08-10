@@ -9,8 +9,8 @@ import GoButton from './GoButton';
 
 interface PlaceDiscoveryInterfaceProps {
   googlePlacesApiKey: string;
-  googleCloudCredentials?: any;
-  onDiscoveryComplete?: (places: any[]) => void;
+  googleCloudCredentials?: Record<string, unknown>;
+  onDiscoveryComplete?: (places: (import('@/types/filtering').PlaceResult | import('@/types/filtering').AdvertisedPlace)[]) => void;
   onError?: (error: string) => void;
 }
 
@@ -20,7 +20,7 @@ export default function PlaceDiscoveryInterface({
   onDiscoveryComplete,
   onError
 }: PlaceDiscoveryInterfaceProps) {
-  const { filters, updateFilters, resetSuggestion } = useAppStore();
+  const { filters, resetSuggestion, updateUserLocation } = useAppStore();
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
 
@@ -52,7 +52,7 @@ export default function PlaceDiscoveryInterface({
         });
         
         setUserLocation(locationResult.coords);
-        updateFilters({ userLocation: locationResult.coords });
+        updateUserLocation(locationResult.coords);
         setLocationPermissionGranted(!locationResult.isSimulated || locationResult.source === 'simulator');
         
         // Show appropriate alert based on location source
@@ -79,7 +79,7 @@ export default function PlaceDiscoveryInterface({
         // Final fallback
         const fallbackLocation = { lat: 14.5176, lng: 121.0509 };
         setUserLocation(fallbackLocation);
-        updateFilters({ userLocation: fallbackLocation });
+        updateUserLocation(fallbackLocation);
         setLocationPermissionGranted(false);
         
         Alert.alert(
@@ -91,7 +91,7 @@ export default function PlaceDiscoveryInterface({
     };
 
     getLocation();
-  }, [updateFilters]);
+  }, [updateUserLocation]);
 
   // Handle discovery completion
   useEffect(() => {
@@ -184,30 +184,19 @@ export default function PlaceDiscoveryInterface({
         {
           text: 'Restart',
           style: 'destructive',
-          onPress: () => {
-            resetSuggestion();
-            placeDiscovery.restartDiscovery();
-          }
+          onPress: handleRestart
         }
       ]
     );
   };
 
-  // Handle get more places
-  const handleGetMorePlaces = async () => {
-    console.log('🔄 Getting more places...');
-    
-    try {
-      await placeDiscovery.getMorePlaces();
-    } catch (error) {
-      console.error('❌ Error getting more places:', error);
-      Alert.alert(
-        'Error',
-        'Failed to get more places. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
+  // Handle restart action
+  const handleRestart = () => {
+    resetSuggestion();
+    placeDiscovery.restartDiscovery();
   };
+
+
 
   return (
     <View style={styles.container}>

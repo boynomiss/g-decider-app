@@ -1,14 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Dimensions
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming } from 'react-native-reanimated';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '@/hooks/use-app-store';
-import { FilterUtilities } from '@/utils/filtering/filter-utils';
+import { FilterApiBridge } from '@/utils/filtering';
 import { DISTANCE_CATEGORIES, DistanceUtils } from '@/utils/filtering/configs/distance-config';
 import { socialOptions, SocialUtils } from '@/utils/filtering/configs/social-config';
 import { MoodUtils, MOOD_DETAILED_LABELS } from '@/utils/filtering/configs/mood-config';
-import { FilterApiBridge } from '@/utils/filtering';
 
 export const budgetOptions = [
   { 
@@ -83,7 +90,7 @@ export default function MoodSlider() {
   const updateMood = (value: number) => {
     const newMood = Math.max(0, Math.min(100, value));
     // Enhanced logging with API-ready data (null-safe)
-    const filterData = FilterApiBridge.logMoodSelection(newMood);
+    FilterApiBridge.logMoodSelection(newMood);
     updateFilters({ 
       mood: newMood
     });
@@ -97,10 +104,7 @@ export default function MoodSlider() {
     return Math.max(1, Math.min(10, Math.round((moodValue / 100) * 10) || 1));
   };
 
-  // New function to convert 0-100 mood to 3-level mood
-  const getSimplifiedMood = (moodValue: number): 'chill' | 'neutral' | 'hype' => {
-    return MoodUtils.getMoodCategoryId(moodValue);
-  };
+
 
   const getCurrentMoodLabel = () => {
     const level = getMoodLevel(filters.mood);
@@ -119,7 +123,7 @@ export default function MoodSlider() {
   const updateDistance = (value: number) => {
     const newDistance = Math.max(0, Math.min(100, value));
     // Enhanced logging with API-ready data (null-safe)
-    const filterData = FilterApiBridge.logDistanceSelection(newDistance);
+    FilterApiBridge.logDistanceSelection(newDistance);
     updateFilters({ 
       distanceRange: newDistance
     });
@@ -150,15 +154,13 @@ export default function MoodSlider() {
   };
 
   const handleSocialContextPress = (socialId: 'solo' | 'with-bae' | 'barkada') => {
-    const selectedSocial = socialOptions.find(option => option.id === socialId);
-    
     if (filters.socialContext === socialId) {
       // Deselecting
       console.log('Social context deselected');
       updateFilters({ socialContext: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
-      const filterData = FilterApiBridge.logSocialContextSelection(socialId);
+      FilterApiBridge.logSocialContextSelection(socialId);
       updateFilters({ 
         socialContext: socialId
       });
@@ -172,7 +174,7 @@ export default function MoodSlider() {
       updateFilters({ budget: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
-      const filterData = FilterApiBridge.logBudgetSelection(budgetValue);
+      FilterApiBridge.logBudgetSelection(budgetValue);
       updateFilters({ 
         budget: budgetValue
       });
@@ -180,15 +182,13 @@ export default function MoodSlider() {
   };
 
   const handleTimeOfDayPress = (timeId: 'morning' | 'afternoon' | 'night') => {
-    const selectedTime = timeOptions.find(option => option.id === timeId);
-    
     if (filters.timeOfDay === timeId) {
       // Deselecting
       console.log('Time of day deselected');
       updateFilters({ timeOfDay: null });
     } else {
       // Enhanced logging with API-ready data (null-safe)
-      const filterData = FilterApiBridge.logTimeOfDaySelection(timeId);
+      FilterApiBridge.logTimeOfDaySelection(timeId);
       updateFilters({ 
         timeOfDay: timeId
       });

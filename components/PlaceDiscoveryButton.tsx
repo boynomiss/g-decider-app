@@ -17,8 +17,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface PlaceDiscoveryButtonProps {
   googlePlacesApiKey: string;
-  googleCloudCredentials?: any;
-  onDiscoveryComplete?: (places: any[]) => void;
+  googleCloudCredentials?: Record<string, unknown>;
+  onDiscoveryComplete?: (places: (import('@/types/filtering').PlaceResult | import('@/types/filtering').AdvertisedPlace)[]) => void;
 }
 
 export default function PlaceDiscoveryButton({
@@ -26,7 +26,7 @@ export default function PlaceDiscoveryButton({
   googleCloudCredentials,
   onDiscoveryComplete
 }: PlaceDiscoveryButtonProps) {
-  const { filters } = useAppStore();
+  const { filters, userLocation } = useAppStore();
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   
   const {
@@ -41,7 +41,6 @@ export default function PlaceDiscoveryButton({
     resetDiscovery,
     isSearching,
     isExpandingDistance,
-    hasReachedLimit,
     isComplete
   } = usePlaceDiscovery({
     googlePlacesApiKey,
@@ -88,7 +87,7 @@ export default function PlaceDiscoveryButton({
   };
 
   // Check if ready to discover
-  const isReady = filters.category && filters.userLocation && 
+  const isReady = filters.category && userLocation && 
                   filters.mood !== undefined && filters.distanceRange !== undefined;
 
   return (

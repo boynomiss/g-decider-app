@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
-import { ExternalLink, Star, Users } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ExternalLink, Star } from 'lucide-react-native';
 import { useAdMonetization } from '../hooks/use-ad-monetization';
 
 interface TargetedAdBannerProps {
@@ -82,7 +83,7 @@ export const TargetedAdBanner: React.FC<TargetedAdBannerProps> = ({
       
       // Simulate opening ad URL
       const adUrl = `https://example.com/ad/${adData.adUnit.id}`;
-      Linking.openURL(adUrl);
+      // Linking.openURL(adUrl); // Removed Linking as per edit hint
       
       onAdClick?.(adData);
     }

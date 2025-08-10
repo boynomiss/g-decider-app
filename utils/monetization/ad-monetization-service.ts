@@ -385,20 +385,28 @@ export class AdMonetizationService {
     // Sort by priority and find the best match
     const bestAdUnit = availableAdUnits.sort((a, b) => b.priority - a.priority)[0];
     
+    if (!bestAdUnit) {
+      return null;
+    }
+    
     // Find the best ad network
     const bestNetwork = this.adNetworks
       .filter(network => network.enabled)
       .sort((a, b) => b.fillRate - a.fillRate)[0];
+
+    if (!bestNetwork) {
+      return null;
+    }
 
     // Create contextual targeting
     const contextualTargeting: AdTargeting = {
       interests: bestAdUnit.targeting.interests,
       demographics: bestAdUnit.targeting.demographics,
       contextual: {
-        cuisine: context.cuisine ? [context.cuisine] : bestAdUnit.targeting.contextual.cuisine,
-        mood: context.userMood ? [context.userMood] : bestAdUnit.targeting.contextual.mood,
-        budget: context.budget ? [context.budget] : bestAdUnit.targeting.contextual.budget,
-        occasion: context.occasion ? [context.occasion] : []
+        ...(context.cuisine && { cuisine: [context.cuisine] }),
+        ...(context.userMood && { mood: [context.userMood] }),
+        ...(context.budget && { budget: [context.budget] }),
+        ...(context.occasion && { occasion: [context.occasion] })
       },
       frequency: bestAdUnit.targeting.frequency
     };

@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-nati
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { Settings, ArrowLeft, RefreshCw as Refresh } from 'lucide-react-native';
 import { useAppStore } from '../hooks/use-app-store';
 import { PlaceData } from '../utils/filtering/mood';
 import EnhancedPlaceCard from '../components/EnhancedPlaceCard';
@@ -16,20 +16,19 @@ export default function EnhancedResultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { 
-    currentSuggestion, 
-    filters,
+    filters, 
     updateFilters,
-    resetSuggestion,
-    generateSuggestion,
+    currentSuggestion,
+    userLocation,
     isLoading,
-    effectiveFilters
+    generateSuggestion
   } = useAppStore();
 
   // State for new features
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterRelaxationInfo, setFilterRelaxationInfo] = useState<FilterRelaxationInfo | undefined>();
   const [showBanner, setShowBanner] = useState(false);
-  const [currentResults, setCurrentResults] = useState<PlaceData[]>([]);
+
   const [showInstantRecommendations, setShowInstantRecommendations] = useState(false);
 
   useEffect(() => {
@@ -100,8 +99,7 @@ export default function EnhancedResultScreen() {
       website: place.contact?.website
     };
     
-    // Update current suggestion and navigate
-    updateFilters({ currentSuggestion: suggestion });
+    // Navigate to result page - the suggestion will be handled by the app store
     router.push('/result');
   };
 
@@ -128,7 +126,7 @@ export default function EnhancedResultScreen() {
       
       {/* Filter Feedback Banner */}
       <FilterFeedbackBanner
-        relaxationInfo={filterRelaxationInfo}
+        {...(filterRelaxationInfo && { relaxationInfo: filterRelaxationInfo })}
         visible={showBanner}
         onDismiss={() => setShowBanner(false)}
         onRetryStrict={handleRetryStrict}
@@ -163,7 +161,7 @@ export default function EnhancedResultScreen() {
               onPress={() => simulateProgressiveFiltering()}
               activeOpacity={0.7}
             >
-              <RefreshCw size={20} color="#FFFFFF" />
+              <Refresh size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
@@ -176,7 +174,7 @@ export default function EnhancedResultScreen() {
           <InstantRecommendations
             onPlaceSelect={handlePlaceSelect}
             onRefresh={handleRefreshRecommendations}
-            userLocation={filters.userLocation}
+            {...(userLocation && { userLocation })}
           />
         ) : currentSuggestion ? (
           // Show single result (existing behavior)
@@ -200,13 +198,13 @@ export default function EnhancedResultScreen() {
                   count: currentSuggestion.images.length
                 },
                 contact: {
-                  website: currentSuggestion.website,
+                  ...(currentSuggestion.website && { website: currentSuggestion.website }),
                   hasContact: !!currentSuggestion.website
                 },
                 contactActions: {
                   canCall: false,
                   canVisitWebsite: !!currentSuggestion.website,
-                  websiteUrl: currentSuggestion.website
+                  ...(currentSuggestion.website && { websiteUrl: currentSuggestion.website })
                 },
                 price_level: currentSuggestion.budget === 'P' ? 1 : 
                             currentSuggestion.budget === 'PP' ? 2 : 3,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { getAPIKey, validateAPIKeys } from '../utils/config/api-keys';
 
 interface APIStatusProps {
   isVisible?: boolean;
@@ -13,7 +14,7 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
 
     const checkAPIStatus = async () => {
       try {
-        const GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+        const GOOGLE_API_KEY = getAPIKey.places();
         const params = new URLSearchParams({
           location: '14.5995,120.9842',
           radius: '5000',

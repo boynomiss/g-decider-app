@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Phone, Globe, Star, MapPin, Clock, Users, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
@@ -126,9 +127,10 @@ export default function EnhancedPlaceCard({
     
     // If final_mood contains enhanced descriptors, use them directly
     if (finalMood && finalMood !== 'neutral' && finalMood !== 'chill' && finalMood !== 'hype') {
+      const moodString = String(finalMood);
       return {
-        emoji: getMoodEmoji(finalMood),
-        label: finalMood.charAt(0).toUpperCase() + finalMood.slice(1) // Capitalize first letter
+        emoji: getMoodEmoji(moodString),
+        label: moodString.charAt(0).toUpperCase() + moodString.slice(1) // Capitalize first letter
       };
     }
     
@@ -210,7 +212,7 @@ export default function EnhancedPlaceCard({
             {/* Display actual place photos if available */}
             {place.photos && place.photos.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 0 ? (
               place.photos.medium.map((photo, index) => (
-                <View key={index} style={styles.imageWrapper}>
+                <View key={`photo-${index}`} style={styles.imageWrapper}>
                   <Image
                     source={{ uri: photo }}
                     style={styles.placeImage}
@@ -321,7 +323,7 @@ export default function EnhancedPlaceCard({
               style={styles.mapButton} 
               onPress={() => {
                 // Open in maps
-                const url = `https://maps.google.com/?q=${encodeURIComponent(place.address)}`;
+                const url = `https://maps.google.com/?q=${encodeURIComponent(place.address || '')}`;
                 Linking.openURL(url);
               }}
               activeOpacity={0.7}
