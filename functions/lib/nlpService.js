@@ -1,8 +1,41 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.nlpService = exports.NLPService = void 0;
 const language_1 = require("@google-cloud/language");
-const path = require("path");
+const path = __importStar(require("path"));
 // Initialize the Language Service client with service account credentials
 const serviceAccountPath = path.join(__dirname, '../nlp-service-account.json');
 // Check if service account file exists
@@ -77,18 +110,15 @@ class NLPService {
                 };
                 const [result] = await this.client.analyzeEntities({ document });
                 const entities = result.entities || [];
-                const analysisResult = entities.map(entity => {
-                    var _a, _b;
-                    return ({
-                        name: entity.name || '',
-                        type: String(entity.type) || 'UNKNOWN',
-                        salience: entity.salience || 0,
-                        sentiment: {
-                            score: ((_a = entity.sentiment) === null || _a === void 0 ? void 0 : _a.score) || 0,
-                            magnitude: ((_b = entity.sentiment) === null || _b === void 0 ? void 0 : _b.magnitude) || 0
-                        }
-                    });
-                });
+                const analysisResult = entities.map(entity => ({
+                    name: entity.name || '',
+                    type: String(entity.type) || 'UNKNOWN',
+                    salience: entity.salience || 0,
+                    sentiment: {
+                        score: entity.sentiment?.score || 0,
+                        magnitude: entity.sentiment?.magnitude || 0
+                    }
+                }));
                 console.log('✅ Entity analysis completed:', analysisResult.length, 'entities found');
                 return analysisResult;
             }
@@ -324,7 +354,7 @@ class NLPService {
         const words = text.split(/\s+/);
         // Simple entity extraction based on capitalization and common patterns
         words.forEach((word, index) => {
-            if (word.length > 3 && word[0] === word[0].toUpperCase()) {
+            if (word && word.length > 3 && word[0] && word[0] === word[0].toUpperCase()) {
                 entities.push({
                     name: word,
                     type: 'UNKNOWN',

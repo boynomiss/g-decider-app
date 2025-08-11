@@ -29,7 +29,7 @@ const COMPONENT_FILES = [
   'app/upgrade.tsx',
   'components/Header.tsx',
   'components/Footer.tsx',
-  'components/GoButton.tsx',
+  'components/GButton.tsx',
   'components/LoadingScreens.tsx'
 ];
 

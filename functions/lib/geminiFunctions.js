@@ -1,7 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPersonalizedRecommendations = exports.analyzeMoodAndSuggest = exports.generatePlaceDescription = exports.testGeminiAccess = void 0;
-const functions = require("firebase-functions");
+const functions = __importStar(require("firebase-functions"));
 const generative_ai_1 = require("@google/generative-ai");
 const secret_manager_1 = require("@google-cloud/secret-manager");
 // Initialize Secret Manager client
@@ -10,14 +43,13 @@ const secretManager = new secret_manager_1.SecretManagerServiceClient();
 let genAI = null;
 let apiKey = null;
 async function getGeminiAPIKey() {
-    var _a, _b;
     if (apiKey) {
         return apiKey;
     }
     try {
         const name = 'projects/g-decider-backend/secrets/gemini-api-key/versions/latest';
         const [version] = await secretManager.accessSecretVersion({ name });
-        apiKey = ((_b = (_a = version.payload) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.toString()) || '';
+        apiKey = version.payload?.data?.toString() || '';
         if (!apiKey) {
             throw new Error('Failed to retrieve API key from Secret Manager');
         }
@@ -36,7 +68,7 @@ async function getGeminiAI() {
     }
     return genAI;
 }
-exports.testGeminiAccess = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
+exports.testGeminiAccess = functions.https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -71,7 +103,7 @@ exports.testGeminiAccess = functions.region('asia-southeast1').https.onRequest(a
         });
     }
 });
-exports.generatePlaceDescription = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
+exports.generatePlaceDescription = functions.https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -112,7 +144,7 @@ exports.generatePlaceDescription = functions.region('asia-southeast1').https.onR
         });
     }
 });
-exports.analyzeMoodAndSuggest = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
+exports.analyzeMoodAndSuggest = functions.https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -153,7 +185,7 @@ exports.analyzeMoodAndSuggest = functions.region('asia-southeast1').https.onRequ
         });
     }
 });
-exports.getPersonalizedRecommendations = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
+exports.getPersonalizedRecommendations = functions.https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');

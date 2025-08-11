@@ -26,9 +26,17 @@
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/features/*": ["./src/features/*"],
+      "@/hooks/*": ["./src/shared/hooks/*"],
+      "@/utils/*": ["./src/shared/utils/*"],
+      "@/constants/*": ["./src/shared/constants/*"],
+      "@/types/*": ["./src/shared/types/*"],
+      "@/store/*": ["./src/store/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/src/*": ["./src/*"]
     }
   },
   "include": [

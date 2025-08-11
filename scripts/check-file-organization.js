@@ -22,7 +22,7 @@ const FILE_RULES = {
     'app/upgrade.tsx',
     'components/Header.tsx',
     'components/Footer.tsx',
-    'components/GoButton.tsx',
+    'components/GButton.tsx',
     'components/LoadingScreens.tsx',
     'components/ErrorBoundary.tsx',
     'hooks/use-auth.tsx'

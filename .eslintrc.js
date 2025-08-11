@@ -9,7 +9,8 @@ module.exports = {
     ecmaFeatures: {
       jsx: true,
     },
-    project: './tsconfig.json',
+    // Remove project option to avoid parsing errors with JS files
+    // project: './tsconfig.json',
   },
   plugins: ['@typescript-eslint'],
   rules: {
@@ -29,6 +30,7 @@ module.exports = {
     // React specific
     'react-hooks/exhaustive-deps': 'warn',
     'react/prop-types': 'off', // Using TypeScript instead
+    'react/display-name': 'warn', // Add display name rule
     
     // Import rules - simplified to avoid resolver issues
     'import/no-unresolved': 'off', // Disable to avoid resolver conflicts
@@ -66,5 +68,15 @@ module.exports = {
     '*.test.js',
     '*.test.ts',
     '*.test.tsx',
+    'debug-imports.js',
+    'fix-*.js',
+  ],
+  overrides: [
+    {
+      files: ['*.ts', '*.tsx'],
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
   ],
 }; 
