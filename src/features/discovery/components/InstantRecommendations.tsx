@@ -5,6 +5,8 @@ import { Zap, MapPin, Clock, TrendingUp, Star } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../../../shared/types/types';
 import EnhancedPlaceCard from './EnhancedPlaceCard';
 import { useRouter } from 'expo-router';
+import { unifiedFilterService } from '../../filtering/services/filtering/unified-filter-service';
+import { useAppStore } from '../../../store/store';
 
 interface InstantRecommendationsProps {
   onPlaceSelect?: (place: PlaceData) => void;
@@ -28,6 +30,7 @@ export default function InstantRecommendations({
   maxRecommendations = 10
 }: InstantRecommendationsProps) {
   const router = useRouter();
+  const { filters } = useAppStore(); // Get filters directly from the hook
   const [recommendations, setRecommendations] = useState<RecommendationCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +39,7 @@ export default function InstantRecommendations({
 
   useEffect(() => {
     loadInstantRecommendations();
-  }, [userLocation]);
+  }, [userLocation, filters]);
 
   const loadInstantRecommendations = async (forceRefresh = false) => {
     if (forceRefresh) {
@@ -46,145 +49,125 @@ export default function InstantRecommendations({
     }
 
     try {
-      // Simulate API call to background agent cache
-      const cachedRecommendations = await fetchCachedRecommendations();
-      setRecommendations(cachedRecommendations);
+      // Force real API call instead of mock data
+      console.log('🚀 Loading real instant recommendations...');
+      const realRecommendations = await fetchRealRecommendations();
+      setRecommendations(realRecommendations);
     } catch (error) {
       console.error('Error loading instant recommendations:', error);
-      // Fallback to mock data
-      setRecommendations(getMockRecommendations());
+      // Don't fall back to mock data - show error instead
+      setRecommendations([]);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
   };
 
-  const fetchCachedRecommendations = async (): Promise<RecommendationCategory[]> => {
-    // This would make a real API call to your background agent cache
-    // For now, we'll simulate with mock data
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  const fetchRealRecommendations = async (): Promise<RecommendationCategory[]> => {
+    console.log('🔍 Fetching real recommendations from Google API...');
     
-    return getMockRecommendations();
-  };
+    if (!userLocation) {
+      console.log('❌ No user location available');
+      return [];
+    }
 
-  const getMockRecommendations = (): RecommendationCategory[] => {
-    // Mock data representing cached recommendations from background agent
-    const mockPlaces: PlaceData[] = [
-      {
-        place_id: 'trending_1',
-        name: 'The Local Coffee Co.',
-        address: 'Makati City, Metro Manila',
-        category: 'cafe',
-        rating: 4.6,
-        user_ratings_total: 324,
-        reviews: [],
-        mood_score: 75,
-        final_mood: 'hype',
-        photos: {
-          thumbnail: ['https://picsum.photos/150/150?random=1'],
-          medium: ['https://picsum.photos/400/300?random=1'],
-          large: ['https://picsum.photos/800/600?random=1'],
-          count: 1
-        },
-        contact: {
-          website: 'https://thelocalcoffee.com',
-          phone: '+63 2 1234 5678',
-          formattedPhone: '+63 2 1234 5678',
-          hasContact: true
-        },
-        contactActions: {
-          canCall: true,
-          canVisitWebsite: true,
-          callUrl: 'tel:+6321234567',
-          websiteUrl: 'https://thelocalcoffee.com'
-        },
-        price_level: 2,
-        business_status: 'OPERATIONAL'
-      },
-      {
-        place_id: 'trending_2',
-        name: 'BGC Food Park',
-        address: 'Bonifacio Global City, Taguig',
-        category: 'restaurant',
-        rating: 4.4,
-        user_ratings_total: 156,
-        reviews: [],
-        mood_score: 85,
-        final_mood: 'hype',
-        photos: {
-          thumbnail: ['https://picsum.photos/150/150?random=2'],
-          medium: ['https://picsum.photos/400/300?random=2'],
-          large: ['https://picsum.photos/800/600?random=2'],
-          count: 1
-        },
-        contact: {
-          hasContact: false
-        },
-        contactActions: {
-          canCall: false,
-          canVisitWebsite: false
-        },
-        price_level: 2,
-        business_status: 'OPERATIONAL'
-      },
-      {
-        place_id: 'nearby_1',
-        name: 'Greenbelt Park',
-        address: 'Makati City, Metro Manila',
-        category: 'park',
-        rating: 4.2,
-        user_ratings_total: 89,
-        reviews: [],
-        mood_score: 45,
-        final_mood: 'chill',
-        photos: {
-          thumbnail: ['https://picsum.photos/150/150?random=3'],
-          medium: ['https://picsum.photos/400/300?random=3'],
-          large: ['https://picsum.photos/800/600?random=3'],
-          count: 1
-        },
-        contact: {
-          hasContact: false
-        },
-        contactActions: {
-          canCall: false,
-          canVisitWebsite: false
-        },
-        price_level: 0,
-        business_status: 'OPERATIONAL'
-      }
-    ];
+    if (!filters.category) {
+      console.log('❌ No category selected');
+      return [];
+    }
 
-    return [
-      {
-        id: 'trending',
-        title: 'Trending Now',
-        icon: <TrendingUp size={20} color="#FF6B6B" />,
-        description: 'Popular places others are discovering',
-        places: mockPlaces.filter(p => p.mood_score && p.mood_score > 70)
-      },
-      {
-        id: 'nearby',
-        title: 'Near You',
-        icon: <MapPin size={20} color="#4ECDC4" />,
-        description: 'Great spots within walking distance',
-        places: mockPlaces.filter(p => p.place_id.includes('nearby'))
-      },
-      {
-        id: 'quick',
-        title: 'Quick Picks',
-        icon: <Clock size={20} color="#45B7D1" />,
-        description: 'Perfect for when you need something fast',
-        places: mockPlaces.filter(p => p.rating >= 4.5)
-      },
-      {
-        id: 'top_rated',
-        title: 'Top Rated',
-        icon: <Star size={20} color="#FFA726" />,
-        description: 'Highest rated places in your area',
-        places: mockPlaces.sort((a, b) => b.rating - a.rating).slice(0, 3)
+    try {
+      console.log('🎯 Calling unifiedFilterService with filters:', filters);
+      
+      // Call the unified filter service to get real Google API results
+      const searchParams = {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        lookingFor: filters.category as 'food' | 'activity' | 'something-new',
+        mood: filters.mood || 50,
+        socialContext: filters.socialContext,
+        budget: filters.budget,
+        timeOfDay: filters.timeOfDay || 'any',
+        maxRadius: (filters.distanceRange || 10) * 1000, // Convert km to meters
+        minResults: 10,
+        maxResults: 20,
+        apiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || ''
+      };
+
+      console.log('🔍 Search params:', searchParams);
+      
+      const places = await unifiedFilterService.searchPlaces(searchParams);
+      console.log('✅ Got real places from Google API:', places.length);
+
+      if (places.length === 0) {
+        console.log('⚠️ No places found from Google API');
+        return [];
       }
-    ];
+
+      // Convert places to the expected format
+      const convertedPlaces: PlaceData[] = places.map(place => ({
+        id: place.place_id,
+        place_id: place.place_id,
+        name: place.name,
+        location: place.address,
+        images: [], // Google API places don't have images in this format
+        budget: place.raw?.price_level ? (['P', 'PP', 'PPP'][place.raw.price_level - 1] as 'P' | 'PP' | 'PPP') : 'P',
+        tags: place.tags || [],
+        description: place.descriptor || `${place.name} is a great place to visit.`,
+        openHours: place.opening_hours?.weekday_text?.join(', ') || 'Hours not available',
+        category: filters.category as 'food' | 'activity' | 'something-new',
+        mood: filters.mood > 60 ? 'hype' : filters.mood < 40 ? 'chill' : 'both',
+        socialContext: ['solo', 'with-bae', 'barkada'],
+        timeOfDay: ['morning', 'afternoon', 'night'],
+        coordinates: {
+          lat: place.lat || userLocation.lat,
+          lng: place.lng || userLocation.lng
+        },
+        rating: place.rating || 0,
+        reviewCount: place.user_ratings_total || 0,
+        reviews: [],
+        website: '',
+        vicinity: place.address,
+        formatted_address: place.address,
+        types: place.tags || [],
+        price_level: place.raw?.price_level,
+        opening_hours: place.opening_hours,
+        user_ratings_total: place.user_ratings_total,
+        photos: { thumbnail: [] }
+      }));
+
+      // Create recommendation categories
+      const categories: RecommendationCategory[] = [
+        {
+          id: 'trending',
+          title: 'Trending Now',
+          icon: <TrendingUp size={24} color="#8B5FBF" />,
+          description: 'Popular places everyone is talking about',
+          places: convertedPlaces.slice(0, 5)
+        },
+        {
+          id: 'nearby',
+          title: 'Nearby Gems',
+          icon: <MapPin size={24} color="#8B5FBF" />,
+          description: 'Great places close to you',
+          places: convertedPlaces.slice(5, 10)
+        },
+        {
+          id: 'top-rated',
+          title: 'Top Rated',
+          icon: <Star size={24} color="#8B5FBF" />,
+          description: 'Highest rated places in the area',
+          places: convertedPlaces.slice(10, 15).sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        }
+      ];
+
+      console.log('✅ Created recommendation categories:', categories.map(c => ({ id: c.id, count: c.places.length })));
+      return categories;
+
+    } catch (error) {
+      console.error('❌ Error fetching real recommendations:', error);
+      throw error;
+    }
   };
 
   const handleRefresh = async () => {

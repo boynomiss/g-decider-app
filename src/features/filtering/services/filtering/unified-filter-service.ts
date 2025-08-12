@@ -18,7 +18,6 @@
 
 import { 
   PlaceResult,
-  // ScoredPlace,
   SearchParams,
   FilterResult,
   LookingForOption,
@@ -26,13 +25,14 @@ import {
   SocialContext,
   TimeOfDay,
   BudgetOption,
-  // LoadingState,
-  AdvertisedPlace,
-  DiscoveryFilters,
-  DiscoveryResult,
-  FilterServiceConfig
-  // PlaceData
+  AdvertisedPlace
 } from '../../../../shared/types/types/filtering';
+
+import { 
+  PlaceResult as FilterPlaceResult,
+  ScoredPlace,
+  AdvertisedPlace as FilterAdvertisedPlace
+} from '../../types/filter-results';
 
 // Types are exported from the main filtering index to avoid conflicts
 
@@ -47,6 +47,14 @@ import {
 } from './filter-core-utils';
 import { ConsolidatedFilterLogger } from './filter-logger';
 import { createPlaceMoodAnalysisService } from './mood/place-mood-analysis.service';
+
+// Add these imports to match the UI logic exactly
+// Fix the import paths to match the actual directory structure
+import { getCategoryFilter } from './configs/category-config';
+import { getMoodCategory } from './configs/mood-config';
+import { getSocialContext } from './configs/social-config';
+import { getBudgetCategory } from './configs/budget-config';
+import { getTimeCategory } from './configs/time-config';
 
 export class UnifiedFilterService {
   private static instance: UnifiedFilterService;
@@ -68,7 +76,7 @@ export class UnifiedFilterService {
   // Constants - now using registry for configuration data
   private readonly DISTANCE_STEPS = [5000, 10000, 15000, 20000];
 
-  // Google Places API wrappers
+  // Google Places API wrappers - Updated to use new API
   private async textSearch(
     query: string, 
     lat: number, 
@@ -78,19 +86,70 @@ export class UnifiedFilterService {
     minprice?: number, 
     maxprice?: number
   ): Promise<any[]> {
-    const key = apiKey || process.env.GOOGLE_MAPS_API_KEY || '';
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${lat},${lng}&radius=${radius}&key=${key}`
-      + (minprice !== undefined ? `&minprice=${minprice}` : '')
-      + (maxprice !== undefined ? `&maxprice=${maxprice}` : '');
+    const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
     
+    // Use new Google Places API
+    const url = `https://places.googleapis.com/v1/places:searchText`;
+    
+    const requestBody: any = {
+      textQuery: query,
+      locationBias: {
+        circle: {
+          center: {
+            latitude: lat,
+            longitude: lng
+          },
+          radius: radius
+        }
+      },
+      maxResultCount: 20
+    };
+
+    // Add price filter if specified
+    if (minprice !== undefined || maxprice !== undefined) {
+      requestBody.priceLevel = maxprice || minprice;
+    }
+
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.openingHours'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
       if (!response.ok) {
         const text = await response.text();
         throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
       }
+
       const json = await response.json();
-      return json.results || [];
+      const places = json.places || [];
+
+      // Convert new API format to legacy format for compatibility
+      return places.map((place: any) => ({
+        place_id: place.id,
+        name: place.displayName?.text || 'Unknown Place',
+        formatted_address: place.formattedAddress || 'Unknown Address',
+        geometry: {
+          location: {
+            lat: place.location?.latitude || lat,
+            lng: place.location?.longitude || lng
+          }
+        },
+        rating: place.rating || 0,
+        user_ratings_total: place.userRatingCount || 0,
+        price_level: place.priceLevel || 0,
+        types: place.types || [],
+        opening_hours: place.openingHours ? {
+          open_now: true, // Default to open since we don't have this info
+          weekday_text: ['Hours available'] // Placeholder
+        } : undefined
+      }));
+
     } catch (error) {
       console.error('❌ Text search error:', error);
       return [];
@@ -208,48 +267,177 @@ export class UnifiedFilterService {
   }
 
   /**
-   * Utility: Build text search query using registry data
+   * Enhanced: Build dynamic text search query using EXACT UI logic
+   * This ensures 100% alignment between what users see and what gets searched
    */
-  private buildTextSearchQuery(params: SearchParams): string {
-    // Get atmosphere keywords and place types from registry
-    const atmosphereFilters: { mood?: MoodOption; socialContext?: SocialContext; lookingFor?: LookingForOption } = {
-      mood: params.mood,
-      lookingFor: params.lookingFor
-    };
-    if (params.socialContext) {
-      atmosphereFilters.socialContext = params.socialContext;
-    }
-    const atmosphereKeywords = this.configRegistry.getAtmosphereKeywords(atmosphereFilters);
-
-    const placeFilters: { budget?: BudgetOption; mood?: MoodOption; socialContext?: SocialContext; timeOfDay?: TimeOfDay; lookingFor?: LookingForOption } = {
-      mood: params.mood,
-      lookingFor: params.lookingFor
-    };
-    if (params.budget) placeFilters.budget = params.budget;
-    if (params.socialContext) placeFilters.socialContext = params.socialContext;
-    if (params.timeOfDay) placeFilters.timeOfDay = params.timeOfDay;
+  private buildDynamicTextSearchQuery(params: SearchParams): string {
+    const searchTerms: string[] = [];
     
-    const placeTypes = this.configRegistry.getPreferredPlaceTypes(placeFilters);
-
-    // Add time-specific keywords
-    const timeFallbackKeywords: string[] = [];
-    if (params.timeOfDay === 'morning') timeFallbackKeywords.push('breakfast', 'brunch', 'morning cafe');
-    if (params.timeOfDay === 'afternoon') timeFallbackKeywords.push('lunch', 'afternoon cafe');
-    if (params.timeOfDay === 'night') timeFallbackKeywords.push('evening', 'nightlife', 'late-night');
-
-    // Combine all descriptors
-    const allDescriptors = FilterUtilities.mergeUnique([atmosphereKeywords, timeFallbackKeywords]);
-    const uniqueDescriptors = allDescriptors.slice(0, 12);
-
-    // Build query combinations
-    const combos: string[] = [];
-    for (const descriptor of uniqueDescriptors) {
-      for (const placeType of placeTypes.slice(0, 8)) { // Limit place types too
-        combos.push(`${descriptor} ${placeType}`.trim());
+    // 1. Category-based terms (exact UI logic)
+    if (params.category) {
+      const category = getCategoryFilter(params.category);
+      if (category) {
+        searchTerms.push(category.label.toLowerCase());
+        searchTerms.push(...category.searchKeywords);
       }
     }
+    
+    // 2. Mood-based terms (exact UI logic)
+    if (params.mood !== null) {
+      const mood = getMoodCategory(params.mood);
+      if (mood) {
+        searchTerms.push(mood.label.toLowerCase());
+        searchTerms.push(...mood.atmosphereKeywords);
+      }
+    }
+    
+    // 3. Social context terms (exact UI logic)
+    if (params.socialContext) {
+      const social = getSocialContext(params.socialContext);
+      if (social) {
+        searchTerms.push(social.label.toLowerCase());
+        searchTerms.push(...social.atmosphereKeywords);
+      }
+    }
+    
+    // 4. Budget terms (exact UI logic)
+    if (params.budget) {
+      const budget = getBudgetCategory(params.budget);
+      if (budget) {
+        searchTerms.push(budget.label.toLowerCase());
+        searchTerms.push(...budget.atmosphereKeywords);
+      }
+    }
+    
+    // 5. Time-based terms (exact UI logic)
+    if (params.timeOfDay) {
+      const time = getTimeCategory(params.timeOfDay);
+      if (time) {
+        searchTerms.push(time.label.toLowerCase());
+      }
+    }
+    
+    // 6. Place types from registry (enhanced with UI logic)
+    const placeFilters = {
+      mood: params.mood,
+      socialContext: params.socialContext,
+      budget: params.budget,
+      timeOfDay: params.timeOfDay,
+      lookingFor: params.lookingFor
+    };
+    const placeTypes = this.configRegistry.getPreferredPlaceTypes(placeFilters);
+    searchTerms.push(...placeTypes);
+    
+    // 7. Looking for specific terms (additional enhancement)
+    if (params.lookingFor) {
+      const lookingForKeywords = this.getLookingForKeywords(params.lookingFor);
+      searchTerms.push(...lookingForKeywords);
+    }
+    
+    // Remove duplicates and filter out empty strings (exact UI logic)
+    const uniqueTerms = [...new Set(searchTerms)].filter(term => term.trim().length > 0);
+    
+    // Create optimized search strategies for API efficiency
+    return this.createOptimizedSearchStrategies(uniqueTerms, params);
+  }
 
-    return Array.from(new Set(combos)).join(' OR ');
+  /**
+   * Create multiple search strategies for better API coverage
+   * Now using the exact terms from UI logic
+   */
+  private createOptimizedSearchStrategies(terms: string[], params: SearchParams): string {
+    const strategies: string[] = [];
+    
+    // Strategy 1: Core category + mood combination (most specific)
+    if (params.category && params.mood !== null) {
+      const coreTerms = terms.slice(0, 8); // Limit core terms
+      strategies.push(coreTerms.join(' '));
+    }
+    
+    // Strategy 2: Atmosphere-focused search (using exact UI terms)
+    const atmosphereTerms = terms.filter(term => 
+      !['restaurant', 'cafe', 'bar', 'park', 'museum'].includes(term)
+    ).slice(0, 6);
+    if (atmosphereTerms.length > 0) {
+      strategies.push(atmosphereTerms.join(' '));
+    }
+    
+    // Strategy 3: Place type + context combinations
+    const placeTypes = terms.filter(term => 
+      ['restaurant', 'cafe', 'bar', 'park', 'museum', 'gallery', 'theater'].includes(term)
+    );
+    if (placeTypes.length > 0 && params.mood !== null) {
+      const mood = getMoodCategory(params.mood);
+      if (mood) {
+        const moodTerms = [mood.label.toLowerCase(), ...mood.atmosphereKeywords].slice(0, 3);
+        placeTypes.forEach(placeType => {
+          moodTerms.forEach(moodTerm => {
+            strategies.push(`${moodTerm} ${placeType}`);
+          });
+        });
+      }
+    }
+    
+    // Limit strategies to avoid API overload
+    const limitedStrategies = strategies.slice(0, 5);
+    
+    // Use OR operator for multiple strategies (Google Places API supports this)
+    return limitedStrategies.join(' OR ');
+  }
+
+  // Keep the helper method for "Looking For" since it's not in the UI logic
+  private getLookingForKeywords(lookingFor: LookingForOption): string[] {
+    const lookingForMap: Record<string, string[]> = {
+      'something-new': ['new', 'recently opened', 'just opened', 'latest'],
+      'favorite': ['popular', 'favorite', 'well-known', 'established'],
+      'hidden-gem': ['hidden gem', 'underrated', 'local favorite', 'secret spot']
+    };
+    return lookingForMap[lookingFor] || [];
+  }
+
+  /**
+   * Get mood-specific atmosphere phrases for enhanced search
+   */
+  private getMoodSpecificPhrases(moodId: string): string[] {
+    const moodPhrases: Record<string, string[]> = {
+      'chill': [
+        'peaceful atmosphere', 'relaxing vibe', 'calm environment', 'tranquil setting',
+        'serene space', 'quiet atmosphere', 'gentle ambiance', 'soothing environment',
+        'mellow vibes', 'zen atmosphere', 'meditative space', 'contemplative setting',
+        'introspective atmosphere', 'low-key vibe', 'laid-back atmosphere', 'easygoing environment',
+        'unhurried pace', 'leisurely atmosphere', 'restful space', 'cozy atmosphere',
+        'intimate setting', 'warm environment', 'welcoming atmosphere', 'comforting space',
+        'nurturing environment', 'stress-free atmosphere', 'unwinding space', 'de-stressing environment',
+        'mindful atmosphere', 'centered space', 'grounded environment'
+      ],
+      'neutral': [
+        'balanced atmosphere', 'moderate energy', 'casual vibe', 'comfortable setting',
+        'versatile space', 'pleasant environment', 'nice atmosphere', 'decent vibe',
+        'good energy', 'okay atmosphere', 'fine environment', 'average energy',
+        'standard setting', 'conventional atmosphere', 'well-rounded environment',
+        'middle-ground atmosphere', 'moderate energy', 'casual atmosphere', 'comfortable setting',
+        'versatile space', 'pleasant environment', 'nice vibe', 'decent atmosphere',
+        'good energy', 'okay vibes', 'fine atmosphere', 'average energy', 'standard setting',
+        'conventional atmosphere', 'friendly environment', 'approachable atmosphere',
+        'accessible setting', 'practical space', 'functional environment', 'reliable atmosphere'
+      ],
+      'hype': [
+        'energetic atmosphere', 'exciting vibe', 'lively environment', 'thrilling setting',
+        'dynamic space', 'vibrant atmosphere', 'buzzing environment', 'electric vibe',
+        'amazing atmosphere', 'incredible environment', 'fantastic space', 'awesome setting',
+        'epic atmosphere', 'legendary environment', 'intense vibe', 'powerful atmosphere',
+        'strong energy', 'bold setting', 'daring environment', 'adventurous space',
+        'wild atmosphere', 'crazy vibe', 'insane environment', 'outrageous setting',
+        'extreme atmosphere', 'radical environment', 'pumping vibe', 'jumping atmosphere',
+        'bouncing environment', 'rocking space', 'rolling atmosphere', 'flying vibe',
+        'soaring environment', 'high-energy atmosphere', 'fast-paced environment',
+        'action-packed space', 'adrenaline-pumping atmosphere', 'heart-pounding environment',
+        'mind-blowing atmosphere', 'jaw-dropping space', 'show-stopping environment',
+        'crowd-pleasing atmosphere', 'party atmosphere'
+      ]
+    };
+
+    return moodPhrases[moodId] || [];
   }
 
   /**
@@ -382,8 +570,8 @@ export class UnifiedFilterService {
       maxprice: budgetConfig.googlePriceLevel
     } : undefined;
 
-    // Build query using registry data
-    const textQuery = this.buildTextSearchQuery(params);
+    // Use the new dynamic text search query builder (100% UI aligned)
+    const textQuery = this.buildDynamicTextSearchQuery(params);
 
     const resultsMap: Map<string, PlaceResult> = new Map();
 
