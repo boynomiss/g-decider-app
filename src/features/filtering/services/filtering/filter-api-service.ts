@@ -165,7 +165,14 @@ export class FilterAPIService {
         types.push('tourist_attraction', 'amusement_park', 'bowling_alley', 'movie_theater', 'museum');
         break;
       case 'something-new':
-        types.push('point_of_interest', 'establishment', 'art_gallery', 'night_club');
+        // Comprehensive place types for "Something New" to cover all categories
+        types.push(
+          'restaurant', 'cafe', 'bar', 'bakery', 'food', 'meal_delivery', 'meal_takeaway',
+          'park', 'museum', 'art_gallery', 'movie_theater', 'stadium', 'casino', 'gym', 'spa',
+          'bowling_alley', 'amusement_park', 'zoo', 'aquarium', 'tourist_attraction',
+          'shopping_mall', 'book_store', 'clothing_store', 'library', 'university',
+          'point_of_interest', 'establishment'
+        );
         break;
       default:
         types.push('establishment');
@@ -195,7 +202,8 @@ export class FilterAPIService {
     } else if (filters.category === 'activity') {
       parts.push('activity attraction');
     } else if (filters.category === 'something-new') {
-      parts.push('new interesting place');
+      // Enhanced keywords for "Something New" to find new places
+      parts.push('new interesting place', 'recently opened', 'just opened', 'newly opened', 'latest');
     }
 
     // Mood-based keywords

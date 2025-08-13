@@ -24,7 +24,7 @@ export interface SearchParams {
   lat: number;
   lng: number;
   lookingFor: LookingForOption;
-  mood: MoodOption;
+  mood: number; // Changed from MoodOption to number to accept 0-100 values
   socialContext?: SocialContext;
   budget?: BudgetOption;
   timeOfDay?: TimeOfDay;
@@ -74,6 +74,49 @@ export interface ApiReadyFilterData {
   };
 }
 
+// =================
+// DISCOVERY INTERFACES
+// =================
+
+export interface DiscoveryFilters {
+  category: LookingForOption;
+  mood: number;
+  socialContext?: SocialContext;
+  budget?: BudgetOption;
+  timeOfDay?: TimeOfDay;
+  distanceRange?: number;
+  userLocation: {
+    lat: number;
+    lng: number;
+  };
+}
+
+export interface DiscoveryResult {
+  success: boolean;
+  places: any[];
+  error?: string;
+  metadata?: {
+    totalResults: number;
+    source: string;
+    cacheHit: boolean;
+  };
+}
+
+// =================
+// SERVICE CONFIGURATION
+// =================
+
+export interface FilterServiceConfig {
+  useCache: boolean;
+  cacheExpiry: number;
+  maxResults: number;
+  minResults: number;
+  defaultRadius: number;
+  maxRadius: number;
+  enableProgressiveFiltering: boolean;
+  enableMoodAnalysis: boolean;
+}
+
 export interface FilterApiBridge {
   logCategorySelection(value: string): ApiReadyFilterData;
   logMoodSelection(value: number): ApiReadyFilterData;
@@ -81,6 +124,6 @@ export interface FilterApiBridge {
   logDistanceRangeSelection(value: number): ApiReadyFilterData;
   logBudgetSelection(value: any): ApiReadyFilterData;
   logSocialContextSelection(value: any): ApiReadyFilterData;
-  logTimeOfDaySelection(value: any): ApiReadyFilterData;
+  logTimeOfDaySelection(value: number): ApiReadyFilterData;
   consolidateFiltersForApi(filters: any[]): ApiReadyFilterData;
 }

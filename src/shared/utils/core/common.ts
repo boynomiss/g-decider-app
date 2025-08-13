@@ -113,7 +113,7 @@ export const getCategoryType = (category: 'food' | 'activity' | 'something-new')
   switch (category) {
     case 'food': return 'restaurant';
     case 'activity': return 'tourist_attraction';
-    case 'something-new': return 'point_of_interest';
+    case 'something-new': return 'establishment'; // Changed from 'point_of_interest' to 'establishment' for broader coverage
     default: return 'establishment';
   }
 };

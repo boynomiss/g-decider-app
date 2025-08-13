@@ -38,7 +38,15 @@ export const MOOD_CATEGORIES: MoodCategory[] = [
       'Peaceful cafe reading', 'Museum exploration', 'Park meditation', 
       'Spa relaxation', 'Library study session', 'Art gallery visit'
     ],
-    atmosphereKeywords: ['peaceful', 'relaxing', 'calm', 'tranquil', 'serene'],
+    atmosphereKeywords: [
+      'peaceful', 'relaxing', 'calm', 'tranquil', 'serene', 'quiet', 'gentle', 'soft',
+      'soothing', 'mellow', 'zen', 'meditative', 'contemplative', 'introspective',
+      'low-key', 'laid-back', 'easygoing', 'unhurried', 'leisurely', 'restful',
+      'cozy', 'intimate', 'warm', 'welcoming', 'comforting', 'nurturing',
+      'stress-free', 'unwinding', 'de-stressing', 'mindful', 'centered', 'grounded',
+      'peaceful atmosphere', 'relaxation spot', 'quiet space', 'tranquil setting',
+      'serene environment', 'calming vibes', 'soothing atmosphere', 'gentle ambiance'
+    ],
     energyLevel: 'low',
     colorScheme: 'blue-green'
   },
@@ -62,7 +70,17 @@ export const MOOD_CATEGORIES: MoodCategory[] = [
       'Casual dining', 'Shopping trip', 'Gym workout', 'Movie watching', 
       'Park walk', 'Museum visit', 'Cafe hangout'
     ],
-    atmosphereKeywords: ['balanced', 'moderate', 'casual', 'comfortable', 'versatile'],
+    atmosphereKeywords: [
+      'balanced', 'moderate', 'casual', 'comfortable', 'versatile', 'pleasant', 'nice',
+      'decent', 'good', 'okay', 'fine', 'average', 'standard', 'conventional',
+      'friendly', 'approachable', 'accessible', 'practical', 'functional', 'reliable',
+      'steady', 'stable', 'consistent', 'predictable', 'familiar', 'everyday',
+      'normal', 'regular', 'routine', 'convenient', 'straightforward', 'simple',
+      'well-rounded', 'middle-ground', 'moderate energy', 'casual atmosphere',
+      'comfortable setting', 'versatile space', 'pleasant environment', 'nice vibe',
+      'decent atmosphere', 'good energy', 'okay vibes', 'fine atmosphere',
+      'average energy', 'standard setting', 'conventional atmosphere'
+    ],
     energyLevel: 'medium',
     colorScheme: 'yellow-orange'
   },
@@ -83,7 +101,15 @@ export const MOOD_CATEGORIES: MoodCategory[] = [
       'Nightclub dancing', 'Sports game', 'Amusement park', 'Bowling night', 
       'Bar hopping', 'Casino games', 'Skateboarding'
     ],
-    atmosphereKeywords: ['energetic', 'exciting', 'lively', 'thrilling', 'dynamic'],
+    atmosphereKeywords: [
+      'energetic', 'exciting', 'lively', 'thrilling', 'dynamic', 'vibrant', 'buzzing',
+      'electric', 'amazing', 'incredible', 'fantastic', 'awesome', 'epic', 'legendary',
+      'intense', 'powerful', 'strong', 'bold', 'daring', 'adventurous', 'wild',
+      'crazy', 'insane', 'mental', 'outrageous', 'extreme', 'radical',
+      'pumping', 'jumping', 'bouncing', 'rocking', 'rolling', 'flying', 'soaring',
+      'high-energy', 'fast-paced', 'action-packed', 'adrenaline-pumping', 'heart-pounding',
+      'mind-blowing', 'jaw-dropping', 'show-stopping', 'crowd-pleasing', 'party atmosphere'
+    ],
     energyLevel: 'high',
     colorScheme: 'red-pink'
   }

@@ -41,6 +41,14 @@ export interface PlaceResult {
   // Additional properties for compatibility
   coordinates?: { lat: number; lng: number }; // Alternative location format
   images?: string[] | { urls: string[] }; // Image data for compatibility
+  
+  // Photo data for EnhancedPlaceCard compatibility
+  photos?: {
+    thumbnail: string[];
+    medium: string[];
+    large: string[];
+    count: number;
+  };
 }
 
 export interface ScoredPlace extends PlaceResult {

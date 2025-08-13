@@ -116,7 +116,7 @@ export class UnifiedFilterService {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': key,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.openingHours'
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.regularOpeningHours,places.photos'
         },
         body: JSON.stringify(requestBody)
       });
@@ -144,10 +144,16 @@ export class UnifiedFilterService {
         user_ratings_total: place.userRatingCount || 0,
         price_level: place.priceLevel || 0,
         types: place.types || [],
-        opening_hours: place.openingHours ? {
+        opening_hours: place.regularOpeningHours ? {
           open_now: true, // Default to open since we don't have this info
           weekday_text: ['Hours available'] // Placeholder
-        } : undefined
+        } : undefined,
+        // Add photos with proper URL generation
+        photos: place.photos?.map((photo: any) => ({
+          photo_reference: photo.name, // New API uses 'name' field
+          width: photo.widthPx || 400,
+          height: photo.heightPx || 400
+        })) || []
       }));
 
     } catch (error) {
@@ -274,17 +280,19 @@ export class UnifiedFilterService {
     const searchTerms: string[] = [];
     
     // 1. Category-based terms (exact UI logic)
-    if (params.category) {
-      const category = getCategoryFilter(params.category);
+    if (params.lookingFor) {
+      const category = getCategoryFilter(params.lookingFor);
       if (category) {
         searchTerms.push(category.label.toLowerCase());
         searchTerms.push(...category.searchKeywords);
       }
     }
     
-    // 2. Mood-based terms (exact UI logic)
+    // 2. Mood-based terms (exact UI logic) - FIXED: Handle numeric mood values
     if (params.mood !== null) {
-      const mood = getMoodCategory(params.mood);
+      // Convert numeric mood to string category for the UI helper functions
+      const moodCategory = this.convertNumericMoodToString(params.mood);
+      const mood = getMoodCategory(moodCategory);
       if (mood) {
         searchTerms.push(mood.label.toLowerCase());
         searchTerms.push(...mood.atmosphereKeywords);
@@ -319,7 +327,7 @@ export class UnifiedFilterService {
     
     // 6. Place types from registry (enhanced with UI logic)
     const placeFilters = {
-      mood: params.mood,
+      mood: params.mood !== null ? this.convertNumericMoodToString(params.mood) as MoodOption : undefined,
       socialContext: params.socialContext,
       budget: params.budget,
       timeOfDay: params.timeOfDay,
@@ -349,7 +357,7 @@ export class UnifiedFilterService {
     const strategies: string[] = [];
     
     // Strategy 1: Core category + mood combination (most specific)
-    if (params.category && params.mood !== null) {
+    if (params.lookingFor && params.mood !== null) {
       const coreTerms = terms.slice(0, 8); // Limit core terms
       strategies.push(coreTerms.join(' '));
     }
@@ -383,6 +391,16 @@ export class UnifiedFilterService {
     
     // Use OR operator for multiple strategies (Google Places API supports this)
     return limitedStrategies.join(' OR ');
+  }
+
+  /**
+   * Convert numeric mood value (0-100) to string category
+   * This matches the logic used in the MoodSlider component
+   */
+  private convertNumericMoodToString(moodValue: number): 'chill' | 'neutral' | 'hype' {
+    if (moodValue <= 33.33) return 'chill';
+    if (moodValue <= 66.66) return 'neutral';
+    return 'hype';
   }
 
   // Keep the helper method for "Looking For" since it's not in the UI logic
@@ -542,20 +560,21 @@ export class UnifiedFilterService {
   private async searchWithFilters(params: SearchParams): Promise<PlaceResult[]> {
     const {
       lat, lng, lookingFor, mood,
-      socialContext, budget, timeOfDay = 'any',
+      socialContext, budget, timeOfDay = 'afternoon',
       initialRadius = 5000, maxRadius = 20000, minResults = 8,
       apiKey, userTimezone
       // strict = false
     } = params;
 
-    // Validate parameters using shared utilities
-    const validation = FilterValidation.validateAll({
-      lookingFor,
+    // Validate parameters using the correct validation method for numeric mood values
+    const validation = FilterValidation.validateUnifiedFilters({
+      category: lookingFor,
       mood,
-      socialContext,
-      budget,
-      timeOfDay,
-      coordinates: { lat, lng }
+      socialContext: socialContext || null,
+      budget: budget || null,
+      timeOfDay: timeOfDay === 'any' ? 'afternoon' : timeOfDay,
+      distanceRange: null,
+      location: null
     });
 
     if (!validation.isValid) {
@@ -599,6 +618,48 @@ export class UnifiedFilterService {
         const existing = resultsMap.get(place.place_id);
         const latLng = place.geometry?.location;
         
+        // Generate image URLs from photos
+        const imageUrls = place.photos?.map((photo: any) => {
+          // Google Places API v3 uses 'name' field, not 'photo_reference'
+          if (photo.name) {
+            // Extract photo reference from the name field
+            // Format: "places/{place_id}/photos/{photo_reference}"
+            const photoRef = photo.name.split('/photos/')[1];
+            if (photoRef) {
+              // Generate Google Places photo URL
+              return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${apiKey}`;
+            }
+          }
+          // Fallback for legacy format
+          if (photo.photo_reference) {
+            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photo.photo_reference}&key=${apiKey}`;
+          }
+          return null;
+        }).filter(Boolean) || [];
+        
+        // Debug logging for image processing
+        console.log(`📸 Processing images for ${place.name}:`, {
+          hasPhotos: !!place.photos,
+          photoCount: place.photos?.length || 0,
+          generatedUrls: imageUrls.length,
+          sampleUrl: imageUrls[0] || 'No URLs generated'
+        });
+        
+        // Additional debug logging for the final PlaceResult
+        const finalPhotos = imageUrls.length > 0 ? {
+          thumbnail: imageUrls,
+          medium: imageUrls,
+          large: imageUrls,
+          count: imageUrls.length
+        } : undefined;
+        
+        console.log(`📸 Final photos structure for ${place.name}:`, {
+          hasFinalPhotos: !!finalPhotos,
+          photoCount: finalPhotos?.count || 0,
+          mediumCount: finalPhotos?.medium?.length || 0,
+          sampleMedium: finalPhotos?.medium?.[0] || 'No medium photos'
+        });
+
         const pr: PlaceResult = {
           place_id: place.place_id,
           name: place.name,
@@ -612,7 +673,9 @@ export class UnifiedFilterService {
           tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
           radiusUsed: radius,
           expanded: radius > initialRadius,
-          raw: place
+          raw: place,
+          // Add photos in the format expected by EnhancedPlaceCard
+          photos: finalPhotos
         };
 
         resultsMap.set(place.place_id, pr);
@@ -806,7 +869,7 @@ export class UnifiedFilterService {
     }
     
     // Recency bonus for "something_new"
-    if (params.lookingFor === 'something_new' && place.tags?.includes('new')) {
+    if (params.lookingFor === 'something-new' && place.tags?.includes('new')) {
       score += 25;
     }
     

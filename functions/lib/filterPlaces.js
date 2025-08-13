@@ -60,11 +60,11 @@ const PLACES_API_BASE_URL = 'https://places.googleapis.com/v1';
 // COMPREHENSIVE GOOGLE PLACES API TYPE MAPPINGS
 // ==================================================================================
 // Import consolidated category configuration
-const category_config_1 = require("./configs/category-config");
+const category_config_1 = require("../../utils/filtering/configs/category-config");
 // Import consolidated mood configuration
-const mood_config_1 = require("./configs/mood-config");
+const mood_config_1 = require("../../utils/filtering/configs/mood-config");
 // Import consolidated social context configuration
-const social_config_1 = require("./configs/social-config");
+const social_config_1 = require("../../utils/filtering/configs/social-config");
 // Budget to Google Places price_level mapping
 const BUDGET_PRICE_MAPPING = {
     'P': [0, 1, 2], // Budget-Friendly: 0-2
@@ -72,9 +72,9 @@ const BUDGET_PRICE_MAPPING = {
     'PPP': [4] // Premium: 4
 };
 // Import consolidated time configuration
-const time_config_1 = require("./configs/time-config");
+const time_config_1 = require("../../utils/filtering/configs/time-config");
 // Import consolidated distance configuration
-const distance_config_1 = require("./configs/distance-config");
+const distance_config_1 = require("../../utils/filtering/configs/distance-config");
 // For TSLint: DISTANCE_RANGES will be used in future expansions
 void distance_config_1.DISTANCE_RANGES;
 // ==================================================================================
@@ -878,7 +878,7 @@ function getQueryOptimizationDescription(filters) {
         ? optimizations.join(', ')
         : 'Basic search optimization';
 }
-exports.filterPlaces = functions.https.onRequest(async (req, res) => {
+exports.filterPlaces = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     const startTime = Date.now();
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
@@ -949,7 +949,7 @@ exports.filterPlaces = functions.https.onRequest(async (req, res) => {
 /**
  * Validates "Looking For" filter connectivity and data mapping
  */
-exports.validateFilter = functions.https.onRequest(async (req, res) => {
+exports.validateFilter = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     const startTime = Date.now();
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');

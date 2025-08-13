@@ -19,14 +19,67 @@ import { useAppStore } from '../store/store';
 import { PlaceData } from '../features/discovery/types';
 import { SPACING } from '../shared/constants/constants';
 
+// Main scrollable content - moved outside component to prevent recreation
+const MainContent = React.memo(({ showMoreFilters }: { showMoreFilters: boolean }) => (
+  <ErrorBoundary componentName="MainContent">
+    <ScrollView 
+      style={styles.scrollView} 
+      showsVerticalScrollIndicator={false}
+      maintainVisibleContentPosition={{
+        minIndexForVisible: 0,
+        autoscrollToTopThreshold: 10
+      }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.contentContainer}>
+        <View style={styles.headerContainer}>
+          <Header />
+        </View>
+        
+        <ErrorBoundary componentName="APIStatus">
+          <APIStatus isVisible={false} />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="AdPlacement">
+          <AdPlacement />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="CategoryButtons">
+          <CategoryButtons />
+        </ErrorBoundary>
+        <ErrorBoundary componentName="MoodSlider">
+          <MoodSlider />
+        </ErrorBoundary>
+        
+        {/* G Button positioned below MoodSlider when showMoreFilters is true */}
+        {showMoreFilters && (
+          <View style={styles.gButtonInlineContainer}>
+            <ErrorBoundary componentName="GButton">
+              <GButton />
+            </ErrorBoundary>
+          </View>
+        )}
+        
+        {/* Spacer to bring FilterLogDisplay down */}
+        <View style={styles.filterSpacer} />
+        
+        <ErrorBoundary componentName="FilterLogDisplay">
+          <FilterLogDisplay visible={true} showPlaceTypes={true} />
+        </ErrorBoundary>
+        
+        {/* Bottom spacer for footer */}
+        <View style={styles.spacer} />
+      </View>
+    </ScrollView>
+  </ErrorBoundary>
+));
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { 
     showMoreFilters, 
-    filters, 
     updateFilters,
-    userLocation
+    userLocation,
+    filters
   } = useAppStore();
   
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -44,7 +97,7 @@ export default function HomeScreen() {
   const handleResetFilters = () => {
     updateFilters({
       mood: 50,
-      distanceRange: 50
+      distanceRange: 10  // Changed from 50 to 10
     });
   };
 
@@ -53,50 +106,7 @@ export default function HomeScreen() {
     router.push('/results');
   };
 
-  // Main scrollable content
-  const MainContent = React.memo(() => (
-    <ErrorBoundary componentName="MainContent">
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.contentContainer}>
-          <View style={styles.headerContainer}>
-            <Header />
-          </View>
-          
-          <ErrorBoundary componentName="APIStatus">
-            <APIStatus isVisible={false} />
-          </ErrorBoundary>
-          <ErrorBoundary componentName="AdPlacement">
-            <AdPlacement />
-          </ErrorBoundary>
-          <ErrorBoundary componentName="CategoryButtons">
-            <CategoryButtons />
-          </ErrorBoundary>
-          <ErrorBoundary componentName="MoodSlider">
-            <MoodSlider />
-          </ErrorBoundary>
-          
-          {/* G Button positioned below MoodSlider when showMoreFilters is true */}
-          {showMoreFilters && (
-            <View style={styles.gButtonInlineContainer}>
-              <ErrorBoundary componentName="GButton">
-                <GButton />
-              </ErrorBoundary>
-            </View>
-          )}
-          
-          {/* Spacer to bring FilterLogDisplay down */}
-          <View style={styles.filterSpacer} />
-          
-          <ErrorBoundary componentName="FilterLogDisplay">
-            <FilterLogDisplay visible={true} showPlaceTypes={true} />
-          </ErrorBoundary>
-          
-          {/* Bottom spacer for footer */}
-          <View style={styles.spacer} />
-        </View>
-      </ScrollView>
-    </ErrorBoundary>
-  ));
+
 
   return (
     <View style={styles.container}>
@@ -106,7 +116,7 @@ export default function HomeScreen() {
         style={styles.mainContent}
       >
         <View style={containerStyle}>
-          <MainContent />
+          <MainContent showMoreFilters={showMoreFilters} />
         </View>
         
         {/* Footer */}
@@ -126,7 +136,6 @@ export default function HomeScreen() {
       
       {/* Filter Control Panel Modal */}
       <FilterControlPanel
-        filters={filters}
         onFiltersChange={handleFilterChange}
         onResetFilters={handleResetFilters}
         visible={showFilterPanel}
@@ -165,15 +174,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 2,
+    paddingBottom: SPACING.XLARGE * 2, // Increased bottom padding to bring button up more
   },
   gButtonInlineContainer: {
     // G Button container when positioned below MoodSlider
     alignItems: 'center',
-    marginTop: 20, // Add some spacing below the MoodSlider
-    marginBottom: 20, // Add some spacing above the next element
+    marginTop: SPACING.LARGE, // Use consistent spacing
+    marginBottom: SPACING.LARGE, // Use consistent spacing
+    paddingBottom: SPACING.XLARGE * 2, // Increased bottom padding to bring button up more
   },
   filterSpacer: {
-    // Spacer to bring FilterLogDisplay down by 100px
-    height: 100,
+    // Spacer to bring FilterLogDisplay down
+    height: 200, // 200px spacing on top of filter log display
   },
 });

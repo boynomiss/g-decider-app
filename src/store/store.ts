@@ -114,9 +114,9 @@ const [AppContext, useAppStore] = createContextHook(() => {
       mood: 50,
       category: undefined,
       budget: undefined,
-      timeOfDay: undefined,
+      timeOfDay: undefined, // Will be set in useEffect
       socialContext: undefined,
-      distanceRange: 50
+      distanceRange: 10
     },
     retriesLeft: 3,
     currentSuggestion: null,
@@ -153,6 +153,28 @@ const [AppContext, useAppStore] = createContextHook(() => {
     }
   }, []);
 
+  // Get current time of day based on device time
+  const getCurrentTimeOfDay = (): 'morning' | 'afternoon' | 'night' => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    if (currentHour >= 4 && currentHour < 12) return 'morning';
+    if (currentHour >= 12 && currentHour < 18) return 'afternoon';
+    return 'night';
+  };
+
+  // Initialize time of day on mount
+  useEffect(() => {
+    const currentTime = getCurrentTimeOfDay();
+    setState(prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        timeOfDay: currentTime
+      }
+    }));
+  }, []);
+
   // Initialize location
   const initializeLocation = useCallback(async () => {
     try {
@@ -184,6 +206,28 @@ const [AppContext, useAppStore] = createContextHook(() => {
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<UserFilters>) => {
     setState(prev => {
+      // Check if any filter values actually changed (handling undefined properly)
+      let hasChanges = false;
+      for (const [key, value] of Object.entries(newFilters)) {
+        const currentValue = prev.filters[key as keyof UserFilters];
+        const newValue = value;
+        
+        // Handle undefined vs actual values
+        if (currentValue !== newValue) {
+          // Special case: both undefined is considered the same
+          if (currentValue === undefined && newValue === undefined) {
+            continue;
+          }
+          hasChanges = true;
+          break;
+        }
+      }
+      
+      // Only update state if there are actual changes
+      if (!hasChanges) {
+        return prev; // Return same reference to prevent re-render
+      }
+      
       const updatedFilters = { ...prev.filters, ...newFilters };
       
       // Log filter changes
@@ -199,9 +243,9 @@ const [AppContext, useAppStore] = createContextHook(() => {
       mood: 50,
       category: undefined,
       budget: undefined,
-      timeOfDay: undefined,
+      timeOfDay: getCurrentTimeOfDay(),
       socialContext: undefined,
-      distanceRange: 50
+      distanceRange: 10
     };
     
     setState(prev => ({ ...prev, filters: defaultFilters }));
@@ -229,7 +273,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
         socialContext: state.filters.socialContext,
         budget: state.filters.budget,
         timeOfDay: state.filters.timeOfDay,
-        distanceRange: state.filters.distanceRange || 50,
+        distanceRange: state.filters.distanceRange || 10,
         userLocation: state.userLocation
       });
 

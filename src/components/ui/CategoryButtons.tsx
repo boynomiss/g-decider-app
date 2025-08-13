@@ -6,26 +6,26 @@ import { SPACING } from '../../shared/constants/constants';
 import { categoryOptions } from '../../features/filtering/services/filtering/configs/category-config';
 
 export default function CategoryButtons() {
-  const { filters, updateFilters } = useAppStore();
+  const { filters: { category }, updateFilters } = useAppStore();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Looking for:</Text>
       
       <View style={styles.buttonsContainer}>
-        {categoryOptions.map((category) => (
+        {categoryOptions.map((categoryOption) => (
           <TouchableOpacity
-            key={category.id}
+            key={categoryOption.id}
             style={[
               styles.categoryButton,
-              filters.category === category.id && styles.activeButton
+              category === categoryOption.id && styles.activeButton
             ]}
             onPress={async () => {
-              console.log('🎯 Category button pressed:', category.id);
+              console.log('🎯 Category button pressed:', categoryOption.id);
               
               // Update filters
               updateFilters({ 
-                category: category.id
+                category: categoryOption.id
               });
               console.log('✅ Filters updated');
               
@@ -33,12 +33,12 @@ export default function CategoryButtons() {
               console.log('✅ Category filter applied successfully');
             }}
           >
-            <Text style={styles.icon}>{category.icon}</Text>
+            <Text style={styles.icon}>{categoryOption.icon}</Text>
             <Text style={[
               styles.label,
-              filters.category === category.id && styles.activeLabel
+              category === categoryOption.id && styles.activeLabel
             ]}>
-              {category.label}
+              {categoryOption.label}
             </Text>
           </TouchableOpacity>
         ))}

@@ -113,7 +113,7 @@ export default function ResultsScreen() {
   const handleResetFilters = () => {
     updateFilters({
       mood: 50,
-      distanceRange: 50
+      distanceRange: 10  // Changed from 50 to 10
     });
     setShowBanner(false);
     setFilterRelaxationInfo(undefined);

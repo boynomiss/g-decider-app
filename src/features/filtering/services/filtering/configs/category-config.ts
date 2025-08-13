@@ -70,24 +70,37 @@ export const CATEGORY_FILTERS: CategoryFilter[] = [
     id: 'something-new',
     label: 'Something New',
     icon: '✨',
-    description: 'Discover unique and unexpected experiences',
+    description: 'Discover unique and unexpected experiences across all categories - new cafes, restaurants, activities, and hidden gems',
     preferredPlaceTypes: [
-      'shopping_mall', 'library', 'book_store', 'clothing_store', 'shoe_store', 
-      'department_store', 'electronics_store', 'home_goods_store', 'hardware_store', 
-      'florist', 'jewelry_store', 'sporting_goods_store', 'pet_store', 'bicycle_store', 
-      'hair_care', 'beauty_salon', 'university', 'hindu_temple', 'church', 'mosque', 
-      'synagogue', 'rv_park', 'campground'
+      // Food & Dining
+      'restaurant', 'cafe', 'bar', 'bakery', 'food', 'meal_delivery', 'meal_takeaway', 'night_club', 'liquor_store',
+      
+      // Entertainment & Activities
+      'park', 'museum', 'art_gallery', 'movie_theater', 'stadium', 'casino', 'gym', 'spa', 'bowling_alley', 'amusement_park', 
+      'zoo', 'aquarium', 'golf_course', 'skate_park', 'swimming_pool', 'playground', 'tourist_attraction',
+      
+      // Shopping & Retail
+      'shopping_mall', 'book_store', 'clothing_store', 'shoe_store', 'department_store', 'electronics_store', 
+      'home_goods_store', 'hardware_store', 'florist', 'jewelry_store', 'sporting_goods_store', 'pet_store', 'bicycle_store',
+      
+      // Services & Culture
+      'library', 'hair_care', 'beauty_salon', 'university', 'hindu_temple', 'church', 'mosque', 'synagogue',
+      
+      // Outdoor & Adventure
+      'rv_park', 'campground', 'convenience_store', 'supermarket'
     ],
     moodCompatibility: ['chill', 'neutral', 'hype'],
     socialCompatibility: ['solo', 'with-bae', 'barkada'],
     budgetPreferences: ['P', 'PP', 'PPP'],
     timeCompatibility: ['morning', 'afternoon', 'night'],
     activitySuggestions: [
-      'Explore a new neighborhood', 'Visit a cultural center', 'Try a new hobby', 
-      'Discover local markets', 'Attend a workshop', 'Visit historical sites'
+      'Try a new restaurant or cafe', 'Discover a hidden park or trail', 'Visit a new museum or gallery',
+      'Explore a new neighborhood', 'Visit a cultural center', 'Try a new hobby or activity',
+      'Discover local markets', 'Attend a workshop or class', 'Visit historical sites',
+      'Find new entertainment venues', 'Explore new shopping areas', 'Try new outdoor activities'
     ],
-    atmosphereKeywords: ['unique', 'discovery', 'novel', 'unexpected', 'surprising'],
-    searchKeywords: ['new', 'discover', 'explore', 'unique', 'different', 'unusual'],
+    atmosphereKeywords: ['unique', 'discovery', 'novel', 'unexpected', 'surprising', 'new', 'fresh', 'different'],
+    searchKeywords: ['new', 'discover', 'explore', 'unique', 'different', 'unusual', 'hidden', 'fresh', 'latest'],
     priority: 3
   }
 ] as const;

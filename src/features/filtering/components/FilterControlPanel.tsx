@@ -4,9 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Filter, X, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { UserFilters } from '../types';
 import { DistanceUtils } from '../services/filtering/configs/distance-config';
+import { useAppStore } from '../../../store/store';
 
 interface FilterControlPanelProps {
-  filters: UserFilters;
   onFiltersChange: (filters: Partial<UserFilters>) => void;
   onResetFilters: () => void;
   visible?: boolean;
@@ -15,13 +15,13 @@ interface FilterControlPanelProps {
 }
 
 export default function FilterControlPanel({
-  filters,
   onFiltersChange,
   onResetFilters,
   visible = true,
   onClose,
   showAsModal = false
 }: FilterControlPanelProps) {
+  const { filters } = useAppStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['category']));
 
   const toggleSection = (section: string) => {
@@ -37,11 +37,11 @@ export default function FilterControlPanel({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (filters.category) count++;
-    if (filters.budget) count++;
-    if (filters.socialContext) count++;
-    if (filters.timeOfDay) count++;
+    // timeOfDay is always set now (morning/afternoon/night), so we don't count it as "active"
     if (filters.mood !== 50) count++; // Assuming 50 is default
-    if (filters.distanceRange && filters.distanceRange !== 50) count++; // Assuming 50 is default
+    if (filters.distanceRange && filters.distanceRange !== 10) count++; // Assuming 10 is default
+    // Note: budget and socialContext are undefined by default (meaning "consider all")
+    // so we don't count them as active filters
     return count;
   };
 
@@ -117,9 +117,10 @@ export default function FilterControlPanel({
   };
 
   const renderDistanceSlider = () => {
-    const distance = filters.distanceRange || 50;
+    const distance = filters.distanceRange || 10;
     const getDistanceLabel = (value: number) => {
-      return DistanceUtils.getDistanceLabelForUI(value);
+      const category = DistanceUtils.getDistanceCategory(value);
+      return `${category.emoji} ${category.text}`;
     };
 
     return (
@@ -370,7 +371,7 @@ export default function FilterControlPanel({
           'Distance Range',
           'distance',
           renderDistanceSlider(),
-          (filters.distanceRange || 50) !== 50
+          (filters.distanceRange || 10) !== 10
         )}
       </ScrollView>
     </View>
@@ -581,6 +582,12 @@ const styles = StyleSheet.create({
   sliderValue: {
     fontSize: 12,
     color: '#666',
+    textAlign: 'center',
+  },
+  statusError: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 8,
     textAlign: 'center',
   },
 });

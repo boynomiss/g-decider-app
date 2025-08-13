@@ -39,7 +39,7 @@ export default function InstantRecommendations({
 
   useEffect(() => {
     loadInstantRecommendations();
-  }, [userLocation, filters]);
+  }, [userLocation]); // Remove filters dependency to prevent infinite loop
 
   const loadInstantRecommendations = async (forceRefresh = false) => {
     if (forceRefresh) {
@@ -71,24 +71,34 @@ export default function InstantRecommendations({
       return [];
     }
 
-    if (!filters.category) {
+    // Use filters from props or fallback to avoid infinite loops
+    const currentFilters = filters || {
+      category: 'food',
+      mood: 50,
+      socialContext: 'solo',
+      budget: 'P',
+      timeOfDay: 'any',
+      distanceRange: 10
+    };
+    
+    if (!currentFilters.category) {
       console.log('❌ No category selected');
       return [];
     }
 
     try {
-      console.log('🎯 Calling unifiedFilterService with filters:', filters);
+      console.log('🎯 Calling unifiedFilterService with filters:', currentFilters);
       
       // Call the unified filter service to get real Google API results
       const searchParams = {
         lat: userLocation.lat,
         lng: userLocation.lng,
-        lookingFor: filters.category as 'food' | 'activity' | 'something-new',
-        mood: filters.mood || 50,
-        socialContext: filters.socialContext,
-        budget: filters.budget,
-        timeOfDay: filters.timeOfDay || 'any',
-        maxRadius: (filters.distanceRange || 10) * 1000, // Convert km to meters
+        lookingFor: currentFilters.category as 'food' | 'activity' | 'something-new',
+        mood: currentFilters.mood || 50,
+        socialContext: currentFilters.socialContext,
+        budget: currentFilters.budget,
+        timeOfDay: currentFilters.timeOfDay || 'any',
+        maxRadius: (currentFilters.distanceRange || 10) * 1000, // Convert km to meters
         minResults: 10,
         maxResults: 20,
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || ''
@@ -133,7 +143,12 @@ export default function InstantRecommendations({
         price_level: place.raw?.price_level,
         opening_hours: place.opening_hours,
         user_ratings_total: place.user_ratings_total,
-        photos: { thumbnail: [] }
+        photos: place.photos ? {
+          thumbnail: place.photos.thumbnail || [],
+          medium: place.photos.medium || [],
+          large: place.photos.large || [],
+          count: place.photos.count || 0
+        } : { thumbnail: [], medium: [], large: [], count: 0 }
       }));
 
       // Create recommendation categories
@@ -161,6 +176,32 @@ export default function InstantRecommendations({
         }
       ];
 
+      // Debug logging for photos
+      console.log('📸 Photo debugging for first place:', {
+        placeName: convertedPlaces[0]?.name,
+        hasPhotos: !!convertedPlaces[0]?.photos,
+        photoCount: convertedPlaces[0]?.photos?.count || 0,
+        mediumPhotos: convertedPlaces[0]?.photos?.medium?.length || 0,
+        samplePhoto: convertedPlaces[0]?.photos?.medium?.[0] || 'No photos'
+      });
+      
+      // Additional detailed debugging
+      console.log('🔍 Raw place data from unified filter service:', {
+        placeName: places[0]?.name,
+        hasPhotos: !!places[0]?.photos,
+        photosType: typeof places[0]?.photos,
+        photosKeys: places[0]?.photos ? Object.keys(places[0].photos) : 'No photos',
+        photosValue: places[0]?.photos
+      });
+      
+      console.log('🔍 Converted place data structure:', {
+        placeName: convertedPlaces[0]?.name,
+        hasPhotos: !!convertedPlaces[0]?.photos,
+        photosType: typeof convertedPlaces[0]?.photos,
+        photosKeys: convertedPlaces[0]?.photos ? Object.keys(convertedPlaces[0].photos) : 'No photos',
+        photosValue: convertedPlaces[0]?.photos
+      });
+      
       console.log('✅ Created recommendation categories:', categories.map(c => ({ id: c.id, count: c.places.length })));
       return categories;
 

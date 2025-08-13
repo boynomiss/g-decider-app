@@ -3,7 +3,7 @@
  * Run with: node test-unified-filtering-system.js
  */
 
-const { unifiedFilterService } = require('./utils/unified-filtering-system');
+const { unifiedFilterService } = require('../../src/features/filtering/services/filtering/unified-filtering-system');
 
 async function testUnifiedFilteringSystem() {
   console.log('🧪 Testing Unified Filtering System...\n');

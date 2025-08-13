@@ -68,7 +68,7 @@ async function getGeminiAI() {
     }
     return genAI;
 }
-exports.testGeminiAccess = functions.https.onRequest(async (req, res) => {
+exports.testGeminiAccess = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -103,7 +103,7 @@ exports.testGeminiAccess = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.generatePlaceDescription = functions.https.onRequest(async (req, res) => {
+exports.generatePlaceDescription = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -144,7 +144,7 @@ exports.generatePlaceDescription = functions.https.onRequest(async (req, res) =>
         });
     }
 });
-exports.analyzeMoodAndSuggest = functions.https.onRequest(async (req, res) => {
+exports.analyzeMoodAndSuggest = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');
@@ -185,7 +185,7 @@ exports.analyzeMoodAndSuggest = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.getPersonalizedRecommendations = functions.https.onRequest(async (req, res) => {
+exports.getPersonalizedRecommendations = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     // Enable CORS
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST');

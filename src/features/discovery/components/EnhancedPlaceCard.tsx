@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, Scroll
 import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../types';
 
-
 const { width: screenWidth } = Dimensions.get('window');
 
 interface EnhancedPlaceCardProps {
@@ -14,9 +13,9 @@ interface EnhancedPlaceCardProps {
   onRemove?: () => void;
   onPass?: () => void;
   onRestart?: () => void;
-  isSaved?: boolean;
-  showFullDetails?: boolean;
-  showRemoveButton?: boolean;
+  isSaved?: false;
+  showFullDetails?: false;
+  showRemoveButton?: false;
 }
 
 export default function EnhancedPlaceCard({
@@ -38,8 +37,6 @@ export default function EnhancedPlaceCard({
     const index = event.nativeEvent.contentOffset.x / slideSize;
     setCurrentImageIndex(Math.round(index));
   };
-
-
 
   // Handle contact actions
   const handleCall = async () => {
@@ -132,20 +129,13 @@ export default function EnhancedPlaceCard({
 
   // Get opening hours display
   const getOpeningHoursDisplay = () => {
-    if (!place.opening_hours || typeof place.opening_hours !== 'object') return null;
+    if (!place.openHours) return null;
     
-    // Check if currently open
-    const isOpenNow = place.opening_hours.open_now;
-    
-    // Get today's hours if available
-    const today = new Date().getDay();
-    const weekdayText = place.opening_hours.weekday_text || null;
-    const todayHours = weekdayText ? weekdayText[today] : null;
-    
+    // For now, return a simple open/closed status
+    // The openHours property is a string, not the complex Google Places API structure
     return {
-      isOpenNow,
-      todayHours,
-      hasHours: !!todayHours
+      isOpenNow: true, // Default to open since we can't parse the string format
+      todayHours: place.openHours
     };
   };
 
@@ -213,7 +203,7 @@ export default function EnhancedPlaceCard({
       >
         <View style={styles.placeInfo}>
           <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeLocation}>{place.address || 'Address not available'}</Text>
+          <Text style={styles.placeLocation}>{place.formatted_address || place.vicinity || 'Address not available'}</Text>
           {/* Budget Badge (Old UI Style) */}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
@@ -290,7 +280,7 @@ export default function EnhancedPlaceCard({
               style={styles.mapButton} 
               onPress={() => {
                 // Open in maps
-                const url = `https://maps.google.com/?q=${encodeURIComponent(place.address || '')}`;
+                const url = `https://maps.google.com/?q=${encodeURIComponent(place.formatted_address || place.vicinity || '')}`;
                 Linking.openURL(url);
               }}
               activeOpacity={0.7}
@@ -339,8 +329,8 @@ export default function EnhancedPlaceCard({
               onPress={onRestart}
               activeOpacity={0.7}
             >
-              <RotateCcw size={24} color="#4A4A4A" />
-              <Text style={[styles.actionText, { color: '#4A4A4A' }]}>Restart</Text>
+              <RotateCcw size={24} color="#4CAF50" />
+              <Text style={[styles.actionText, { color: '#4CAF50' }]}>Restart</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -369,8 +359,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
   },
-  cardSectionContainer: {
-    backgroundColor: '#FFF',
+  imageCardContainer: {
+    backgroundColor: '#A67BCE', // 5% lighter purple background for image section
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,
@@ -380,8 +370,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginBottom: 16,
   },
-  imageCardContainer: {
-    backgroundColor: '#A67BCE', // 5% lighter purple background for image section
+  cardSectionContainer: {
+    backgroundColor: '#FFF',
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,
@@ -485,13 +475,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontStyle: 'italic',
   },
-  placeholderText: {
-    fontSize: 14,
-    color: '#999',
-    lineHeight: 20,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
   enhancedInfoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -592,6 +575,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  mapButton: {
+    flexDirection: 'row',           // Horizontal layout (icon beside text)
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',      // White background
+    borderWidth: 1,                 // Has a border
+    borderColor: '#8B5FBF',        // Purple border
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 4,
+  },
+  mapButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5FBF',
+    marginLeft: 8,
+  },
   removeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -615,23 +616,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 12,
-  },
-  mapButton: {
-    flexDirection: 'row',           // Horizontal layout (icon beside text)
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',      // White background
-    borderWidth: 1,                 // Has a border
-    borderColor: '#8B5FBF',        // Purple border
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 4,
-  },
-  mapButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8B5FBF',
-    marginLeft: 8,
   },
 });

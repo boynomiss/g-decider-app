@@ -6,11 +6,11 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, runOnJS, withSpring, withTiming, Easing } from 'react-native-reanimated';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useAppStore } from '../../../store/store';
 import { FilterApiBridge } from '../services/filtering';
-import { DISTANCE_CATEGORIES } from '../services/filtering/configs/distance-config';
+import { DISTANCE_CATEGORIES, DistanceUtils } from '../services/filtering/configs/distance-config';
 import { socialOptions } from '../services/filtering/configs/social-config';
 import { MOOD_DETAILED_LABELS } from '../services/filtering/configs/mood-config';
 import { SPACING } from '../../../shared/constants/constants';
@@ -38,6 +38,7 @@ export const budgetOptions = [
     googlePriceLevel: 3
   }
 ];
+
 export const timeOptions = [
   { 
     id: 'morning', 
@@ -67,154 +68,391 @@ export const timeOptions = [
     description: 'Dinner, nightlife, and evening entertainment'
   },
 ] as const;
-// socialOptions now imported from social-config.ts
-
-// moodLabels now imported from mood-config.ts as MOOD_DETAILED_LABELS
 
 // Use consolidated distance categories from distance-config
 export const distanceCategories = DISTANCE_CATEGORIES;
 
-export default function MoodSlider() {
+// Memoized filter button components to prevent unnecessary re-renders
+const SocialContextButton = React.memo(({ 
+  social, 
+  isActive, 
+  onPress 
+}: { 
+  social: any; 
+  isActive: boolean; 
+  onPress: () => void; 
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.optionButton,
+      isActive && styles.activeOption
+    ]}
+    onPress={onPress}
+  >
+    <Text style={styles.optionIcon}>{social.icon}</Text>
+    <Text style={[
+      styles.optionText,
+      isActive && styles.activeOptionText
+    ]}>
+      {social.label}
+    </Text>
+  </TouchableOpacity>
+));
+
+const BudgetButton = React.memo(({ 
+  budget, 
+  isActive, 
+  onPress 
+}: { 
+  budget: any; 
+  isActive: boolean; 
+  onPress: () => void; 
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.optionButton,
+      isActive && styles.activeOption
+    ]}
+    onPress={onPress}
+  >
+    <Text style={[
+      styles.optionText,
+      isActive && styles.activeOptionText
+    ]}>
+      {budget.display}
+    </Text>
+  </TouchableOpacity>
+));
+
+const TimeOfDayButton = React.memo(({ 
+  time, 
+  isActive, 
+  onPress 
+}: { 
+  time: any; 
+  isActive: boolean; 
+  onPress: () => void; 
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.optionButton,
+      isActive && styles.activeOption
+    ]}
+    onPress={onPress}
+  >
+    <Text style={[
+      styles.optionText,
+      isActive && styles.activeOptionText
+    ]}>
+      {time.label}
+    </Text>
+  </TouchableOpacity>
+));
+
+// Separate component for expandable filters to prevent re-renders
+const ExpandableFiltersSection = React.memo(({ 
+  filters, 
+  onSocialContextPress, 
+  onBudgetPress, 
+  onTimeOfDayPress, 
+  onExpandPress,
+  distanceTrackStyle,
+  distanceThumbStyle,
+  distanceGestureHandler,
+  getCurrentDistanceLabel
+}: { 
+  filters: any; 
+  onSocialContextPress: (id: 'solo' | 'with-bae' | 'barkada') => void; 
+  onBudgetPress: (value: 'P' | 'PP' | 'PPP') => void; 
+  onTimeOfDayPress: (id: 'morning' | 'afternoon' | 'night') => void; 
+  onExpandPress: () => void;
+  distanceTrackStyle: any;
+  distanceThumbStyle: any;
+  distanceGestureHandler: any;
+  getCurrentDistanceLabel: () => { text: string; emoji: string };
+}) => (
+  <View style={styles.expandedFilters}>
+    {/* Social Context */}
+    <View style={[styles.filterSection, styles.firstFilterSection]}>
+      <Text style={styles.filterTitle}>Social Context:</Text>
+      <View style={styles.optionsRow}>
+        {socialOptions.map((social) => (
+          <SocialContextButton
+            key={social.id}
+            social={social}
+            isActive={filters.socialContext === social.id}
+            onPress={() => onSocialContextPress(social.id)}
+          />
+        ))}
+      </View>
+    </View>
+
+    {/* Budget */}
+    <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+      <Text style={styles.filterTitle}>Budget:</Text>
+      <View style={styles.optionsRow}>
+        {budgetOptions.map((budget) => (
+          <BudgetButton
+            key={budget.value}
+            budget={budget}
+            isActive={filters.budget === budget.value}
+            onPress={() => onBudgetPress(budget.value)}
+          />
+        ))}
+      </View>
+    </View>
+
+    {/* Time of Day */}
+    <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+      <Text style={styles.filterTitle}>Time of Day:</Text>
+      <View style={styles.optionsRow}>
+        {timeOptions.map((time) => (
+          <TimeOfDayButton
+            key={time.id}
+            time={time}
+            isActive={filters.timeOfDay === time.id}
+            onPress={() => onTimeOfDayPress(time.id)}
+          />
+        ))}
+      </View>
+    </View>
+
+    {/* Distance Range */}
+    <View style={[styles.filterSection, styles.subsequentFilterSection]}>
+      <View style={styles.distanceHeader}>
+        <Text style={[styles.filterTitle, styles.distanceTitle]}>Distance Range:</Text>
+        <View style={styles.distanceValueContainer}>
+          <Text style={styles.distanceValue}>
+            {getCurrentDistanceLabel().text}
+          </Text>
+          <Text style={styles.distanceEmoji}>
+            {getCurrentDistanceLabel().emoji}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.sliderTrack}>
+        <Animated.View style={[styles.activeTrack, distanceTrackStyle]} />
+        <PanGestureHandler onGestureEvent={distanceGestureHandler}>
+          <Animated.View style={[styles.thumb, distanceThumbStyle]} />
+        </PanGestureHandler>
+      </View>
+    </View>
+
+    {/* View Less Filters Button at Bottom */}
+    <View style={styles.bottomButtonContainer}>
+      <TouchableOpacity 
+        style={styles.collapseButton}
+        onPress={onExpandPress}
+        activeOpacity={1}
+      >
+        <Text style={styles.collapseText}>
+          View less filters
+        </Text>
+        <ChevronUp size={16} color="#7DD3C0" />
+      </TouchableOpacity>
+    </View>
+  </View>
+));
+
+const MoodSlider = React.memo(() => {
   const { filters, updateFilters, showMoreFilters, toggleMoreFilters } = useAppStore();
   const [isDragging, setIsDragging] = useState(false);
-  const translateX = useSharedValue((filters.mood / 100) * 280);
-  const distanceTranslateX = useSharedValue(filters.distanceRange !== null ? ((filters.distanceRange / 100) * 280) : 0);
+  const [currentDragMood, setCurrentDragMood] = useState(filters.mood ?? 50);
+  
+  // Separate visual drag position from actual mood value
+  const dragTranslateX = useSharedValue(((filters.mood ?? 50) / 100) * 280);
+  const actualMoodTranslateX = useSharedValue(((filters.mood ?? 50) / 100) * 280);
+  const distanceTranslateX = useSharedValue((filters.distanceRange ?? 10) !== null ? (((filters.distanceRange ?? 10) / 100) * 280) : 0);
   
   // Animation values for the expand button
   const buttonScale = useSharedValue(1);
   const buttonOpacity = useSharedValue(1);
   const chevronRotation = useSharedValue(0);
-  
-  const updateMood = (value: number) => {
+
+  // 10 mood visual indicators for better UX during slider interaction
+  const moodIndicators = [
+    { emoji: '🌟', text: 'Chill' },      // Position 1 (0-10%)
+    { emoji: '🧘‍♀️', text: 'Zen' },       // Position 2 (10-20%)
+    { emoji: '☕', text: 'Mellow' },     // Position 3 (20-30%)
+    { emoji: '🌙', text: 'Tranquil' },   // Position 4 (30-40%)
+    { emoji: '💪', text: 'Eager' },      // Position 5 (40-50%)
+    { emoji: '🎶', text: 'Upbeat' },     // Position 6 (50-60%)
+    { emoji: '🥳', text: 'Lively' },     // Position 7 (60-70%)
+    { emoji: '💪', text: 'Pumped' },     // Position 8 (70-80%)
+    { emoji: '🎉', text: 'Thrilled' },   // Position 9 (80-90%)
+    { emoji: '🔥', text: 'Hype' }        // Position 10 (90-100%)
+  ];
+
+  // Update actual mood value (only called when drag ends)
+  const updateMood = React.useCallback((value: number) => {
     const newMood = Math.max(0, Math.min(100, value));
     // Enhanced logging with API-ready data (null-safe)
     FilterApiBridge.logMoodSelection(newMood);
     updateFilters({ 
       mood: newMood
     });
+  }, [updateFilters]);
+
+  // Get current mood category from percentage (0-33.33% = chill, 33.34-66.66% = neutral, 66.67-100% = hype)
+  const getMoodCategoryFromPercentage = (percentage: number): 'chill' | 'neutral' | 'hype' => {
+    if (percentage <= 33.33) return 'chill';
+    if (percentage <= 66.66) return 'neutral';
+    return 'hype';
+  };
+
+  // Get mood indicator from percentage for dynamic visual updates
+  const getMoodIndicatorFromPercentage = (percentage: number): { emoji: string, text: string } => {
+    const index = Math.min(Math.max(0, Math.floor(percentage / 10)), 9); // Ensure index is 0-9
+    // Since we guarantee index is within bounds, this will always return a valid mood indicator
+    return moodIndicators[index]!;
+  };
+
+  // Get mood level for visual display (1-10 scale)
+  const getMoodLevel = (moodValue: number) => {
+    return Math.max(1, Math.min(10, Math.round((moodValue / 100) * 10) || 1));
+  };
+
+  // Get current mood label for visual display
+  const getCurrentMoodLabel = () => {
+    const level = getMoodLevel(filters.mood ?? 50);
+    return MOOD_DETAILED_LABELS[level as keyof typeof MOOD_DETAILED_LABELS];
+  };
+
+  // Get current drag mood indicator for real-time visual feedback during drag
+  const getCurrentDragMoodIndicator = () => {
+    return getMoodIndicatorFromPercentage(currentDragMood);
   };
 
   const setDraggingState = (dragging: boolean) => {
     setIsDragging(dragging);
   };
 
-  const getMoodLevel = (moodValue: number) => {
-    return Math.max(1, Math.min(10, Math.round((moodValue / 100) * 10) || 1));
-  };
-
-
-
-  const getCurrentMoodLabel = () => {
-    const level = getMoodLevel(filters.mood);
-    return MOOD_DETAILED_LABELS[level as keyof typeof MOOD_DETAILED_LABELS];
-  };
-
-  const getDistanceCategory = (value: number) => {
-    if (value <= 25) return 'Very Close';
-    if (value <= 50) return 'Close';
-    if (value <= 75) return 'Moderate';
-    return 'Far';
-  };
-
   const getCurrentDistanceLabel = () => {
-    const distance = filters.distanceRange ?? 0;
-    const category = getDistanceCategory(distance);
+    const distance = filters.distanceRange ?? 10;
+    const category = DistanceUtils.getDistanceCategory(distance);
     return {
-      text: category,
-      emoji: category === 'Very Close' ? '📍' : 
-             category === 'Close' ? '🏃' : 
-             category === 'Moderate' ? '🚶' : '🚗'
+      text: category.text,
+      emoji: category.emoji
     };
   };
 
-  const updateDistance = (value: number) => {
+
+
+  const updateDistance = React.useCallback((value: number) => {
     const newDistance = Math.max(0, Math.min(100, value));
     // Enhanced logging with API-ready data (null-safe)
     FilterApiBridge.logDistanceSelection(newDistance);
     updateFilters({ 
       distanceRange: newDistance
     });
-  };
+  }, [updateFilters]);
 
   // Animation functions for the expand button
   const animateButtonPress = () => {
-    // Scale down animation
-    buttonScale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-    buttonOpacity.value = withTiming(0.8, { duration: 100 });
+    // Smooth scale down animation
+    buttonScale.value = withTiming(0.95, { 
+      duration: 100,
+      easing: Easing.out(Easing.cubic)
+    });
+    buttonOpacity.value = withTiming(0.8, { 
+      duration: 100,
+      easing: Easing.out(Easing.cubic)
+    });
     
-    // Reset after a short delay
+    // Smooth reset animation
     setTimeout(() => {
-      buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-      buttonOpacity.value = withTiming(1, { duration: 100 });
-    }, 150);
+      buttonScale.value = withTiming(1, { 
+        duration: 150,
+        easing: Easing.out(Easing.cubic)
+      });
+      buttonOpacity.value = withTiming(1, { 
+        duration: 150,
+        easing: Easing.out(Easing.cubic)
+      });
+    }, 100);
   };
 
   const animateChevron = () => {
-    const targetRotation = showMoreFilters ? 0 : 180;
-    chevronRotation.value = withSpring(targetRotation, { damping: 15, stiffness: 300 });
+    const targetRotation = showMoreFilters ? 180 : 0;
+    chevronRotation.value = withTiming(targetRotation, { 
+      duration: 300,
+      easing: Easing.out(Easing.cubic)
+    });
   };
 
-  const handleExpandPress = () => {
+  const handleExpandPress = React.useCallback(() => {
     animateButtonPress();
     animateChevron();
     toggleMoreFilters();
-  };
+  }, [toggleMoreFilters]);
 
-  const handleSocialContextPress = (socialId: 'solo' | 'with-bae' | 'barkada') => {
+  const handleSocialContextPress = React.useCallback((socialId: 'solo' | 'with-bae' | 'barkada') => {
+    // Only update if the value actually changed
     if (filters.socialContext === socialId) {
       // Deselecting
       console.log('Social context deselected');
-      updateFilters({ socialContext: undefined });
-    } else {
+      updateFilters({ socialContext: undefined as any });
+    } else if (filters.socialContext !== socialId) {
       // Enhanced logging with API-ready data (null-safe)
       FilterApiBridge.logSocialContextSelection(socialId);
       updateFilters({ 
         socialContext: socialId
       });
     }
-  };
+  }, [filters.socialContext, updateFilters]);
 
-  const handleBudgetPress = (budgetValue: 'P' | 'PP' | 'PPP') => {
+  const handleBudgetPress = React.useCallback((budgetValue: 'P' | 'PP' | 'PPP') => {
+    // Only update if the value actually changed
     if (filters.budget === budgetValue) {
       // Deselecting
       console.log('Budget deselected');
-      updateFilters({ budget: undefined });
-    } else {
+      updateFilters({ budget: undefined as any });
+    } else if (filters.budget !== budgetValue) {
       // Enhanced logging with API-ready data (null-safe)
       FilterApiBridge.logBudgetSelection(budgetValue);
       updateFilters({ 
         budget: budgetValue
       });
     }
-  };
+  }, [filters.budget, updateFilters]);
 
-  const handleTimeOfDayPress = (timeId: 'morning' | 'afternoon' | 'night') => {
+  const handleTimeOfDayPress = React.useCallback((timeId: 'morning' | 'afternoon' | 'night') => {
+    // Only update if the value actually changed
     if (filters.timeOfDay === timeId) {
       // Deselecting
       console.log('Time of day deselected');
-      updateFilters({ timeOfDay: undefined });
-    } else {
+      updateFilters({ timeOfDay: undefined as any });
+    } else if (filters.timeOfDay !== timeId) {
       // Enhanced logging with API-ready data (null-safe)
       FilterApiBridge.logTimeOfDaySelection(timeId);
       updateFilters({ 
         timeOfDay: timeId
       });
     }
-  };
+  }, [filters.timeOfDay, updateFilters]);
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, context: { startX?: number }) => {
-      context.startX = translateX.value;
+      context.startX = dragTranslateX.value;
       runOnJS(setDraggingState)(true);
     },
     onActive: (event, context) => {
       const startX = context.startX ?? 0;
       const newX = Math.max(0, Math.min(280, startX + event.translationX));
-      translateX.value = newX;
+      dragTranslateX.value = newX;
+      
+      // Update the state to trigger re-render of tooltip in real-time
       const newValue = (newX / 280) * 100;
-      runOnJS(updateMood)(newValue);
+      runOnJS(setCurrentDragMood)(newValue);
     },
     onEnd: () => {
+      // Calculate final mood value and update store
+      const finalMoodValue = (dragTranslateX.value / 280) * 100;
+      runOnJS(updateMood)(finalMoodValue);
+      
+      // Sync visual position with actual mood value
+      actualMoodTranslateX.value = dragTranslateX.value;
+      
       runOnJS(setDraggingState)(false);
     },
   });
@@ -234,13 +472,13 @@ export default function MoodSlider() {
 
   const thumbStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: translateX.value }],
+      transform: [{ translateX: dragTranslateX.value }],
     };
   });
 
   const trackStyle = useAnimatedStyle(() => {
     return {
-      width: translateX.value + 10,
+      width: dragTranslateX.value + 10,
     };
   });
 
@@ -270,27 +508,22 @@ export default function MoodSlider() {
     };
   });
 
-  // Animation for expanded filters
-  const expandedFiltersOpacity = useSharedValue(0);
-  const expandedFiltersHeight = useSharedValue(0);
-
+  // Sync drag position when filters change externally (e.g., from other components)
   React.useEffect(() => {
-    if (showMoreFilters) {
-      expandedFiltersOpacity.value = withTiming(1, { duration: 300 });
-      expandedFiltersHeight.value = withSpring(1, { damping: 15, stiffness: 300 });
-    } else {
-      expandedFiltersOpacity.value = withTiming(0, { duration: 200 });
-      expandedFiltersHeight.value = withSpring(0, { damping: 15, stiffness: 300 });
-    }
+    const moodValue = filters.mood ?? 50;
+    const newPosition = (moodValue / 100) * 280;
+    dragTranslateX.value = newPosition;
+    actualMoodTranslateX.value = newPosition;
+    setCurrentDragMood(moodValue);
+  }, [filters.mood]);
+
+  // Set initial chevron rotation based on current state
+  React.useEffect(() => {
+    const initialRotation = showMoreFilters ? 180 : 0;
+    chevronRotation.value = initialRotation;
   }, [showMoreFilters]);
 
-  const expandedFiltersAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: expandedFiltersOpacity.value,
-      maxHeight: expandedFiltersHeight.value === 0 ? 0 : 1000,
-      overflow: 'hidden',
-    };
-  });
+
 
   return (
     <View style={styles.container}>
@@ -308,8 +541,8 @@ export default function MoodSlider() {
             <Animated.View style={[styles.thumb, thumbStyle]}>
               {isDragging && (
                 <View style={styles.valueDisplay}>
-                  <Text style={styles.valueEmoji}>{getCurrentMoodLabel().emoji}</Text>
-                  <Text style={styles.valueText}>{getCurrentMoodLabel().text}</Text>
+                  <Text style={styles.valueEmoji}>{getCurrentDragMoodIndicator().emoji}</Text>
+                  <Text style={styles.valueText}>{getCurrentDragMoodIndicator().text}</Text>
                   <View style={styles.valueArrow} />
                 </View>
               )}
@@ -335,118 +568,24 @@ export default function MoodSlider() {
         </Animated.View>
       )}
 
-            <Animated.View style={expandedFiltersAnimatedStyle}>
-        {/* Social Context */}
-        <View style={[styles.filterSection, styles.firstFilterSection]}>
-          <Text style={styles.filterTitle}>Social Context:</Text>
-          <View style={styles.optionsRow}>
-            {socialOptions.map((social) => (
-              <TouchableOpacity
-                key={social.id}
-                style={[
-                  styles.optionButton,
-                  filters.socialContext === social.id && styles.activeOption
-                ]}
-                onPress={() => handleSocialContextPress(social.id)}
-              >
-                <Text style={styles.optionIcon}>{social.icon}</Text>
-                <Text style={[
-                  styles.optionText,
-                  filters.socialContext === social.id && styles.activeOptionText
-                ]}>
-                  {social.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Budget */}
-        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
-          <Text style={styles.filterTitle}>Budget:</Text>
-          <View style={styles.optionsRow}>
-            {budgetOptions.map((budget) => (
-              <TouchableOpacity
-                key={budget.value}
-                style={[
-                  styles.optionButton,
-                  filters.budget === budget.value && styles.activeOption
-                ]}
-                onPress={() => handleBudgetPress(budget.value)}
-              >
-                <Text style={[
-                  styles.optionText,
-                  filters.budget === budget.value && styles.activeOptionText
-                ]}>
-                  {budget.display}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Time of Day */}
-        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
-          <Text style={styles.filterTitle}>Time of Day:</Text>
-          <View style={styles.optionsRow}>
-            {timeOptions.map((time) => (
-              <TouchableOpacity
-                key={time.id}
-                style={[
-                  styles.optionButton,
-                  filters.timeOfDay === time.id && styles.activeOption
-                ]}
-                onPress={() => handleTimeOfDayPress(time.id)}
-              >
-                <Text style={[
-                  styles.optionText,
-                  filters.timeOfDay === time.id && styles.activeOptionText
-                ]}>
-                  {time.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Distance Range */}
-        <View style={[styles.filterSection, styles.subsequentFilterSection]}>
-          <View style={styles.distanceHeader}>
-            <Text style={[styles.filterTitle, styles.distanceTitle]}>Distance Range:</Text>
-            <View style={styles.distanceValueContainer}>
-              <Text style={styles.distanceValue}>
-                {getCurrentDistanceLabel().text}
-              </Text>
-              <Text style={styles.distanceEmoji}>
-                {getCurrentDistanceLabel().emoji}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.sliderTrack}>
-            <Animated.View style={[styles.activeTrack, distanceTrackStyle]} />
-            <PanGestureHandler onGestureEvent={distanceGestureHandler}>
-              <Animated.View style={[styles.thumb, distanceThumbStyle]} />
-            </PanGestureHandler>
-          </View>
-        </View>
-
-        {/* View Less Filters Button at Bottom */}
-        <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity 
-            style={styles.collapseButton}
-            onPress={handleExpandPress}
-            activeOpacity={1}
-          >
-            <Text style={styles.collapseText}>
-              View less filters
-            </Text>
-            <ChevronUp size={16} color="#7DD3C0" />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+      {showMoreFilters && (
+        <ExpandableFiltersSection
+          filters={filters}
+          onSocialContextPress={handleSocialContextPress}
+          onBudgetPress={handleBudgetPress}
+          onTimeOfDayPress={handleTimeOfDayPress}
+          onExpandPress={handleExpandPress}
+          distanceTrackStyle={distanceTrackStyle}
+          distanceThumbStyle={distanceThumbStyle}
+          distanceGestureHandler={distanceGestureHandler}
+          getCurrentDistanceLabel={getCurrentDistanceLabel}
+        />
+      )}
     </View>
   );
-}
+});
+
+export default MoodSlider;
 
 const styles = StyleSheet.create({
   container: {
@@ -466,7 +605,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sliderContainer: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -486,6 +625,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'center',
     marginTop: 8,
+    marginBottom: 8,
   },
   activeTrack: {
     height: 4,
@@ -510,7 +650,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 8,
     paddingVertical: 8,
   },
   expandText: {
@@ -522,15 +662,15 @@ const styles = StyleSheet.create({
   },
   expandedFilters: {
     marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    paddingTop: 7.5,
+    paddingTop: 8,
   },
   bottomButtonContainer: {
-    paddingVertical: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    marginTop: 16,
+    marginTop: 0, // Remove top margin since expandedFilters already has paddingBottom
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   collapseButton: {
     flexDirection: 'row',
@@ -549,10 +689,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   firstFilterSection: {
-    marginTop: 24,
+    marginTop: 8,
   },
   subsequentFilterSection: {
-    marginTop: 6,
+    marginTop: 12,
   },
   filterTitle: {
     fontSize: 16,
@@ -562,6 +702,7 @@ const styles = StyleSheet.create({
   },
   distanceTitle: {
     marginBottom: 0,
+    flex: 1,
   },
   optionsRow: {
     flexDirection: 'row',
@@ -596,6 +737,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     minWidth: 120,
+    marginLeft: 8,
   },
   distanceValue: {
     fontSize: 16,
@@ -610,7 +752,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   valueDisplay: {
     position: 'absolute',
@@ -652,5 +794,19 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#7DD3C0',
+  },
+  moodCategoryContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  moodCategoryLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  moodCategoryValue: {
+    color: '#7DD3C0',
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAppStore } from '../../../store/store';
 import { useSearchPreview, useFilterChangeTracker } from '../hooks/use-dynamic-filter-logger';
 import { getCategoryFilter } from '../services/filtering/configs/category-config';
@@ -27,19 +27,13 @@ export default function FilterLogDisplay({
   // Track filter changes automatically
   useFilterChangeTracker(filters);
   
-  const [expanded, setExpanded] = React.useState(false);
-  
   if (!visible) return null;
   
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.header}
-        onPress={() => setExpanded(!expanded)}
-      >
+      <View style={styles.header}>
         <Text style={styles.title}>Current Filter Settings</Text>
-        <Text style={styles.expandButton}>{expanded ? '▼' : '▶'}</Text>
-      </TouchableOpacity>
+      </View>
       
       <View style={styles.logContainer}>
         {/* Basic Filter Settings */}
@@ -87,71 +81,69 @@ export default function FilterLogDisplay({
           </View>
         )}
         
-        {/* Dynamic Text Search Section */}
-        {expanded && (
-          <View style={styles.dynamicSearchContainer}>
-            <Text style={styles.sectionTitle}>🔍 Dynamic Text Search</Text>
-            <Text style={styles.dynamicSearchText}>
-              {(() => {
-                const searchTerms: string[] = [];
-                
-                // Add category-based terms
-                if (filters.category) {
-                  const category = getCategoryFilter(filters.category);
-                  if (category) {
-                    searchTerms.push(category.label.toLowerCase());
-                    searchTerms.push(...category.searchKeywords);
-                  }
+        {/* Dynamic Text Search Section - Now always visible */}
+        <View style={styles.dynamicSearchContainer}>
+          <Text style={styles.sectionTitle}>🔍 Dynamic Text Search</Text>
+          <Text style={styles.dynamicSearchText}>
+            {(() => {
+              const searchTerms: string[] = [];
+              
+              // Add category-based terms
+              if (filters.category) {
+                const category = getCategoryFilter(filters.category);
+                if (category) {
+                  searchTerms.push(category.label.toLowerCase());
+                  searchTerms.push(...category.searchKeywords);
                 }
-                
-                // Add mood-based terms
-                if (filters.mood !== null) {
-                  const mood = getMoodCategory(filters.mood);
-                  if (mood) {
-                    searchTerms.push(mood.label.toLowerCase());
-                    searchTerms.push(...mood.atmosphereKeywords);
-                  }
+              }
+              
+              // Add mood-based terms
+              if (filters.mood !== null) {
+                const mood = getMoodCategory(filters.mood);
+                if (mood) {
+                  searchTerms.push(mood.label.toLowerCase());
+                  searchTerms.push(...mood.atmosphereKeywords);
                 }
-                
-                // Add social context terms
-                if (filters.socialContext) {
-                  const social = getSocialContext(filters.socialContext);
-                  if (social) {
-                    searchTerms.push(social.label.toLowerCase());
-                    searchTerms.push(...social.atmosphereKeywords);
-                  }
+              }
+              
+              // Add social context terms
+              if (filters.socialContext) {
+                const social = getSocialContext(filters.socialContext);
+                if (social) {
+                  searchTerms.push(social.label.toLowerCase());
+                  searchTerms.push(...social.atmosphereKeywords);
                 }
-                
-                // Add budget terms
-                if (filters.budget) {
-                  const budget = getBudgetCategory(filters.budget);
-                  if (budget) {
-                    searchTerms.push(budget.label.toLowerCase());
-                    searchTerms.push(...budget.atmosphereKeywords);
-                  }
+              }
+              
+              // Add budget terms
+              if (filters.budget) {
+                const budget = getBudgetCategory(filters.budget);
+                if (budget) {
+                  searchTerms.push(budget.label.toLowerCase());
+                  searchTerms.push(...budget.atmosphereKeywords);
                 }
-                
-                // Add time-based terms
-                if (filters.timeOfDay) {
-                  const time = getTimeCategory(filters.timeOfDay);
-                  if (time) {
-                    searchTerms.push(time.label.toLowerCase());
-                  }
+              }
+              
+              // Add time-based terms
+              if (filters.timeOfDay) {
+                const time = getTimeCategory(filters.timeOfDay);
+                if (time) {
+                  searchTerms.push(time.label.toLowerCase());
                 }
-                
-                // Add place types
-                if (placeTypes.length > 0) {
-                  searchTerms.push(...placeTypes);
-                }
-                
-                // Remove duplicates and filter out empty strings
-                const uniqueTerms = [...new Set(searchTerms)].filter(term => term.trim().length > 0);
-                
-                return uniqueTerms.length > 0 ? uniqueTerms.join(', ') : 'No search terms available';
-              })()}
-            </Text>
-          </View>
-        )}
+              }
+              
+              // Add place types
+              if (placeTypes.length > 0) {
+                searchTerms.push(...placeTypes);
+              }
+              
+              // Remove duplicates and filter out empty strings
+              const uniqueTerms = [...new Set(searchTerms)].filter(term => term.trim().length > 0);
+              
+              return uniqueTerms.length > 0 ? uniqueTerms.join(', ') : 'No search terms available';
+            })()}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -159,13 +151,11 @@ export default function FilterLogDisplay({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: SPACING.CONTAINER_PADDING, // Changed from 16 to use constant
-    margin: SPACING.CONTAINER_MARGIN, // Changed from 16 to use constant (which is now 0)
-    marginTop: 200, // Changed from 400px to 200px
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: SPACING.CONTAINER_PADDING,
+    margin: SPACING.CONTAINER_MARGIN,
+    marginBottom: SPACING.SECTION_SPACING,
   },
   header: {
     flexDirection: 'row',
@@ -176,18 +166,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#495057',
-  },
-  expandButton: {
-    fontSize: 14,
-    color: '#6c757d',
+    color: '#4A4A4A',
   },
   logContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-    padding: SPACING.CONTAINER_PADDING, // Changed from 12 to use constant
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    padding: SPACING.CONTAINER_PADDING,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: '#E0E0E0',
   },
   logLine: {
     fontSize: 14,
@@ -197,7 +183,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontWeight: '600',
-    color: '#495057',
+    color: '#7DD3C0',
   },
   searchPreviewContainer: {
     marginTop: 12,

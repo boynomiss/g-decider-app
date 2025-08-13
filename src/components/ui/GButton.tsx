@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Animated, View, Image } from 'react-native';
 import { useAppStore } from '../../store/store';
 import { useRouter } from 'expo-router';
@@ -9,13 +9,15 @@ interface GButtonProps {
 }
 
 export default function GButton({ size = 120 }: GButtonProps) {
-  const { filters } = useAppStore();
+  const { filters: { category } } = useAppStore();
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const [showErrorTagline, setShowErrorTagline] = useState(false);
 
   // Check if button should be disabled (basic validation)
-  const isDisabled = !filters.category;
+  const isDisabled = !category;
 
   // Bounce animation when not disabled
   useEffect(() => {
@@ -36,9 +38,43 @@ export default function GButton({ size = 120 }: GButtonProps) {
       );
       bounceAnimation.start();
       return () => bounceAnimation.stop();
+    } else {
+      // Stop pulse animation when disabled
+      pulseAnim.setValue(1);
     }
-    return undefined;
   }, [isDisabled, pulseAnim]);
+
+  // Shake animation function
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, {
+        toValue: 10,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: -10,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 10,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: -10,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const handlePressIn = () => {
     if (!isDisabled) {
@@ -48,6 +84,11 @@ export default function GButton({ size = 120 }: GButtonProps) {
         tension: 100,
         friction: 5,
       }).start();
+    } else {
+      // Trigger shake animation when disabled button is pressed
+      triggerShake();
+      // Show error tagline and keep it visible until category is selected
+      setShowErrorTagline(true);
     }
   };
 
@@ -67,6 +108,11 @@ export default function GButton({ size = 120 }: GButtonProps) {
     if (!isDisabled) {
       console.log('🎯 G! button pressed - navigating to instant recommendations');
       router.push('/instant-recommendations');
+    } else {
+      // Trigger shake animation when disabled button is pressed
+      triggerShake();
+      // Show error tagline and keep it visible until category is selected
+      setShowErrorTagline(true);
     }
   };
 
@@ -77,11 +123,22 @@ export default function GButton({ size = 120 }: GButtonProps) {
     return [styles.button, styles.buttonActive, { width: size * 2, height: size * 0.6, borderRadius: 50 }];
   };
 
-
+  // Dynamic tagline based on state
+  const getTagline = () => {
+    if (showErrorTagline && isDisabled) {
+      return "Pick 'Food, Activity, or Something NEW' first!";
+    }
+    return "No more 'bahala na.'";
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.tagline}>No more &apos;bahala na.&apos;</Text>
+      <Text style={[
+        styles.tagline,
+        (showErrorTagline && isDisabled) && styles.errorTagline // Only apply error styling when showing error AND disabled
+      ]}>
+        {getTagline()}
+      </Text>
       
       <Animated.View
         style={[
@@ -89,7 +146,8 @@ export default function GButton({ size = 120 }: GButtonProps) {
           {
             transform: [
               { scale: scaleAnim },
-              { scale: isDisabled ? 1 : pulseAnim }
+              { scale: isDisabled ? 1 : pulseAnim },
+              { translateX: shakeAnim }
             ]
           }
         ]}
@@ -100,19 +158,17 @@ export default function GButton({ size = 120 }: GButtonProps) {
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           activeOpacity={isDisabled ? 1 : 0.8}
-          disabled={isDisabled}
+          disabled={false}
         >
           <Image 
             source={{ uri: 'https://r2-pub.rork.com/attachments/ijysleq3wf5s37hickiet' }}
             style={styles.buttonImage}
             resizeMode="contain"
           />
-          
-          {/* Removed the shadowRing border */}
         </TouchableOpacity>
       </Animated.View>
       
-      <Text style={styles.subtitle}>Push mo na&apos;yan!</Text>
+      <Text style={styles.subtitle}>Push mo na'yan!</Text>
     </View>
   );
 }
@@ -122,7 +178,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     paddingTop: SPACING.SMALL,
-    paddingBottom: SPACING.XLARGE * 2,
+    paddingBottom: SPACING.XLARGE,
     backgroundColor: 'transparent',
   },
   tagline: {
@@ -130,6 +186,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2D3748',
     marginBottom: SPACING.SMALL,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  errorTagline: {
+    color: '#8B0000', // Changed from '#7DD3C0' (teal) to '#8B0000' (dark red)
+    fontSize: 18,
+    fontWeight: '600',
   },
   buttonWrapper: {
     alignItems: 'center',
@@ -157,7 +220,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
   },
-  // Removed shadowRing style completely
   subtitle: {
     fontSize: 18,
     color: '#4A5568',

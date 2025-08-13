@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractPlacePreferences = exports.analyzeUserMood = exports.analyzeText = exports.analyzeEntities = exports.analyzeSentiment = void 0;
 const functions = __importStar(require("firebase-functions"));
-exports.analyzeSentiment = functions.https.onRequest(async (req, res) => {
+exports.analyzeSentiment = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     try {
         const { text } = req.body;
         if (!text) {
@@ -61,7 +61,7 @@ exports.analyzeSentiment = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.analyzeEntities = functions.https.onRequest(async (req, res) => {
+exports.analyzeEntities = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     try {
         const { text } = req.body;
         if (!text) {
@@ -88,7 +88,7 @@ exports.analyzeEntities = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.analyzeText = functions.https.onRequest(async (req, res) => {
+exports.analyzeText = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     try {
         const { text, analysisType } = req.body;
         if (!text) {
@@ -121,7 +121,7 @@ exports.analyzeText = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.analyzeUserMood = functions.https.onRequest(async (req, res) => {
+exports.analyzeUserMood = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     try {
         const { text } = req.body;
         if (!text) {
@@ -151,7 +151,7 @@ exports.analyzeUserMood = functions.https.onRequest(async (req, res) => {
         });
     }
 });
-exports.extractPlacePreferences = functions.https.onRequest(async (req, res) => {
+exports.extractPlacePreferences = functions.region('asia-southeast1').https.onRequest(async (req, res) => {
     try {
         const { text } = req.body;
         if (!text) {

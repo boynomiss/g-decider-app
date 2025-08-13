@@ -24,7 +24,7 @@ const {
   getColorScheme,
   getMoodCategoryId,
   getMoodScoreRange
-} = require('./utils/mood-config.ts');
+} = require('../../src/features/filtering/services/filtering/configs/mood-config');
 
 console.log('🧪 Testing Mood Configuration System\n');
 
