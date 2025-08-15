@@ -17,8 +17,8 @@ import { getAPIKey } from '../shared/constants/config/api-keys';
 const GOOGLE_PLACES_API_KEY = getAPIKey.places();
 const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
 
-// Default location (Manila, Philippines)
-const DEFAULT_LOCATION = { lat: 14.5995, lng: 120.9842 };
+// Default location (BGC, Philippines)
+const DEFAULT_LOCATION = { lat: 14.5176, lng: 121.0509 };
 
 // Convert PlaceData to legacy Suggestion format for backwards compatibility
 const convertPlaceToSuggestion = (place: PlaceData): Suggestion => {
@@ -325,6 +325,17 @@ const [AppContext, useAppStore] = createContextHook(() => {
     }));
   }, []);
 
+  // Set current suggestion directly
+  const setCurrentSuggestion = useCallback((suggestion: Suggestion) => {
+    setState(prev => ({
+      ...prev,
+      currentSuggestion: suggestion,
+      isLoading: false,
+      isDiscovering: false,
+      loadingState: 'complete'
+    }));
+  }, []);
+
   // Initialize location on mount
   useEffect(() => {
     initializeLocation();
@@ -342,6 +353,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
     generateSuggestion,
     updateUserLocation,
     resetSuggestion,
+    setCurrentSuggestion,
     initializeLocation
   };
 });

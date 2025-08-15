@@ -30,9 +30,9 @@ const DEFAULT_LOCATION: LocationCoords = {
 // Popular locations for simulator testing
 // Add your custom locations here
 const SIMULATOR_LOCATIONS: Record<string, LocationCoords> = {
-  'manila': { lat: 14.5995, lng: 120.9842 },
-  'makati': { lat: 14.5547, lng: 121.0244 },
   'bgc': { lat: 14.5176, lng: 121.0509 },
+  'makati': { lat: 14.5547, lng: 121.0244 },
+  'manila': { lat: 14.5995, lng: 120.9842 },
   'ortigas': { lat: 14.5866, lng: 121.0630 },
   'quezon_city': { lat: 14.6760, lng: 121.0437 },
   'alabang': { lat: 14.4297, lng: 121.0403 },

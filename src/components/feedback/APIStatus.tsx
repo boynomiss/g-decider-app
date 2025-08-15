@@ -16,7 +16,7 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
       try {
         const GOOGLE_API_KEY = getAPIKey.places();
         const params = new URLSearchParams({
-          location: '14.5995,120.9842',
+          location: '14.5176,121.0509',
           radius: '5000',
           type: 'restaurant',
           key: GOOGLE_API_KEY

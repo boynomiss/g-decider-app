@@ -795,7 +795,7 @@ async function performFiltering(
  */
 async function searchGooglePlaces(placeTypes: string[], radius: number, filters: UserFilters): Promise<any[]> {
   const allPlaces: any[] = [];
-  // Manila center coordinates (14.5995,120.9842) - TODO: Get from user location
+  // BGC center coordinates (14.5176,121.0509) - TODO: Get from user location
   
   // Google Places API Nearby Search - limited to 5 types max per request
   const typeBatches = [];
@@ -814,8 +814,8 @@ async function searchGooglePlaces(placeTypes: string[], radius: number, filters:
         locationRestriction: {
           circle: {
             center: {
-              latitude: 14.5995,
-              longitude: 120.9842
+              latitude: 14.5176,
+              longitude: 121.0509
             },
             radius: radius
           }

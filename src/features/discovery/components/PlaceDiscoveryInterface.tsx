@@ -40,7 +40,7 @@ export default function PlaceDiscoveryInterface({
         const locationResult = await locationService.getCurrentLocation({
           timeout: 15000,
           accuracy: Location.Accuracy.Balanced,
-          simulatorLocation: 'makati', // Use Makati for better testing
+          simulatorLocation: 'bgc', // Use BGC for better testing
           enableHighAccuracy: false
         });
         
@@ -59,7 +59,7 @@ export default function PlaceDiscoveryInterface({
         if (locationResult.source === 'fallback') {
           Alert.alert(
             'Location Unavailable',
-            'Could not access your location. Using Manila as default. For better results, please enable location services.',
+            'Could not access your location. Using BGC as default. For better results, please enable location services.',
             [{ text: 'OK' }]
           );
         } else if (locationResult.source === 'simulator') {
@@ -84,7 +84,7 @@ export default function PlaceDiscoveryInterface({
         
         Alert.alert(
           'Location Error',
-          'Location service failed. Using Manila as default location.',
+          'Location service failed. Using BGC as default location.',
           [{ text: 'OK' }]
         );
       }
