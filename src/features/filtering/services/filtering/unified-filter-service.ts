@@ -105,10 +105,8 @@ export class UnifiedFilterService {
       maxResultCount: 20
     };
 
-    // Add price filter if specified
-    if (minprice !== undefined || maxprice !== undefined) {
-      requestBody.priceLevel = maxprice || minprice;
-    }
+    // Note: Google Places API v1 doesn't support price filtering in request body
+    // We'll filter results after receiving them based on priceLevel field
 
     try {
       const response = await fetch(url, {
@@ -127,7 +125,25 @@ export class UnifiedFilterService {
       }
 
       const json = await response.json();
-      const places = json.places || [];
+      let places = json.places || [];
+
+      // Filter by price level if specified (Google Places API v1 doesn't support this in request)
+      if (minprice !== undefined || maxprice !== undefined) {
+        places = places.filter((place: any) => {
+          const placePriceLevel = place.priceLevel;
+          if (placePriceLevel === undefined || placePriceLevel === null) {
+            return true; // Include places without price level info
+          }
+          
+          if (minprice !== undefined && placePriceLevel < minprice) {
+            return false;
+          }
+          if (maxprice !== undefined && placePriceLevel > maxprice) {
+            return false;
+          }
+          return true;
+        });
+      }
 
       // Convert new API format to legacy format for compatibility
       return places.map((place: any) => ({
