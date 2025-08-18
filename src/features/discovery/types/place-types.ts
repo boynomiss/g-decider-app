@@ -41,6 +41,7 @@ export interface Suggestion {
   price_level?: number;
   types?: string[];
   business_status?: string;
+  open_now?: boolean;
   editorial_summary?: string;
   vicinity?: string;
   formatted_address?: string;

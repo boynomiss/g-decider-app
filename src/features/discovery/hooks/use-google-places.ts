@@ -158,7 +158,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': apiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.location,places.websiteUri,places.nationalPhoneNumber,places.regularOpeningHours'
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.location,places.websiteUri,places.nationalPhoneNumber,places.regularOpeningHours,places.currentOpeningHours.openNow,places.businessStatus'
         },
         body: JSON.stringify(requestBody)
       });
@@ -211,6 +211,44 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         return;
       }
 
+      // Helper to estimate open status if API didn't return currentOpeningHours
+      const inferOpenNowFromRegularHours = (weekdayDescriptions?: string[] | null): boolean | undefined => {
+        if (!weekdayDescriptions || weekdayDescriptions.length === 0) return undefined;
+        try {
+          const now = new Date();
+          const day = now.getDay();
+          const map: Record<number, string> = { 0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
+          const today = (weekdayDescriptions.find((d: string) => (d ?? '').startsWith(map[day] ?? '')) ?? '');
+          if (!today) return undefined;
+          const hoursPart = today.split(':')[1]?.trim();
+          if (!hoursPart || hoursPart.toLowerCase().includes('closed')) return false;
+          const ranges = hoursPart.split(',').map(s => s.trim());
+          const toMinutes = (h: number, m: number) => h * 60 + m;
+          const nowMin = toMinutes(now.getHours(), now.getMinutes());
+          for (const r of ranges) {
+            const m = r.match(/(\d{1,2}):(\d{2})\s*([AP]M)\s*[–-]\s*(\d{1,2}):(\d{2})\s*([AP]M)/i) as RegExpMatchArray | null;
+            if (!m) continue;
+            const parse = (hStr: string, mStr: string, ampm: string) => {
+              const hNum = parseInt(hStr || '0', 10);
+              const mNum = parseInt(mStr || '0', 10);
+              let h = hNum % 12;
+              if ((ampm || '').toUpperCase() === 'PM') h += 12;
+              return toMinutes(h, mNum);
+            };
+            const start = parse(m[1] ?? '0', m[2] ?? '0', m[3] ?? 'AM');
+            const end = parse(m[4] ?? '0', m[5] ?? '0', m[6] ?? 'AM');
+            if (end < start) {
+              if (nowMin >= start || nowMin <= end) return true;
+            } else {
+              if (nowMin >= start && nowMin <= end) return true;
+            }
+          }
+          return false;
+        } catch {
+          return undefined;
+        }
+      };
+
       // Transform Google Places API response to PlaceMoodData format
       const transformedPlaces: PlaceMoodData[] = data.places.map((place: any) => {
         // Sort photos by quality (width * height) descending and take top N
@@ -230,7 +268,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           if (photo?.name) {
             const resourceName = photo.name; // e.g., "places/PLACE_ID/photos/PHOTO_ID"
             // Request a reasonably large size for quality while keeping bandwidth reasonable
-            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=1000&maxHeightPx=750&key=${apiKey}`;
+            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=1000&maxHeightPx=750&key=${apiKey ?? ''}`;
           }
           return null as unknown as string;
         }).filter((u: string | null) => typeof u === 'string' && !!u) as string[];
@@ -349,7 +387,11 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
             canVisitWebsite: !!place.websiteUri,
             callUrl: place.nationalPhoneNumber ? `tel:${place.nationalPhoneNumber}` : undefined,
             websiteUrl: place.websiteUri || undefined
-          }
+          },
+          business_status: place.businessStatus,
+          open_now: typeof place.currentOpeningHours?.openNow === 'boolean'
+            ? Boolean(place.currentOpeningHours.openNow)
+            : inferOpenNowFromRegularHours(place.regularOpeningHours?.weekdayDescriptions || [])
         };
       });
 
@@ -442,7 +484,12 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       }
       
       const seed = (sessionSeedRef.current + (++shuffleCounterRef.current) + randomSalt) >>> 0;
-      const shuffled = seededShuffle(filteredPlaces, seed);
+      // Prioritize currently open places while preserving randomness within groups
+      const openPlaces = filteredPlaces.filter(p => p.open_now === true);
+      const closedPlaces = filteredPlaces.filter(p => p.open_now !== true);
+      const shuffledOpen = seededShuffle(openPlaces, (seed ^ 0xA5A5A5A5) >>> 0);
+      const shuffledClosed = seededShuffle(closedPlaces, (seed ^ 0x5A5A5A5A) >>> 0);
+      const shuffled = [...shuffledOpen, ...shuffledClosed];
 
       console.log('🔍 About to set places state with:', shuffled.length, 'places (shuffled)');
       setPlaces(shuffled);
