@@ -10,6 +10,7 @@ import { AuthProvider } from "../features/auth/hooks/use-auth";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import colors from "../shared/constants/constants/colors";
 import { useComponentDebug, useRequiredComponentsValidation } from "../shared/hooks/use-component-validation";
+import { trpc, trpcClient } from "../../lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -93,17 +94,19 @@ export default function RootLayout() {
   return (
     <ErrorBoundary componentName="RootLayout">
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AppContext>
-              <ThemeProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <RootLayoutNav />
-                </GestureHandlerRootView>
-              </ThemeProvider>
-            </AppContext>
-          </AuthProvider>
-        </QueryClientProvider>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AppContext>
+                <ThemeProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <RootLayoutNav />
+                  </GestureHandlerRootView>
+                </ThemeProvider>
+              </AppContext>
+            </AuthProvider>
+          </QueryClientProvider>
+        </trpc.Provider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );
