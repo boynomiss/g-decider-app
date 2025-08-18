@@ -113,8 +113,118 @@ export default function EnhancedPlaceCard({
   };
 
   const getOpeningHoursDisplay = () => {
-    if (!place.openHours) return null as null | { isOpenNow: boolean; todayHours: string };
-    return { isOpenNow: true, todayHours: place.openHours };
+    try {
+      const src = place.openHours ?? '';
+      if (!src || typeof src !== 'string') return null as null | { isOpenNow: boolean; label: string };
+
+      const now = new Date();
+      const toMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
+
+      const normalize = (s: string) => s.replace(/[\u2013\u2014]/g, '-').replace(/⋅/g, ' ').replace(/–/g, '-');
+      const str = normalize(src).toLowerCase();
+
+      const parseTime = (t: string): { h: number; m: number } | null => {
+        const r12 = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i;
+        const r24 = /^(\d{1,2})(?::(\d{2}))?$/;
+        let m: RegExpMatchArray | null = t.match(r12);
+        if (m) {
+          let h = parseInt(m[1] ?? '0', 10);
+          const mm = parseInt(m[2] ?? '0', 10);
+          const ap = (m[3] ?? '').toLowerCase();
+          if (ap === 'pm' && h < 12) h += 12;
+          if (ap === 'am' && h === 12) h = 0;
+          return { h, m: mm };
+        }
+        m = t.match(r24);
+        if (m) {
+          let h = parseInt(m[1] ?? '0', 10);
+          const mm = parseInt(m[2] ?? '0', 10);
+          if (h >= 0 && h < 24 && mm >= 0 && mm < 60) return { h, m: mm };
+        }
+        return null;
+      };
+
+      const extractTimes = (s: string): Array<{ start: { h: number; m: number }; end: { h: number; m: number } }> => {
+        const parts = s
+          .split(/[,&;]|\band\b|\//g)
+          .map(p => p.trim())
+          .filter(Boolean);
+        const times: Array<{ start: { h: number; m: number }; end: { h: number; m: number } }> = [];
+        for (const p of parts) {
+          const segment = p.replace(/hours?|open|opening|closed|closes|until|from|to|today|now|tomorrow/gi, ' ').replace(/\s+/g, ' ').trim();
+          const range = segment.split('-').map(x => x.trim());
+          if (range.length >= 2) {
+            const a = parseTime(range[0] ?? '');
+            const b = parseTime(range[1] ?? '');
+            if (a && b) times.push({ start: a, end: b });
+          } else {
+            const m = segment.match(/(\d{1,2}(:\d{2})?\s*(am|pm)?)/gi);
+            if (m && m.length >= 2) {
+              const a = parseTime(m[0] ?? '');
+              const b = parseTime(m[1] ?? '');
+              if (a && b) times.push({ start: a, end: b });
+            }
+          }
+        }
+        if (times.length === 0) {
+          const m = s.match(/(\d{1,2}(:\d{2})?\s*(am|pm)?)/gi);
+          if (m && m.length >= 2) {
+            const a = parseTime(m[0] ?? '');
+            const b = parseTime(m[1] ?? '');
+            if (a && b) times.push({ start: a, end: b });
+          }
+        }
+        return times;
+      };
+
+      const intervals = extractTimes(str).map(({ start, end }) => {
+        const s = new Date(now);
+        s.setHours(start.h, start.m, 0, 0);
+        const e = new Date(now);
+        e.setHours(end.h, end.m, 0, 0);
+        // Overnight handling
+        if (toMinutes(e) <= toMinutes(s)) e.setDate(e.getDate() + 1);
+        return { start: s, end: e };
+      });
+
+      if (intervals.length === 0) return null;
+
+      const n = now.getTime();
+      const inInterval = intervals.find(iv => n >= iv.start.getTime() && n < iv.end.getTime());
+      const to12h = (d: Date) => {
+        let h = d.getHours();
+        const m2 = d.getMinutes();
+        const ap = h >= 12 ? 'PM' : 'AM';
+        h = h % 12; if (h === 0) h = 12;
+        const mm = m2.toString().padStart(2, '0');
+        return `${h}:${mm} ${ap}`;
+      };
+
+      if (inInterval) {
+        return { isOpenNow: true, label: `Closes at ${to12h(inInterval.end)}` };
+      }
+
+      const future = intervals
+        .map(iv => (n < iv.start.getTime() ? iv.start : null))
+        .filter((d): d is Date => !!d)
+        .sort((a, b) => a.getTime() - b.getTime());
+
+      if (future.length > 0) {
+        const nextStart = future[0] as Date;
+        return { isOpenNow: false, label: `Opens at ${to12h(nextStart)}` };
+      }
+
+      // If all intervals have passed today, show next day's first open
+      const firstTomorrow = new Date(now);
+      firstTomorrow.setDate(firstTomorrow.getDate() + 1);
+      const firstInterval = intervals[0];
+      if (!firstInterval) return null as null | { isOpenNow: boolean; label: string };
+      const first = new Date(firstTomorrow);
+      first.setHours(firstInterval.start.getHours(), firstInterval.start.getMinutes(), 0, 0);
+      return { isOpenNow: false, label: `Opens at ${to12h(first)}` };
+    } catch (e) {
+      return null as null | { isOpenNow: boolean; label: string };
+    }
   };
 
   const getBudgetDisplay = () => {
@@ -279,14 +389,9 @@ export default function EnhancedPlaceCard({
               return (
                 <View style={styles.hoursSection}>
                   <Clock size={14} color={hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B'} />
-                  <Text style={[styles.hoursText, { color: hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B' }]}>
-                    {hoursDisplay.isOpenNow ? 'Open' : 'Closed'}
+                  <Text style={[styles.hoursText, { color: hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B' }]} numberOfLines={1}>
+                    {hoursDisplay.label}
                   </Text>
-                  {hoursDisplay.todayHours && (
-                    <Text style={styles.hoursDetail} numberOfLines={1}>
-                      {hoursDisplay.todayHours}
-                    </Text>
-                  )}
                 </View>
               );
             })()}
