@@ -387,7 +387,21 @@ export default function EnhancedPlaceCard({
             const smart = formatSmart(place.name ?? '', cleanedLocation);
             return (
               <>
-                <Text style={styles.placeName}>{smart.displayName}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.placeName} numberOfLines={2}>{smart.displayName}</Text>
+                  {place.contactActions?.canVisitWebsite ? (
+                    <TouchableOpacity
+                      testID="website-inline-button"
+                      accessibilityRole="button"
+                      accessibilityLabel="Open website"
+                      onPress={handleWebsite}
+                      activeOpacity={0.7}
+                      style={styles.websiteInlineButton}
+                    >
+                      <Globe size={18} color="#8B5FBF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
                 {smart.displayLocation ? (
                   <Text style={styles.placeLocation}>{smart.displayLocation}</Text>
                 ) : null}
@@ -456,16 +470,7 @@ export default function EnhancedPlaceCard({
               <MapPin size={16} color="#8B5FBF" />
               <Text style={styles.mapButtonText}>View in Maps</Text>
             </TouchableOpacity>
-            {place.contactActions && place.contactActions.canVisitWebsite && (
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={handleWebsite}
-                activeOpacity={0.7}
-              >
-                <Globe size={16} color="#8B5FBF" />
-                <Text style={styles.actionText}>Website</Text>
-              </TouchableOpacity>
-            )}
+
             {showRemoveButton && onRemove && (
               <TouchableOpacity 
                 style={styles.removeButton} 
@@ -608,6 +613,19 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'nowrap',
+    gap: 8 as const,
+  },
+  websiteInlineButton: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   budgetContainer: {
     alignSelf: 'center',
