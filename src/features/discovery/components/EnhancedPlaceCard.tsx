@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions } from 'react-native';
+import { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions, LayoutChangeEvent } from 'react-native';
 import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../types';
 
@@ -29,19 +29,35 @@ export default function EnhancedPlaceCard({
   showFullDetails = false,
   showRemoveButton = false
 }: EnhancedPlaceCardProps) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [containerWidth, setContainerWidth] = useState<number>(Math.max(320, screenWidth - 40));
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
 
-  // Handle image scroll to update current index
+  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && Math.abs(w - containerWidth) > 1) {
+      setContainerWidth(w);
+    }
+  }, [containerWidth]);
+
+  const imageSources: string[] = useMemo(() => {
+    const photos = (place.photos?.medium && Array.isArray(place.photos.medium) ? place.photos.medium : []) as string[];
+    const legacy = (place.images && Array.isArray(place.images) ? place.images : []) as string[];
+    const merged = photos.length > 0 ? photos : legacy;
+    return merged.filter((u) => typeof u === 'string' && u.length > 0);
+  }, [place.photos?.medium, place.images]);
+
   const handleImageScroll = (event: { nativeEvent: { layoutMeasurement: { width: number }; contentOffset: { x: number } } }) => {
-    const slideSize = event.nativeEvent.layoutMeasurement.width;
-    const index = event.nativeEvent.contentOffset.x / slideSize;
-    setCurrentImageIndex(Math.round(index));
+    const slideSize = event.nativeEvent.layoutMeasurement.width || containerWidth;
+    const total = imageSources.length;
+    const index = slideSize > 0 ? event.nativeEvent.contentOffset.x / slideSize : 0;
+    const rounded = Math.round(index);
+    setCurrentImageIndex(Math.max(0, Math.min(total > 0 ? total - 1 : 0, rounded)));
   };
 
-  // Handle contact actions
   const handleCall = async () => {
     if (!place.contactActions || !place.contactActions.canCall || !place.contactActions.callUrl) {
-      Alert.alert('No Phone Number', 'This place doesn\'t have a phone number available.');
+      Alert.alert('No Phone Number', "This place doesn't have a phone number available.");
       return;
     }
 
@@ -50,17 +66,16 @@ export default function EnhancedPlaceCard({
       if (supported) {
         await Linking.openURL(place.contactActions.callUrl);
       } else {
-        Alert.alert('Cannot Make Call', 'Your device doesn\'t support making calls.');
+        Alert.alert('Cannot Make Call', "Your device doesn't support making calls.");
       }
     } catch (error) {
-      console.error('Error making call:', error);
       Alert.alert('Error', 'Failed to make call.');
     }
   };
 
   const handleWebsite = async () => {
     if (!place.contactActions || !place.contactActions.canVisitWebsite || !place.contactActions.websiteUrl) {
-      Alert.alert('No Website', 'This place doesn\'t have a website available.');
+      Alert.alert('No Website', "This place doesn't have a website available.");
       return;
     }
 
@@ -72,74 +87,25 @@ export default function EnhancedPlaceCard({
         Alert.alert('Cannot Open Website', 'Failed to open website.');
       }
     } catch (error) {
-      console.error('Error opening website:', error);
       Alert.alert('Error', 'Failed to open website.');
     }
   };
 
-  // Get mood display info
   const getMoodDisplay = () => {
-    const finalMood = place.final_mood || 'neutral';
-    
-    // Enhanced mood display that uses entity analysis results
-    const getMoodEmoji = (mood: string) => {
-      const moodLower = mood.toLowerCase();
-      
-      // Check for hype-related keywords
-      if (moodLower.includes('vibrant') || moodLower.includes('lively') || moodLower.includes('energetic') || 
-          moodLower.includes('exciting') || moodLower.includes('buzzing') || moodLower.includes('dynamic') ||
-          moodLower.includes('thrilling') || moodLower.includes('electric') || moodLower.includes('pumping')) {
-        return '🔥';
-      }
-      
-      // Check for chill-related keywords
-      if (moodLower.includes('cozy') || moodLower.includes('peaceful') || moodLower.includes('calm') ||
-          moodLower.includes('serene') || moodLower.includes('tranquil') || moodLower.includes('relaxing') ||
-          moodLower.includes('intimate') || moodLower.includes('romantic') || moodLower.includes('charming') ||
-          moodLower.includes('quaint') || moodLower.includes('rustic') || moodLower.includes('homely') ||
-          moodLower.includes('comfortable') || moodLower.includes('welcoming') || moodLower.includes('warm') ||
-          moodLower.includes('gentle') || moodLower.includes('soft') || moodLower.includes('mellow') ||
-          moodLower.includes('laid-back') || moodLower.includes('casual') || moodLower.includes('unpretentious') ||
-          moodLower.includes('simple') || moodLower.includes('minimalist')) {
-        return '😌';
-      }
-      
-      // Default to neutral for other cases
-      return '😊';
-    };
-    
-    // If final_mood contains enhanced descriptors, use them directly
-    if (finalMood && finalMood !== 'neutral' && finalMood !== 'chill' && finalMood !== 'hype') {
-      const moodString = String(finalMood);
-      return {
-        emoji: getMoodEmoji(moodString),
-        label: moodString.charAt(0).toUpperCase() + moodString.slice(1) // Capitalize first letter
-      };
-    }
-    
-    // Fallback to basic mood categories
-    const moodConfig = {
-      chill: { emoji: '😌', label: 'Chill Vibe' },
-      neutral: { emoji: '😊', label: 'Balanced' },
-      hype: { emoji: '🔥', label: 'Lively Atmosphere' }
-    };
-
-    return moodConfig[finalMood as keyof typeof moodConfig] || moodConfig.neutral;
+    const finalMood = (place as any).final_mood || place.mood || 'neutral';
+    const moodLower = String(finalMood).toLowerCase();
+    const hypeKeys = ['vibrant', 'lively', 'energetic', 'exciting', 'buzzing', 'dynamic', 'thrilling', 'electric', 'pumping', 'hype'];
+    const chillKeys = ['cozy', 'peaceful', 'calm', 'serene', 'tranquil', 'relaxing', 'intimate', 'romantic', 'charming', 'quaint', 'rustic', 'homely', 'comfortable', 'welcoming', 'warm', 'gentle', 'soft', 'mellow', 'laid-back', 'casual', 'unpretentious', 'simple', 'minimalist', 'chill'];
+    if (hypeKeys.some(k => moodLower.includes(k))) return { emoji: '🔥', label: 'Lively Atmosphere' };
+    if (chillKeys.some(k => moodLower.includes(k))) return { emoji: '😌', label: 'Chill Vibe' };
+    return { emoji: '😊', label: 'Balanced' };
   };
 
-  // Get opening hours display
   const getOpeningHoursDisplay = () => {
-    if (!place.openHours) return null;
-    
-    // For now, return a simple open/closed status
-    // The openHours property is a string, not the complex Google Places API structure
-    return {
-      isOpenNow: true, // Default to open since we can't parse the string format
-      todayHours: place.openHours
-    };
+    if (!place.openHours) return null as null | { isOpenNow: boolean; todayHours: string };
+    return { isOpenNow: true, todayHours: place.openHours };
   };
 
-  // Get budget display (old UI style)
   const getBudgetDisplay = () => {
     const priceLevel = place.price_level;
     if (priceLevel === 1) return 'P';
@@ -149,13 +115,11 @@ export default function EnhancedPlaceCard({
   };
 
   const moodDisplay = getMoodDisplay();
-  // const displayImage = getDisplayImage();
 
   return (
     <View style={styles.container}>
-      {/* Image Section Container */}
       <View style={styles.imageCardContainer}>
-        <View style={styles.imageContainer}>
+        <View style={styles.imageContainer} onLayout={onContainerLayout}>
           <ScrollView
             horizontal
             pagingEnabled
@@ -164,38 +128,43 @@ export default function EnhancedPlaceCard({
             onScroll={handleImageScroll}
             onMomentumScrollEnd={handleImageScroll}
             scrollEventThrottle={16}
+            testID="image-scrollview"
           >
-            {/* Display actual place photos if available */}
-            {place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 0 ? (
-              place.photos.medium.map((photo, index) => (
-                <View key={`photo-${index}`} style={styles.imageWrapper}>
-                  <Image
-                    source={{ uri: photo }}
-                    style={styles.placeImage}
-                    resizeMode="cover"
-                  />
+            {imageSources.length > 0 ? (
+              imageSources.map((photo, index) => (
+                <View key={`photo-${index}`} style={[styles.imageWrapper, { width: containerWidth }]}> 
+                  {failedImages[index] ? (
+                    <View style={styles.placeholderImage}>
+                      <Text style={styles.placeholderText}>Image unavailable</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.placeImage}
+                      resizeMode="cover"
+                      onError={() => setFailedImages((p) => ({ ...p, [index]: true }))}
+                    />
+                  )}
                 </View>
               ))
             ) : (
-              <View style={styles.imageWrapper}>
+              <View style={[styles.imageWrapper, { width: containerWidth }]}>
                 <View style={styles.placeholderImage}>
                   <Text style={styles.placeholderText}>No Image Available</Text>
                 </View>
               </View>
             )}
           </ScrollView>
-          {/* Carousel Indicators */}
-          {place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1 && (
+          {imageSources.length > 1 && (
             <View style={styles.imageCounter} pointerEvents="box-none">
               <Text style={styles.imageCounterText}>
-                {currentImageIndex + 1}/{place.photos.medium.length}
+                {Math.min(currentImageIndex + 1, imageSources.length)}/{imageSources.length}
               </Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Place Info Section Container */}
       <TouchableOpacity
         style={styles.cardSectionContainer}
         onPress={onPress}
@@ -204,40 +173,31 @@ export default function EnhancedPlaceCard({
         <View style={styles.placeInfo}>
           <Text style={styles.placeName}>{place.name}</Text>
           <Text style={styles.placeLocation}>{place.formatted_address || place.vicinity || 'Address not available'}</Text>
-          {/* Budget Badge (Old UI Style) */}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
               {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}
             </Text>
           </View>
-          {/* Description (Old UI Style) */}
           {place.editorial_summary && (
             <Text style={styles.placeDescription} numberOfLines={2}>
               {place.editorial_summary}
             </Text>
           )}
-          {/* Enhanced Info Row with Rating, Mood, and Hours */}
           <View style={styles.enhancedInfoRow}>
-            {/* Rating Section */}
             <View style={styles.ratingSection}>
               <Star size={14} color="#FFD700" fill="#FFD700" />
               <Text style={styles.ratingText}>
                 {place.rating ? place.rating.toFixed(1) : 'N/A'}
               </Text>
             </View>
-            
-            {/* Mood Section with Descriptive Words */}
             <View style={styles.moodSection}>
               <Text style={styles.moodText}> 
                 {moodDisplay.label}
               </Text>
             </View>
-            
-            {/* Opening Hours Section */}
             {(() => {
               const hoursDisplay = getOpeningHoursDisplay();
               if (!hoursDisplay) return null;
-              
               return (
                 <View style={styles.hoursSection}>
                   <Clock size={14} color={hoursDisplay.isOpenNow ? '#4CAF50' : '#FF6B6B'} />
@@ -253,8 +213,6 @@ export default function EnhancedPlaceCard({
               );
             })()}
           </View>
-          
-          {/* AI Generated Description */}
           {place.description ? (
             <Text style={styles.descriptionText}>
               {place.description}
@@ -264,7 +222,6 @@ export default function EnhancedPlaceCard({
               AI description will appear here once generated. This place offers a unique experience worth exploring!
             </Text>
           )}
-          {/* Place Actions (Old UI Style) */}
           <View style={styles.placeActions}>
             {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
@@ -279,7 +236,6 @@ export default function EnhancedPlaceCard({
             <TouchableOpacity 
               style={styles.mapButton} 
               onPress={() => {
-                // Open in maps
                 const url = `https://maps.google.com/?q=${encodeURIComponent(place.formatted_address || place.vicinity || '')}`;
                 Linking.openURL(url);
               }}
@@ -309,18 +265,12 @@ export default function EnhancedPlaceCard({
               </TouchableOpacity>
             )}
           </View>
-          
-          {/* Divider */}
           <View style={styles.divider} />
-          
-          {/* Action Buttons */}
           <View style={styles.actionButtonsRow} testID="action-buttons-row">
-            {console.log('🎯 Rendering action buttons row')}
             <TouchableOpacity 
               testID="pass-button"
               style={[styles.actionButton, styles.passButton]} 
               onPress={() => {
-                console.log('🔴 Pass button pressed');
                 onPass && onPass();
               }}
               activeOpacity={0.7}
@@ -328,12 +278,10 @@ export default function EnhancedPlaceCard({
               <X size={24} color="#FF6B6B" />
               <Text style={[styles.actionText, { color: '#FF6B6B', fontWeight: '600' }]}>Pass</Text>
             </TouchableOpacity>
-            
             <TouchableOpacity 
               testID="restart-button"
               style={[styles.actionButton, styles.restartButton]} 
               onPress={() => {
-                console.log('🔄 Restart button pressed');
                 onRestart && onRestart();
               }}
               activeOpacity={0.7}
@@ -341,12 +289,10 @@ export default function EnhancedPlaceCard({
               <RotateCcw size={24} color="#666666" />
               <Text style={[styles.actionText, { color: '#666666', fontWeight: '600' }]}>Restart</Text>
             </TouchableOpacity>
-            
             <TouchableOpacity 
               testID="save-button"
               style={[styles.actionButton, isSaved ? styles.savedButton : styles.saveButton]} 
               onPress={() => {
-                console.log('💖 Save button pressed, isSaved:', isSaved);
                 onSave && onSave();
               }}
               activeOpacity={0.7}
@@ -373,7 +319,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   imageCardContainer: {
-    backgroundColor: '#A67BCE', // 5% lighter purple background for image section
+    backgroundColor: '#A67BCE',
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,
@@ -396,14 +342,13 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 240, // 4:3 aspect ratio
+    height: 240,
   },
   imageScrollView: {
     width: '100%',
     height: '100%',
   },
   imageWrapper: {
-    width: '100%',
     height: '100%',
   },
   placeImage: {
@@ -436,22 +381,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-
-  // Old UI Content Styles
   placeInfo: {
-    padding: 20, // Increased from 16 to 20 for better overall spacing
+    padding: 20,
   },
   placeName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4A4A4A',
-    marginBottom: 8, // Standardized to 8
+    marginBottom: 8,
     textAlign: 'center',
   },
   placeLocation: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 12, // Standardized to 12
+    marginBottom: 12,
     textAlign: 'center',
   },
   budgetContainer: {
@@ -460,7 +403,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    marginBottom: 16, // Increased to 16 for better separation
+    marginBottom: 16,
   },
   budget: {
     fontSize: 14,
@@ -471,9 +414,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 16, // Standardized to 16
+    marginBottom: 16,
   },
-
   descriptionText: {
     fontSize: 14,
     color: '#4A4A4A',
@@ -484,9 +426,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    marginBottom: 16, // Standardized to 16
+    marginBottom: 16,
     flexWrap: 'wrap',
-    gap: 8, // Added gap for consistent spacing between elements
+    gap: 8 as const,
   },
   ratingSection: {
     flexDirection: 'row',
@@ -496,14 +438,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 0, // Removed marginBottom since we're using gap
-    marginRight: 0, // Removed marginRight since we're using gap
+    marginBottom: 0,
+    marginRight: 0,
     height: 26,
   },
   ratingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
+    color: '#4A90E2',
     marginLeft: 4,
   },
   reviewCount: {
@@ -520,8 +462,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 0, // Removed marginBottom since we're using gap
-    marginRight: 0, // Removed marginRight since we're using gap
+    marginBottom: 0,
+    marginRight: 0,
     height: 26,
   },
   hoursSection: {
@@ -532,15 +474,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginBottom: 0, // Removed marginBottom since we're using gap
-    marginRight: 0, // Removed marginRight since we're using gap
+    marginBottom: 0,
+    marginRight: 0,
     height: 26,
   },
   hoursText: {
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
-    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
+    color: '#4A90E2',
   },
   hoursDetail: {
     fontSize: 10,
@@ -554,7 +496,7 @@ const styles = StyleSheet.create({
   moodText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4A90E2', // Changed from '#0066CC' to less saturated blue (30%)
+    color: '#4A90E2',
   },
   moodScore: {
     fontSize: 10,
@@ -564,7 +506,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16, // Added consistent top margin
+    marginTop: 16,
   },
   actionButton: {
     flexDirection: 'column',
@@ -573,24 +515,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 8,
-    gap: 6,
+    gap: 6 as const,
     backgroundColor: 'transparent',
     flex: 1,
     minWidth: 0,
   },
   actionText: {
-    fontSize: 12, // Reduced from 14 to 12 for better proportion
+    fontSize: 12,
     color: '#8B5FBF',
     fontWeight: '500',
     textAlign: 'center',
   },
   mapButton: {
-    flexDirection: 'row',           // Horizontal layout (icon beside text)
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',      // White background
-    borderWidth: 1,                 // Has a border
-    borderColor: '#8B5FBF',        // Purple border
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#8B5FBF',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -609,17 +551,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#FFF5F5',
     borderRadius: 8,
-    gap: 4,
+    gap: 4 as const,
   },
   removeText: {
-    fontSize: 12, // Reduced from 14 to 12 for consistency
+    fontSize: 12,
     color: '#FF6B6B',
     fontWeight: '500',
   },
   divider: {
-    height: 1, // Reduced from 2 to 1 for subtler appearance
+    height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 12, // Standardized to 12 for consistency
+    marginVertical: 12,
   },
   actionButtonsRow: {
     flexDirection: 'row',
