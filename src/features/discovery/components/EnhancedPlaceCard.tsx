@@ -116,78 +116,6 @@ export default function EnhancedPlaceCard({
 
   const moodDisplay = getMoodDisplay();
 
-  const formatLocation = useCallback((formatted: string, vicinity: string) => {
-    try {
-      const source = (formatted && formatted.length > 0 ? formatted : vicinity) ?? '';
-      if (!source) return 'Location not available';
-
-      const cleaned = source
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
-        .filter(s => {
-          const l = s.toLowerCase();
-          if (l === 'philippines') return false;
-          if (l.includes('metro manila')) return false;
-          if (l === 'ncr' || l.includes('national capital region') || l.includes('kalakhang maynila')) return false;
-          return true;
-        });
-
-      const cityList = [
-        'quezon city','makati','taguig','pasig','mandaluyong','san juan','manila','pasay','parañaque','paranaque','muntinlupa','marikina','valenzuela','caloocan','navotas','malabon','las piñas','las pinas'
-      ];
-
-      let city = '';
-      for (let i = cleaned.length - 1; i >= 0; i--) {
-        const part = cleaned[i];
-        if (typeof part !== 'string') continue;
-        const l = part.toLowerCase();
-        if (l.includes(' city') || cityList.includes(l)) { city = part; break; }
-      }
-      if (!city && cleaned.length > 0) { const c = cleaned[cleaned.length - 1] ?? ''; city = typeof c === 'string' ? c : ''; }
-
-      const mallKeywords = ['mall','center','centre','plaza','market','park','district','complex','galleria','arcade','square','town center','uptown','downtown','heights','estates'];
-      const mallBrands = ['sm','ayala malls','robinsons','glorietta','greenbelt','festival','trinoma','uptown mall','shangri-la','power plant','market! market!','venice grand canal'];
-      let venue = '';
-      for (let i = 0; i < cleaned.length; i++) {
-        const part = cleaned[i];
-        if (typeof part !== 'string') continue;
-        const l = part.toLowerCase();
-        if (mallKeywords.some(k => l.includes(k)) || mallBrands.some(b => l.includes(b))) { venue = part; break; }
-      }
-
-      const brgyIndicators = ['barangay', 'brgy', 'brgy.', 'village', 'subdivision', 'estate'];
-      const neighborhoodAliases = [
-        'bgc','bonifacio global city','fort bonifacio','salcedo village','legazpi village','poblacion','san lorenzo','bel-air','urus','ugong','kapitolyo','bonifacio high street','greenhills','tomas morato','eastwood','ortigas center','newport city','mckinley hill','rockwell center'
-      ];
-
-      let barangay = '';
-      // Heuristic: pick the part immediately before the city if not obviously a street/unit
-      if (city) {
-        const cityIdx = cleaned.findIndex(p => p === city);
-        if (cityIdx > 0) {
-          const candidate = cleaned[cityIdx - 1];
-          if (typeof candidate === 'string') {
-            const lc = candidate.toLowerCase();
-            const looksStreet = /(street|st\.|road|rd\.|avenue|ave\.|blvd\.|floor|lvl|unit|building|bldg|tower|lot)/i.test(candidate);
-            const isBarangayLike = brgyIndicators.some(k => lc.includes(k)) || neighborhoodAliases.some(n => lc.includes(n));
-            if (!looksStreet) {
-              if (isBarangayLike) barangay = candidate;
-              else if (candidate.length <= 30) barangay = candidate;
-            }
-          }
-        }
-      }
-
-      if (venue && city) return `${venue}, ${city}`;
-      if (barangay && city) return `${barangay}, ${city}`;
-      if (city) return city;
-      return cleaned[0] ?? 'Location not available';
-    } catch (e) {
-      return 'Location not available';
-    }
-  }, []);
-
   return (
     <View style={styles.container}>
       <View style={styles.imageCardContainer}>
@@ -244,7 +172,7 @@ export default function EnhancedPlaceCard({
       >
         <View style={styles.placeInfo}>
           <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeLocation}>{formatLocation(place.formatted_address ?? '', place.vicinity ?? '')}</Text>
+          <Text style={styles.placeLocation}>{place.formatted_address || place.vicinity || 'Address not available'}</Text>
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
               {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}

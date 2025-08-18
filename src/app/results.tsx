@@ -140,21 +140,13 @@ export default function ResultsScreen() {
 
 
 
-  const handlePass = useCallback(() => {
-    if (places.length === 0) {
-      console.log('⚠️ handlePass called but no places available');
-      return;
+  const handlePass = () => {
+    if (places.length > 0) {
+      const nextIndex = (currentPlaceIndex + 1) % places.length;
+      setCurrentPlaceIndex(nextIndex);
+      console.log(`🔄 Moving to next place: ${nextIndex + 1}/${places.length}`);
     }
-    const nextIndex = (currentPlaceIndex + 1) % places.length;
-    setCurrentPlaceIndex(nextIndex);
-    const nextPlace = places[nextIndex];
-    if (nextPlace && setCurrentSuggestion) {
-      setCurrentSuggestion(nextPlace as any);
-      console.log(`🔄 Moving to next place: ${nextIndex + 1}/${places.length} → ${nextPlace?.name ?? 'Unknown'}`);
-    } else {
-      console.log(`🔄 Moving to next place index only: ${nextIndex + 1}/${places.length}`);
-    }
-  }, [places, currentPlaceIndex, setCurrentSuggestion]);
+  };
 
   const handleRestart = () => {
     clearPlaces();
