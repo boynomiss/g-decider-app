@@ -465,7 +465,7 @@ export default function EnhancedPlaceCard({
               accessibilityRole="button"
             >
               <MapPin size={16} color="#8B5FBF" />
-              <Text style={styles.mapButtonText}>View in Maps</Text>
+              <Text style={styles.mapButtonText} numberOfLines={1} ellipsizeMode="tail">View in Maps</Text>
             </TouchableOpacity>
 
             {place.contactActions && place.contactActions.canCall && (
@@ -478,7 +478,7 @@ export default function EnhancedPlaceCard({
                 accessibilityRole="button"
               >
                 <Phone size={16} color="#FFFFFF" />
-                <Text style={styles.contactButtonText}>Call</Text>
+                <Text style={styles.contactButtonText} numberOfLines={1} ellipsizeMode="tail">Call</Text>
               </TouchableOpacity>
             )}
 
@@ -745,9 +745,10 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   placeActions: {
+    position: 'relative',
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'stretch',
     marginTop: 16,
     gap: 8 as const,
   },
@@ -772,6 +773,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     minHeight: 40,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
     marginLeft: 0,
   },
   actionText: {
@@ -809,6 +812,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   removeButton: {
+    position: 'absolute',
+    right: 0,
+    top: -8,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
