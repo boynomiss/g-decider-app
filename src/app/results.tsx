@@ -342,33 +342,7 @@ export default function ResultsScreen() {
             />
           </ErrorBoundary>
 
-          {/* Navigation buttons */}
-          {places.length > 1 && (
-            <View style={styles.navigationContainer}>
-              <TouchableOpacity 
-                style={[styles.navButton, currentPlaceIndex === 0 && styles.navButtonDisabled]} 
-                onPress={() => setCurrentPlaceIndex(Math.max(0, currentPlaceIndex - 1))}
-                disabled={currentPlaceIndex === 0}
-              >
-                <Text style={styles.navButtonText}>← Previous</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.navButton} 
-                onPress={handleRefreshPlaces}
-              >
-                <Text style={styles.navButtonText}>🔄 Refresh</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.navButton, currentPlaceIndex === places.length - 1 && styles.navButtonDisabled]} 
-                onPress={() => setCurrentPlaceIndex(Math.min(places.length - 1, currentPlaceIndex + 1))}
-                disabled={currentPlaceIndex === places.length - 1}
-              >
-                <Text style={styles.navButtonText}>Next →</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+
         </View>
       </ScrollView>
 
@@ -440,29 +414,7 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  navigationContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  navButton: {
-    backgroundColor: '#8B5FBF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  navButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  navButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+
   testButton: {
     backgroundColor: '#FF6B6B',
     paddingHorizontal: 16,
