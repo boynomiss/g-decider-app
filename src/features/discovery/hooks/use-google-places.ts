@@ -202,24 +202,54 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         // Determine place name first
         const placeName = place.displayName?.text || place.displayName || 'Unknown Place';
         
+        // Ensure minimum 3 and maximum 5 images
+        const minImages = 3;
+        const maxImages = 5;
+        
+        // If we have fewer than minimum, duplicate existing photos or add fallbacks
+        let finalPhotoUrls = [...photoUrls];
+        
+        // If we have no photos, add fallback images
+        if (finalPhotoUrls.length === 0) {
+          const fallbackImages = [
+            `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80`,
+            `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&auto=format&q=80`,
+            `https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=800&h=600&fit=crop&auto=format&q=80`
+          ];
+          finalPhotoUrls = fallbackImages;
+        }
+        
+        // If we have fewer than minimum, duplicate existing photos
+        while (finalPhotoUrls.length < minImages && finalPhotoUrls.length > 0) {
+          const originalLength = finalPhotoUrls.length;
+          for (let i = 0; i < originalLength && finalPhotoUrls.length < minImages; i++) {
+            finalPhotoUrls.push(finalPhotoUrls[i]);
+          }
+        }
+        
+        // If we have more than maximum, take only the first maxImages
+        if (finalPhotoUrls.length > maxImages) {
+          finalPhotoUrls = finalPhotoUrls.slice(0, maxImages);
+        }
+        
         // Create photos object with different sizes for compatibility
         const photos = {
-          thumbnail: photoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=200&maxheight=150')).filter(Boolean),
-          medium: photoUrls,
-          large: photoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=1200&maxheight=900')).filter(Boolean),
-          count: photoUrls.length
+          thumbnail: finalPhotoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=200&maxheight=150')).filter(Boolean),
+          medium: finalPhotoUrls,
+          large: finalPhotoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=1200&maxheight=900')).filter(Boolean),
+          count: finalPhotoUrls.length
         };
         
         // Debug photo processing
-        if (place.photos && place.photos.length > 0) {
-          console.log(`📸 Photo debugging for ${placeName}:`, {
-            rawPhotos: place.photos.length,
-            processedUrls: photoUrls.length,
-            sampleRawPhoto: place.photos[0],
-            sampleProcessedUrl: photoUrls[0],
-            photosStructure: photos
-          });
-        }
+        console.log(`📸 Photo debugging for ${placeName}:`, {
+          rawPhotos: place.photos?.length || 0,
+          originalUrls: photoUrls.length,
+          finalUrls: finalPhotoUrls.length,
+          hasPhotos: finalPhotoUrls.length > 0,
+          mediumPhotos: photos.medium.length,
+          photoCount: photos.count,
+          samplePhoto: finalPhotoUrls[0]
+        });
 
         // Determine budget level from price level
         const budget = place.priceLevel ? 
@@ -242,7 +272,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           location: place.formattedAddress || 'Unknown Location',
           formatted_address: place.formattedAddress || 'Unknown Location',
           vicinity: place.formattedAddress || 'Unknown Location',
-          images: photoUrls, // Keep for backward compatibility
+          images: finalPhotoUrls, // Keep for backward compatibility
           photos: photos, // New structured photos object
           budget: budget as 'P' | 'PP' | 'PPP',
           price_level: place.priceLevel || 2,

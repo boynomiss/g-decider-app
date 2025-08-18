@@ -124,8 +124,10 @@ export function createFrontendPhotoUrls(
     thumbnail = { width: 150, height: 150 },
     medium = { width: 400, height: 300 },
     large = { width: 800, height: 600 },
-    maxPhotos = 8
+    maxPhotos = 5
   } = options;
+  
+  const minPhotos = 3;
 
   if (!photos || photos.length === 0) {
     // Return fallback images for different sizes
@@ -138,10 +140,18 @@ export function createFrontendPhotoUrls(
   }
 
   // Filter and sort photos by quality
-  const qualityPhotos = photos
+  let qualityPhotos = photos
     .filter(photo => isGooglePlacesPhotoValid(photo))
     .sort((a, b) => calculatePhotoQualityScore(b) - calculatePhotoQualityScore(a))
     .slice(0, maxPhotos);
+  
+  // Ensure minimum photos by duplicating if needed
+  if (qualityPhotos.length > 0 && qualityPhotos.length < minPhotos) {
+    const originalPhotos = [...qualityPhotos];
+    while (qualityPhotos.length < minPhotos) {
+      qualityPhotos.push(...originalPhotos.slice(0, minPhotos - qualityPhotos.length));
+    }
+  }
 
   const thumbnailUrls = qualityPhotos.map(photo => 
     generatePhotoUrl(photo, thumbnail.width, thumbnail.height)
@@ -155,11 +165,39 @@ export function createFrontendPhotoUrls(
     generatePhotoUrl(photo, large.width, large.height)
   );
 
+  // Ensure minimum fallback images if no quality photos
+  if (thumbnailUrls.length === 0) {
+    const fallbackImages = [
+      generateFallbackImageUrl('restaurant', thumbnail.width, thumbnail.height),
+      generateFallbackImageUrl('cafe', thumbnail.width, thumbnail.height),
+      generateFallbackImageUrl('restaurant', thumbnail.width, thumbnail.height)
+    ];
+    thumbnailUrls.push(...fallbackImages.slice(0, minPhotos));
+  }
+  
+  if (mediumUrls.length === 0) {
+    const fallbackImages = [
+      generateFallbackImageUrl('restaurant', medium.width, medium.height),
+      generateFallbackImageUrl('cafe', medium.width, medium.height),
+      generateFallbackImageUrl('restaurant', medium.width, medium.height)
+    ];
+    mediumUrls.push(...fallbackImages.slice(0, minPhotos));
+  }
+  
+  if (largeUrls.length === 0) {
+    const fallbackImages = [
+      generateFallbackImageUrl('restaurant', large.width, large.height),
+      generateFallbackImageUrl('cafe', large.width, large.height),
+      generateFallbackImageUrl('restaurant', large.width, large.height)
+    ];
+    largeUrls.push(...fallbackImages.slice(0, minPhotos));
+  }
+
   return {
-    thumbnail: thumbnailUrls.length > 0 ? thumbnailUrls : [generateFallbackImageUrl('restaurant', thumbnail.width, thumbnail.height)],
-    medium: mediumUrls.length > 0 ? mediumUrls : [generateFallbackImageUrl('restaurant', medium.width, medium.height)],
-    large: largeUrls.length > 0 ? largeUrls : [generateFallbackImageUrl('restaurant', large.width, large.height)],
-    count: qualityPhotos.length
+    thumbnail: thumbnailUrls.slice(0, maxPhotos),
+    medium: mediumUrls.slice(0, maxPhotos),
+    large: largeUrls.slice(0, maxPhotos),
+    count: Math.max(thumbnailUrls.length, mediumUrls.length, largeUrls.length)
   };
 }
 
@@ -240,8 +278,8 @@ export function generatePhotoUrls(
   photos: PlacePhoto[] | undefined,
   maxWidth: number = 800,
   maxHeight: number = 600,
-  minPhotos: number = 4,
-  maxPhotos: number = 8
+  minPhotos: number = 3,
+  maxPhotos: number = 5
 ): string[] {
   if (!photos || photos.length === 0) {
     // Return high-quality fallback images if no photos available
@@ -301,8 +339,8 @@ export function generateFallbackImageUrl(
 export function getOptimizedPhotoUrls(
   photos: PlacePhoto[] | undefined,
   useCase: 'thumbnail' | 'card' | 'gallery' | 'fullscreen' = 'card',
-  minPhotos: number = 4,
-  maxPhotos: number = 8
+  minPhotos: number = 3,
+  maxPhotos: number = 5
 ): string[] {
   const sizeMap = {
     thumbnail: { width: 200, height: 150 },
