@@ -16,7 +16,7 @@ import { PlaceMoodData as PlaceData } from '../features/discovery/types';
 import { ErrorBoundary } from '../components/feedback/ErrorBoundary';
 import { EnhancedPlaceCard, useGooglePlaces } from '../features/discovery';
 import { Footer } from '../features/auth';
-import { getAPIKey } from '../shared/constants/config/api-keys';
+
 
 export default function ResultsScreen() {
   const { 
@@ -252,27 +252,8 @@ export default function ResultsScreen() {
   return (
     <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
       {/* Place Card */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}>
         <View style={styles.singleResultContainer}>
-          {/* Debug info */}
-          <View style={styles.debugContainer}>
-            <Text style={styles.debugText}>
-              🔍 Debug: Location: {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : 'Not set'}
-            </Text>
-            <Text style={styles.debugText}>
-              🎯 Category: {filters?.category || 'Not set'} | Mood: {filters?.mood || 'Not set'} | Distance: {filters?.distanceRange || 10}km
-            </Text>
-            <Text style={styles.debugText}>
-              📍 Places found: {places.length} | Current: {currentPlaceIndex + 1} | Loading: {isLoading ? 'Yes' : 'No'}
-            </Text>
-            <Text style={styles.debugText}>
-              ❌ Error: {error || 'None'} | Using mock: {places.length === 0 ? 'Yes' : 'No'}
-            </Text>
-            <Text style={styles.debugText}>
-              🔑 API Key: {getAPIKey?.places() ? '✅ Loaded' : '❌ Missing'} | Status: {isLoading ? 'Loading' : error ? 'Error' : places.length > 0 ? 'Success' : 'No Results'}
-            </Text>
-          </View>
-
           {/* Places counter */}
           {places.length > 0 && (
             <View style={styles.placesCounter}>
@@ -281,40 +262,6 @@ export default function ResultsScreen() {
               </Text>
             </View>
           )}
-
-          {/* Manual test button */}
-          <TouchableOpacity 
-            style={styles.testButton} 
-            onPress={() => {
-              console.log('🧪 Manual test button pressed');
-              const query = buildQueryFromFilters();
-              const location = userLocation || { lat: 14.5176, lng: 121.0509 };
-              const distanceRange = filters?.distanceRange || 10;
-              console.log('🔍 Manual fetch with:', { query, location, distanceRange: distanceRange + 'km' });
-              fetchPlaces(query, location, distanceRange);
-            }}
-          >
-            <Text style={styles.testButtonText}>🧪 Test Google API</Text>
-          </TouchableOpacity>
-
-          {/* Debug state button */}
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: '#4CAF50', marginTop: 8 }]} 
-            onPress={() => {
-              console.log('🔍 Current state debug:', {
-                places: places.length,
-                isLoading,
-                error,
-                userLocation,
-                filters,
-                currentPlaceIndex,
-                placeToShow: placeToShow?.name,
-                isUsingMock: places.length === 0
-              });
-            }}
-          >
-            <Text style={styles.testButtonText}>🔍 Debug State</Text>
-          </TouchableOpacity>
           
           <ErrorBoundary componentName="PlaceCard">
             <EnhancedPlaceCard
@@ -415,31 +362,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  testButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  testButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debugContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    width: '100%',
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 4,
-    fontFamily: 'monospace',
-  },
+
 });
