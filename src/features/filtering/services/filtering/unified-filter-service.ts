@@ -76,7 +76,7 @@ export class UnifiedFilterService {
   // Constants - now using registry for configuration data
   private readonly DISTANCE_STEPS = [5000, 10000, 15000, 20000];
 
-  // Google Places API wrappers - Updated to use new API
+  // Google Places API wrappers - Updated to use new API with fallback
   private async textSearch(
     query: string, 
     lat: number, 
@@ -88,7 +88,37 @@ export class UnifiedFilterService {
   ): Promise<any[]> {
     const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
     
-    // Use new Google Places API
+    console.log('🔑 textSearch API key check:', {
+      hasApiKey: !!key,
+      keyLength: key.length,
+      keyPrefix: key.substring(0, 10) + '...',
+      source: apiKey ? 'parameter' : 'environment'
+    });
+    
+    if (!key) {
+      console.error('❌ No Google Places API key available');
+      throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+    }
+    
+    // Try new Google Places API first, fallback to legacy if it fails
+    try {
+      return await this.textSearchNewAPI(query, lat, lng, radius, key, minprice, maxprice);
+    } catch (error) {
+      console.warn('⚠️ New Places API failed, falling back to legacy API:', error);
+      return await this.textSearchLegacyAPI(query, lat, lng, radius, key, minprice, maxprice);
+    }
+  }
+
+  // New Google Places API implementation
+  private async textSearchNewAPI(
+    query: string, 
+    lat: number, 
+    lng: number, 
+    radius: number, 
+    key: string, 
+    minprice?: number, 
+    maxprice?: number
+  ): Promise<any[]> {
     const url = `https://places.googleapis.com/v1/places:searchText`;
     
     const requestBody: any = {
@@ -108,74 +138,147 @@ export class UnifiedFilterService {
     // Note: Google Places API v1 doesn't support price filtering in request body
     // We'll filter results after receiving them based on priceLevel field
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': key,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.regularOpeningHours,places.photos'
-        },
-        body: JSON.stringify(requestBody)
+    console.log('🌐 Making New Google Places API request:', {
+      url,
+      query,
+      locationBias: { lat, lng, radius },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': key.substring(0, 10) + '...',
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.regularOpeningHours,places.photos'
+      }
+    });
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': key,
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.id,places.location,places.priceLevel,places.userRatingCount,places.regularOpeningHours,places.photos'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('❌ New Google Places API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseText: text,
+        requestUrl: url,
+        requestBody: JSON.stringify(requestBody, null, 2)
       });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
-      }
-
-      const json = await response.json();
-      let places = json.places || [];
-
-      // Filter by price level if specified (Google Places API v1 doesn't support this in request)
-      if (minprice !== undefined || maxprice !== undefined) {
-        places = places.filter((place: any) => {
-          const placePriceLevel = place.priceLevel;
-          if (placePriceLevel === undefined || placePriceLevel === null) {
-            return true; // Include places without price level info
-          }
-          
-          if (minprice !== undefined && placePriceLevel < minprice) {
-            return false;
-          }
-          if (maxprice !== undefined && placePriceLevel > maxprice) {
-            return false;
-          }
-          return true;
-        });
-      }
-
-      // Convert new API format to legacy format for compatibility
-      return places.map((place: any) => ({
-        place_id: place.id,
-        name: place.displayName?.text || 'Unknown Place',
-        formatted_address: place.formattedAddress || 'Unknown Address',
-        geometry: {
-          location: {
-            lat: place.location?.latitude || lat,
-            lng: place.location?.longitude || lng
-          }
-        },
-        rating: place.rating || 0,
-        user_ratings_total: place.userRatingCount || 0,
-        price_level: place.priceLevel || 0,
-        types: place.types || [],
-        opening_hours: place.regularOpeningHours ? {
-          open_now: true, // Default to open since we don't have this info
-          weekday_text: ['Hours available'] // Placeholder
-        } : undefined,
-        // Add photos with proper URL generation
-        photos: place.photos?.map((photo: any) => ({
-          photo_reference: photo.name, // New API uses 'name' field
-          width: photo.widthPx || 400,
-          height: photo.heightPx || 400
-        })) || []
-      }));
-
-    } catch (error) {
-      console.error('❌ Text search error:', error);
-      return [];
+      throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
     }
+
+    const json = await response.json();
+    let places = json.places || [];
+
+    // Filter by price level if specified (Google Places API v1 doesn't support this in request)
+    if (minprice !== undefined || maxprice !== undefined) {
+      places = places.filter((place: any) => {
+        const placePriceLevel = place.priceLevel;
+        if (placePriceLevel === undefined || placePriceLevel === null) {
+          return true; // Include places without price level info
+        }
+        
+        if (minprice !== undefined && placePriceLevel < minprice) {
+          return false;
+        }
+        if (maxprice !== undefined && placePriceLevel > maxprice) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Convert new API format to legacy format for compatibility
+    return places.map((place: any) => ({
+      place_id: place.id,
+      name: place.displayName?.text || 'Unknown Place',
+      formatted_address: place.formattedAddress || 'Unknown Address',
+      geometry: {
+        location: {
+          lat: place.location?.latitude || lat,
+          lng: place.location?.longitude || lng
+        }
+      },
+      rating: place.rating || 0,
+      user_ratings_total: place.userRatingCount || 0,
+      price_level: place.priceLevel || 0,
+      types: place.types || [],
+      opening_hours: place.regularOpeningHours ? {
+        open_now: true, // Default to open since we don't have this info
+        weekday_text: ['Hours available'] // Placeholder
+      } : undefined,
+      // Add photos with proper URL generation
+      photos: place.photos?.map((photo: any) => ({
+        photo_reference: photo.name, // New API uses 'name' field
+        width: photo.widthPx || 400,
+        height: photo.heightPx || 400
+      })) || []
+    }));
+  }
+
+  // Legacy Google Places API implementation as fallback
+  private async textSearchLegacyAPI(
+    query: string, 
+    lat: number, 
+    lng: number, 
+    radius: number, 
+    key: string, 
+    minprice?: number, 
+    maxprice?: number
+  ): Promise<any[]> {
+    const url = 'https://maps.googleapis.com/maps/api/place/textsearch/json';
+    
+    const params = new URLSearchParams({
+      query,
+      location: `${lat},${lng}`,
+      radius: radius.toString(),
+      key
+    });
+    
+    if (minprice !== undefined) {
+      params.append('minprice', minprice.toString());
+    }
+    if (maxprice !== undefined) {
+      params.append('maxprice', maxprice.toString());
+    }
+    
+    const fullUrl = `${url}?${params.toString()}`;
+    
+    console.log('🌐 Making Legacy Google Places API request:', {
+      url: fullUrl,
+      query,
+      location: { lat, lng, radius }
+    });
+    
+    const response = await fetch(fullUrl);
+    
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('❌ Legacy Google Places API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseText: text,
+        requestUrl: fullUrl
+      });
+      throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
+    }
+    
+    const json = await response.json();
+    
+    if (json.status !== 'OK' && json.status !== 'ZERO_RESULTS') {
+      console.error('❌ Legacy Google Places API status error:', {
+        status: json.status,
+        errorMessage: json.error_message,
+        results: json.results?.length || 0
+      });
+      throw new Error(`Google Places API error: ${json.status} - ${json.error_message || 'Unknown error'}`);
+    }
+    
+    return json.results || [];
   }
 
   private async batchGetPlaceDetails(placeIds: string[], apiKey: string): Promise<Record<string, any>[]> {
@@ -207,7 +310,7 @@ export class UnifiedFilterService {
     const cached = this.getCached<Record<string, any>>(cacheKey);
     if (cached) return cached;
 
-    const key = apiKey || process.env.GOOGLE_MAPS_API_KEY || '';
+    const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
     const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=place_id,name,formatted_address,geometry,opening_hours,reviews,user_ratings_total,rating,price_level&key=${key}`;
     
     try {
@@ -217,6 +320,16 @@ export class UnifiedFilterService {
         throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
       }
       const json = await response.json();
+      
+      if (json.status !== 'OK') {
+        console.error('❌ Place details API status error:', {
+          status: json.status,
+          errorMessage: json.error_message,
+          placeId
+        });
+        return null;
+      }
+      
       const result = json.result || null;
       
       if (result) {
