@@ -1,6 +1,7 @@
 // Google Gemini API configuration
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_ENABLED = (process.env.EXPO_PUBLIC_ENABLE_GEMINI ?? 'false') === 'true';
 
 // Service account configuration for server-side usage
 // const GEMINI_SERVICE_ACCOUNT_PATH = './functions/gemini-api-client-key.json';
@@ -58,12 +59,12 @@ export class AIDescriptionService {
 
     try {
       let description: string | null = null;
-      if (GEMINI_API_KEY) {
+      if (GEMINI_ENABLED && GEMINI_API_KEY) {
         try {
           description = await this.callGeminiAPI(prompt);
           console.log('🤖 Generated new AI description with Gemini');
         } catch (geminiErr) {
-          console.error('❌ Gemini provider failed, falling back to Toolkit LLM:', geminiErr);
+          console.warn('ℹ️ Gemini unavailable or disabled, using Toolkit LLM fallback.');
         }
       }
       if (!description) {
@@ -74,7 +75,7 @@ export class AIDescriptionService {
       descriptionCache.set(cacheKey, { description, timestamp: Date.now() });
       return description;
     } catch (error) {
-      console.error('❌ Error generating AI description after providers:', error);
+      console.warn('⚠️ AI description providers failed. Using fallback description.');
       return this.generateFallbackDescription(restaurantData);
     }
   }
@@ -94,7 +95,12 @@ export class AIDescriptionService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({} as any));
+      const statusText = (errorData as any)?.error?.status ?? '';
+      const reason = (errorData as any)?.error?.details?.[0]?.reason ?? '';
+      if (response.status === 403 || statusText === 'PERMISSION_DENIED' || reason === 'API_KEY_SERVICE_BLOCKED') {
+        throw new Error('GEMINI_DISABLED');
+      }
       throw new Error(`Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
