@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   websiteInlineButton: {
-    marginLeft: 0,
+    marginLeft: 1,
     paddingHorizontal: 0,
     paddingVertical: 0,
     borderRadius: 4,
