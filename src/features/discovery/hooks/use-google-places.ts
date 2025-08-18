@@ -285,10 +285,33 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           samplePhoto: finalPhotoUrls[0]
         });
 
-        // Determine budget level from price level
-        const budget = place.priceLevel ? 
-          (place.priceLevel === 1 ? 'P' : place.priceLevel === 2 ? 'PP' : 'PPP') : 
-          'PP';
+        // Normalize Google Places priceLevel (string enum) to numeric 0-4
+        const normalizePriceLevel = (pl: unknown): number | undefined => {
+          if (pl == null) return undefined;
+          if (typeof pl === 'number') return pl;
+          if (typeof pl === 'string') {
+            const s = pl.toUpperCase();
+            if (s.includes('VERY_EXPENSIVE')) return 4;
+            if (s.includes('EXPENSIVE')) return 3;
+            if (s.includes('MODERATE')) return 2;
+            if (s.includes('INEXPENSIVE')) return 1;
+            if (s.includes('FREE')) return 0;
+            return undefined;
+          }
+          return undefined;
+        };
+
+        const numericPriceLevel = normalizePriceLevel(place.priceLevel);
+
+        // Determine budget label from numeric price level
+        const budget = ((): 'P' | 'PP' | 'PPP' | 'PPPP' => {
+          const lvl = typeof numericPriceLevel === 'number' ? numericPriceLevel : 2;
+          if (lvl <= 0) return 'P';
+          if (lvl === 1) return 'P';
+          if (lvl === 2) return 'PP';
+          if (lvl === 3) return 'PPP';
+          return 'PPPP';
+        })();
 
         // Determine category from types
         const category = place.types?.includes('restaurant') ? 'food' :
@@ -308,8 +331,8 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           vicinity: place.formattedAddress || 'Unknown Location',
           images: finalPhotoUrls, // Keep for backward compatibility
           photos: photos, // New structured photos object
-          budget: budget as 'P' | 'PP' | 'PPP',
-          price_level: place.priceLevel || 2,
+          budget: budget as 'P' | 'PP' | 'PPP' | 'PPPP',
+          price_level: (numericPriceLevel ?? 2),
           tags: place.types || [],
           description: `${place.displayName?.text || 'This place'} is a great place to visit.`,
           editorial_summary: `${place.displayName?.text || 'This place'} is a great place to visit.`,

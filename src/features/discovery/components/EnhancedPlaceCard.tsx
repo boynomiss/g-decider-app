@@ -228,12 +228,13 @@ export default function EnhancedPlaceCard({
     }
   };
 
-  const getBudgetDisplay = () => {
+  const getBudgetDisplay = (): 'P' | 'PP' | 'PPP' | 'PPPP' => {
     const priceLevel = place.price_level;
-    if (priceLevel === 1) return 'P';
-    if (priceLevel === 2) return 'PP';
-    if (priceLevel === 3) return 'PPP';
-    return 'PP';
+    const lvl = typeof priceLevel === 'number' ? priceLevel : 2;
+    if (lvl <= 1) return 'P';
+    if (lvl === 2) return 'PP';
+    if (lvl === 3) return 'PPP';
+    return 'PPPP';
   };
 
   const moodDisplay = getMoodDisplay();
@@ -412,7 +413,7 @@ export default function EnhancedPlaceCard({
           })()}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
-              {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}
+              {getBudgetDisplay().replace(/P/g, '₱')}
             </Text>
           </View>
           <View style={styles.enhancedInfoRow}>
