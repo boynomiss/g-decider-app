@@ -17,21 +17,20 @@
  */
 
 import { 
-  PlaceResult,
   SearchParams,
   FilterResult,
   LookingForOption,
   MoodOption,
   SocialContext,
   TimeOfDay,
-  BudgetOption,
-  AdvertisedPlace
+  BudgetOption
 } from '../../../../shared/types/types/filtering';
+import type { DiscoveryFilters } from '../../types/filter-interfaces';
+import type { PlaceResult, AdvertisedPlace as CoreAdvertisedPlace } from '../../types/filter-results';
+type AdvertisedPlace = CoreAdvertisedPlace;
 
 import { 
-  PlaceResult as FilterPlaceResult,
-  ScoredPlace,
-  AdvertisedPlace as FilterAdvertisedPlace
+  ScoredPlace
 } from '../../types/filter-results';
 
 // Types are exported from the main filtering index to avoid conflicts
@@ -56,6 +55,30 @@ import { getMoodCategory } from './configs/mood-config';
 import { getSocialContext } from './configs/social-config';
 import { getBudgetCategory } from './configs/budget-config';
 import { getTimeCategory } from './configs/time-config';
+
+type TimeRanges = Record<TimeOfDay, { startHour: number; endHour: number }>;
+
+interface FilterServiceConfig {
+  useCache: boolean;
+  cacheStrategy: 'cache-first' | 'network-first' | 'cache-only' | 'network-only';
+  cacheExpiry: number;
+  timeout: number;
+  maxRetries: number;
+  retryDelay: number;
+  minResults: number;
+  maxResults: number;
+  expansionEnabled: boolean;
+  maxExpansions: number;
+  expansionIncrement: number;
+  parallelRequests: boolean;
+  requestBatching: boolean;
+  batchSize: number;
+  strictMode: boolean;
+  confidenceThreshold: number;
+  qualityThreshold: number;
+  defaultTimezone: string;
+  timeRanges: TimeRanges;
+}
 
 export class UnifiedFilterService {
   private static instance: UnifiedFilterService;
@@ -454,8 +477,7 @@ export class UnifiedFilterService {
     // 2. Mood-based terms (exact UI logic) - FIXED: Handle numeric mood values
     if (params.mood !== null) {
       // Convert numeric mood to string category for the UI helper functions
-      const moodCategory = this.convertNumericMoodToString(params.mood);
-      const mood = getMoodCategory(moodCategory);
+      const mood = getMoodCategory(params.mood);
       if (mood) {
         searchTerms.push(mood.label.toLowerCase());
         searchTerms.push(...mood.atmosphereKeywords);
@@ -489,13 +511,12 @@ export class UnifiedFilterService {
     }
     
     // 6. Place types from registry (enhanced with UI logic)
-    const placeFilters = {
-      mood: params.mood !== null ? this.convertNumericMoodToString(params.mood) as MoodOption : undefined,
-      socialContext: params.socialContext,
-      budget: params.budget,
-      timeOfDay: params.timeOfDay,
-      lookingFor: params.lookingFor
-    };
+    const placeFilters: { budget?: BudgetOption; mood?: MoodOption; socialContext?: SocialContext; timeOfDay?: TimeOfDay; lookingFor?: LookingForOption } = {};
+    if (params.mood !== null) placeFilters.mood = this.convertNumericMoodToString(params.mood) as MoodOption;
+    if (params.socialContext) placeFilters.socialContext = params.socialContext;
+    if (params.budget) placeFilters.budget = params.budget;
+    if (params.timeOfDay) placeFilters.timeOfDay = params.timeOfDay;
+    if (params.lookingFor) placeFilters.lookingFor = params.lookingFor;
     const placeTypes = this.configRegistry.getPreferredPlaceTypes(placeFilters);
     searchTerms.push(...placeTypes);
     
@@ -737,7 +758,7 @@ export class UnifiedFilterService {
       budget: budget || null,
       timeOfDay: timeOfDay === 'any' ? 'afternoon' : timeOfDay,
       distanceRange: null,
-      location: null
+      location: undefined
     });
 
     if (!validation.isValid) {
@@ -803,10 +824,10 @@ export class UnifiedFilterService {
           });
 
           const finalPhotos = imageUrls.length > 0 ? {
-            thumbnail: imageUrls,
-            medium: imageUrls,
-            large: imageUrls,
-            count: imageUrls.length
+            thumbnail: imageUrls as string[],
+            medium: imageUrls as string[],
+            large: imageUrls as string[],
+            count: imageUrls.length as number
           } : undefined;
 
           console.log(`📸 Final photos structure for ${place.name}:`, {
@@ -816,7 +837,7 @@ export class UnifiedFilterService {
             sampleMedium: finalPhotos?.medium?.[0] || 'No medium photos'
           });
 
-          const pr: PlaceResult = {
+          const prBase: Omit<PlaceResult, 'photos'> & Partial<Pick<PlaceResult, 'photos'>> = {
             place_id: place.place_id,
             name: place.name,
             address: place.formatted_address || place.vicinity,
@@ -829,9 +850,12 @@ export class UnifiedFilterService {
             tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
             radiusUsed: radius,
             expanded: radius > initialRadius,
-            raw: place,
-            photos: finalPhotos
+            raw: place
           };
+          if (finalPhotos) {
+            prBase.photos = finalPhotos;
+          }
+          const pr: PlaceResult = prBase as PlaceResult;
 
           resultsMap.set(place.place_id, pr);
         }
@@ -1058,7 +1082,7 @@ export class UnifiedFilterService {
     
     // Descriptor matching using registry
     const atmosphereFilters: { mood?: MoodOption; socialContext?: SocialContext; lookingFor?: LookingForOption } = {
-      mood: params.mood,
+      mood: this.convertNumericMoodToString(params.mood) as MoodOption,
       lookingFor: params.lookingFor
     };
     if (params.socialContext) {
@@ -1299,7 +1323,7 @@ export class UnifiedFilterService {
   /**
    * Legacy: Main discovery function compatible with old PlaceDiscoveryLogic
    */
-  async discoverPlaces(filters: DiscoveryFilters): Promise<DiscoveryResult> {
+  async discoverPlaces(filters: DiscoveryFilters): Promise<LegacyDiscoveryResult> {
     console.log('🎯 Legacy discovery method called, converting to new system');
     
     try {
@@ -1329,7 +1353,7 @@ export class UnifiedFilterService {
   /**
    * Legacy: Get next batch compatible with old PlaceDiscoveryLogic
    */
-  async getNextBatch(filters: DiscoveryFilters): Promise<DiscoveryResult> {
+  async getNextBatch(filters: DiscoveryFilters): Promise<LegacyDiscoveryResult> {
     console.log('🔄 Legacy getNextBatch called');
     
     // Check if we have enough unused places in pool
@@ -1400,7 +1424,7 @@ export class UnifiedFilterService {
   /**
    * Convert new search results to legacy DiscoveryResult format
    */
-  private convertToLegacyResult(places: PlaceResult[], filters: DiscoveryFilters): DiscoveryResult {
+  private convertToLegacyResult(places: PlaceResult[], filters: DiscoveryFilters): LegacyDiscoveryResult {
     const selectedPlaces = this.selectLegacyPlaces(places, 4);
     const finalPlaces = this.addAdvertisedPlace(selectedPlaces);
     
@@ -1455,15 +1479,7 @@ export class UnifiedFilterService {
 // Export singleton instance
 export const unifiedFilterService = UnifiedFilterService.getInstance();
 
-// Re-export types for backward compatibility
-export type {
-  LoadingState,
-  AdvertisedPlace,
-  DiscoveryFilters,
-  DiscoveryResult,
-  PlaceData,
-  PlaceMoodData
-} from '../../../../shared/types/types/filtering';
+// Types are consumed internally; no re-exports from here to avoid circular type mismatches.
 
 // =================
 // LEGACY COMPATIBILITY CLASS
@@ -1498,14 +1514,14 @@ export class PlaceDiscoveryLogic {
   /**
    * Legacy: Main discovery function
    */
-  async discoverPlaces(filters: DiscoveryFilters): Promise<DiscoveryResult> {
+  async discoverPlaces(filters: DiscoveryFilters): Promise<LegacyDiscoveryResult> {
     return this.service.discoverPlaces(filters);
   }
 
   /**
    * Legacy: Get next batch of results
    */
-  async getNextBatch(filters: DiscoveryFilters): Promise<DiscoveryResult> {
+  async getNextBatch(filters: DiscoveryFilters): Promise<LegacyDiscoveryResult> {
     return this.service.getNextBatch(filters);
   }
 

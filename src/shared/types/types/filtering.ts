@@ -40,6 +40,9 @@ export type {
   FilterApiBridge
 };
 
+// Expose core result types
+export type { PlaceResult } from '../../../features/filtering/types/filter-results';
+
 export type {
   ScoredPlace,
   AdvertisedPlace,
