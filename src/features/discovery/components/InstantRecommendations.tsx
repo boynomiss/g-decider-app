@@ -32,6 +32,12 @@ export default function InstantRecommendations({
 }: InstantRecommendationsProps) {
   const router = useRouter();
   const { filters } = useAppStore(); // Get filters directly from the hook
+  
+  console.log('🔍 InstantRecommendations filters check:', {
+    filters,
+    hasCategory: !!filters?.category,
+    category: filters?.category
+  });
   const [recommendations, setRecommendations] = useState<RecommendationCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,8 +102,8 @@ export default function InstantRecommendations({
         lng: userLocation.lng,
         lookingFor: currentFilters.category as 'food' | 'activity' | 'something-new',
         mood: currentFilters.mood || 50,
-        socialContext: currentFilters.socialContext,
-        budget: currentFilters.budget,
+        ...(currentFilters.socialContext && { socialContext: currentFilters.socialContext }),
+        ...(currentFilters.budget && { budget: currentFilters.budget }),
         timeOfDay: currentFilters.timeOfDay || 'any',
         maxRadius: (currentFilters.distanceRange || 10) * 1000, // Convert km to meters
         minResults: 10,
@@ -134,7 +140,7 @@ export default function InstantRecommendations({
         description: place.descriptor || `${place.name} is a great place to visit.`,
         openHours: place.opening_hours?.weekday_text?.join(', ') || 'Hours not available',
         category: filters.category as 'food' | 'activity' | 'something-new',
-        mood: filters.mood > 60 ? 'hype' : filters.mood < 40 ? 'chill' : 'both',
+        mood: (filters.mood || 50) > 60 ? 'hype' : (filters.mood || 50) < 40 ? 'chill' : 'neutral',
         socialContext: ['solo', 'with-bae', 'barkada'],
         timeOfDay: ['morning', 'afternoon', 'night'],
         coordinates: {
@@ -143,7 +149,7 @@ export default function InstantRecommendations({
         },
         rating: place.rating || 0,
         reviewCount: place.user_ratings_total || 0,
-        reviews: [],
+        reviews: place.user_ratings_total || 0,
         website: '',
         vicinity: place.address,
         formatted_address: place.address,
@@ -264,10 +270,15 @@ export default function InstantRecommendations({
         {selectedCategoryData && selectedCategoryData.places && selectedCategoryData.places.length > 0 && selectedCategoryData.places[currentPlaceIndex] ? (
           <>
             <EnhancedPlaceCard
-              key={`${selectedCategoryData.places[currentPlaceIndex].place_id}_${currentPlaceIndex}`}
+              key={`${selectedCategoryData.places[currentPlaceIndex].id}_${currentPlaceIndex}`}
               place={selectedCategoryData.places[currentPlaceIndex]}
-              onPress={() => onPlaceSelect?.(selectedCategoryData.places[currentPlaceIndex])}
-              showFullDetails={true}
+              onPress={() => {
+                const place = selectedCategoryData.places[currentPlaceIndex];
+                if (place) {
+                  onPlaceSelect?.(place);
+                }
+              }}
+              showFullDetails={false}
               onPass={handlePass}
               onRestart={handleRestart}
             />

@@ -18,6 +18,12 @@ export default function GButton({ size = 120 }: GButtonProps) {
 
   // Check if button should be disabled (basic validation)
   const isDisabled = !category;
+  
+  console.log('🎯 GButton state check:', {
+    category,
+    isDisabled,
+    hasCategory: !!category
+  });
 
   // Bounce animation when not disabled
   useEffect(() => {
