@@ -166,7 +166,7 @@ export default function EnhancedPlaceCard({
             scrollEventThrottle={16}
           >
             {/* Display actual place photos if available */}
-            {place.photos && place.photos.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 0 ? (
+            {place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 0 ? (
               place.photos.medium.map((photo, index) => (
                 <View key={`photo-${index}`} style={styles.imageWrapper}>
                   <Image
@@ -185,7 +185,7 @@ export default function EnhancedPlaceCard({
             )}
           </ScrollView>
           {/* Carousel Indicators */}
-          {place.photos && place.photos.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1 && (
+          {place.photos?.medium && Array.isArray(place.photos.medium) && place.photos.medium.length > 1 && (
             <View style={styles.imageCounter} pointerEvents="box-none">
               <Text style={styles.imageCounterText}>
                 {currentImageIndex + 1}/{place.photos.medium.length}

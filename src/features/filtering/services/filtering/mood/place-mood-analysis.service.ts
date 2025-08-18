@@ -19,14 +19,36 @@ import { FilterCoreUtils as FilterUtilities } from '../filter-core-utils';
 import { ConsolidatedFilterLogger } from '../filter-logger';
 import { EntityMoodAnalysisService } from './entity-mood-analysis.service';
 import {
-  PlaceMoodData,
   MoodAnalysisResult,
   ReviewEntity,
-  SentimentAnalysis,
-  MoodAnalysisConfig,
-  MoodOption,
-  IMoodAnalysisService
+  MoodOption
 } from '../../../../../shared/types/types/filtering';
+import { PlaceMoodData } from '../../../../discovery/types/place-types';
+
+// Define missing types locally
+interface SentimentAnalysis {
+  score: number;
+  magnitude: number;
+  keywords: string[];
+  entities: any[];
+}
+
+interface MoodAnalysisConfig {
+  minSalience: number;
+  minSentimentMagnitude: number;
+  maxReviewsToAnalyze: number;
+  onlyPositiveReviews: boolean;
+  highConfidenceThreshold: number;
+  mediumConfidenceThreshold: number;
+  maxRetries: number;
+  retryDelay: number;
+  apiTimeout: number;
+}
+
+interface IMoodAnalysisService {
+  analyzePlaceMood(placeId: string): Promise<MoodAnalysisResult>;
+  analyzeFromReviews(reviews: ReviewEntity[], category: string): Promise<MoodAnalysisResult>;
+}
 
 export class PlaceMoodAnalysisService implements IMoodAnalysisService {
   private entityAnalyzer: EntityMoodAnalysisService;
@@ -135,7 +157,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
         category: this.determineMoodCategory(moodScore),
         confidence: Math.max(entityAnalysis.confidence, 50),
         descriptors: sentimentAnalysis.keywords,
-        source: 'sentiment-analysis'
+        source: 'sentiment-analysis' as const
       };
 
     } catch (error) {
@@ -163,17 +185,24 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       const moodAnalysis = await this.analyzePlaceMood(placeId);
       this.logInfo('place-enhancement', `Mood analysis completed: ${moodAnalysis.category} (${moodAnalysis.score}/100)`);
       
-      // Combine all data
+      // Combine all data - create a basic PlaceMoodData object
       const enhancedPlace: PlaceMoodData = {
-        place_id: coreData.place_id || placeId,
+        id: placeId,
         name: coreData.name || 'Unknown Place',
-        address: coreData.address || '',
-        category: coreData.category || 'establishment',
-        user_ratings_total: coreData.user_ratings_total || 0,
+        location: (coreData as any).address || '',
+        images: [],
+        budget: 'moderate' as any,
+        tags: [],
+        description: '',
+        openHours: '',
+        category: 'food' as any,
+        mood: moodAnalysis.category,
+        socialContext: [],
+        timeOfDay: [],
         rating: coreData.rating || 0,
-        reviews: coreData.reviews || [],
-        ...realTimeData,
-        mood_analysis: moodAnalysis
+        reviews: 0,
+        mood_analysis: moodAnalysis,
+        ...realTimeData
       };
       
       return enhancedPlace;
@@ -287,14 +316,14 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       // Get place data
       const placeData = await this.getCorePlaceData(placeId);
       
-      if (!placeData.reviews || placeData.reviews.length === 0) {
+      if (!placeData.reviews || (Array.isArray(placeData.reviews) && placeData.reviews.length === 0)) {
         this.logInfo('place-mood-analysis', 'No reviews found, using category-based analysis');
         return this.getCategoryBasedAnalysis(placeData.category || 'establishment');
       }
 
       // Try entity analysis first
       const entityResult = await this.entityAnalyzer.analyzeFromReviews(
-        placeData.reviews,
+        Array.isArray(placeData.reviews) ? placeData.reviews : [],
         placeData.category || 'establishment'
       );
 
@@ -303,7 +332,9 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       }
 
       // Fallback to combined analysis
-      const sentimentAnalysis = await this.performSentimentAnalysis(placeData.reviews);
+      const sentimentAnalysis = await this.performSentimentAnalysis(
+        Array.isArray(placeData.reviews) ? placeData.reviews : []
+      );
       const combinedScore = this.calculateCombinedMoodScore(
         entityResult,
         sentimentAnalysis,
@@ -315,7 +346,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
         category: this.determineMoodCategory(combinedScore),
         confidence: Math.max(entityResult.confidence, 60),
         descriptors: [...entityResult.descriptors, ...sentimentAnalysis.keywords].slice(0, 5),
-        source: 'sentiment-analysis'
+        source: 'sentiment-analysis' as const
       };
 
     } catch (error) {
@@ -334,18 +365,15 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       ]);
       
       return {
-        place_id: place.id,
         name: place.displayName?.text || place.displayName || 'Unknown Place',
-        address: place.formattedAddress || '',
         category: place.types?.[0] || 'establishment',
-        user_ratings_total: place.userRatingCount || 0,
         rating: place.rating || 0,
         reviews: place.reviews?.map((review: any) => ({
           text: review.text?.text || review.text || '',
           rating: review.rating || 0,
           time: new Date(review.publishTime).getTime()
         })) || []
-      };
+      } as any;
       
     } catch (error) {
       this.logError('place-data-fetch', 'Failed to fetch place data', error);
@@ -362,14 +390,14 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       const simulatedBusyness = Math.floor(Math.random() * 100);
       
       return {
-        current_busyness: simulatedBusyness,
+        current_busyness: simulatedBusyness as number,
         popular_times: []
       };
       
     } catch (error) {
       this.logWarn('real-time-data', 'Failed to fetch real-time data', error);
       return {
-        current_busyness: 0,
+        current_busyness: 0 as number,
         popular_times: []
       };
     }
@@ -554,7 +582,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       category: this.determineMoodCategory(score),
       confidence: 40,
       descriptors: [],
-      source: 'category-mapping'
+      source: 'category-mapping' as const
     };
   }
 
@@ -578,7 +606,7 @@ export class PlaceMoodAnalysisService implements IMoodAnalysisService {
       category: 'neutral',
       confidence: 20,
       descriptors: [],
-      source: 'fallback'
+      source: 'fallback' as const
     };
   }
 }
@@ -589,13 +617,13 @@ export function createPlaceMoodAnalysisService(
   naturalLanguageApiKey?: string,
   config?: Partial<MoodAnalysisConfig>
 ): PlaceMoodAnalysisService {
-  let places = placesApiKey;
-  let naturalLanguage = naturalLanguageApiKey;
+  let places: string = placesApiKey || '';
+  let naturalLanguage: string | undefined = naturalLanguageApiKey;
   
   if (!places) {
     try {
       places = getAPIKey.places();
-    } catch (error) {
+    } catch {
       console.error('❌ No Google Places API key available for mood analysis');
       places = '';
     }
@@ -604,7 +632,7 @@ export function createPlaceMoodAnalysisService(
   if (!naturalLanguage) {
     try {
       naturalLanguage = getAPIKey.naturalLanguage();
-    } catch (error) {
+    } catch {
       console.warn('⚠️ No Google Natural Language API key available for mood analysis');
       naturalLanguage = undefined;
     }
