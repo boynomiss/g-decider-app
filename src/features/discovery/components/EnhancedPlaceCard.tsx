@@ -202,7 +202,7 @@ export default function EnhancedPlaceCard({
       };
 
       if (inInterval) {
-        return { isOpenNow: true, label: `Closes at ${to12h(inInterval.end)}` };
+        return { isOpenNow: true, label: `open until ${to12h(inInterval.end)}` };
       }
 
       const future = intervals
@@ -212,7 +212,7 @@ export default function EnhancedPlaceCard({
 
       if (future.length > 0) {
         const nextStart = future[0] as Date;
-        return { isOpenNow: false, label: `Opens at ${to12h(nextStart)}` };
+        return { isOpenNow: false, label: `opens at ${to12h(nextStart)}` };
       }
 
       // If all intervals have passed today, show next day's first open
@@ -222,7 +222,7 @@ export default function EnhancedPlaceCard({
       if (!firstInterval) return null as null | { isOpenNow: boolean; label: string };
       const first = new Date(firstTomorrow);
       first.setHours(firstInterval.start.getHours(), firstInterval.start.getMinutes(), 0, 0);
-      return { isOpenNow: false, label: `Opens at ${to12h(first)}` };
+      return { isOpenNow: false, label: `opens at ${to12h(first)}` };
     } catch (e) {
       return null as null | { isOpenNow: boolean; label: string };
     }
