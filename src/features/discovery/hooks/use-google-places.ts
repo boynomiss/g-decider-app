@@ -187,26 +187,37 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
 
       // Transform Google Places API response to PlaceMoodData format
       const transformedPlaces: PlaceMoodData[] = data.places.map((place: any) => {
-        const photoUrls = place.photos?.map((photo: any) => {
-          if (photo.name) {
+        // Sort photos by quality (width * height) descending and take top N
+        const rawPhotos: any[] = Array.isArray(place.photos) ? [...place.photos] : [];
+        const sortedByQuality = rawPhotos
+          .map((p: any) => ({
+            ...p,
+            _quality: Number(p?.widthPx || 0) * Number(p?.heightPx || 0)
+          }))
+          .sort((a: any, b: any) => (b._quality - a._quality));
+
+        const maxImages = 5;
+        const minImages = 3;
+        const topPhotos = sortedByQuality.slice(0, maxImages);
+
+        const photoUrls = topPhotos.map((photo: any) => {
+          if (photo?.name) {
             const resourceName = photo.name; // e.g., "places/PLACE_ID/photos/PHOTO_ID"
-            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=800&maxHeightPx=600&key=${apiKey}`;
+            // Request a reasonably large size for quality while keeping bandwidth reasonable
+            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=1000&maxHeightPx=750&key=${apiKey}`;
           }
-          return null;
-        }).filter(Boolean) || [];
+          return null as unknown as string;
+        }).filter((u: string | null) => typeof u === 'string' && !!u) as string[];
         
         const placeName = place.displayName?.text || place.displayName || 'Unknown Place';
         
-        const minImages = 3;
-        const maxImages = 5;
-        
-        let finalPhotoUrls = [...photoUrls];
+        let finalPhotoUrls: string[] = [...photoUrls];
         
         if (finalPhotoUrls.length === 0) {
-          const fallbackImages = [
-            `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80`,
-            `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop&auto=format&q=80`,
-            `https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=800&h=600&fit=crop&auto=format&q=80`
+          const fallbackImages: string[] = [
+            `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1000&h=750&fit=crop&auto=format&q=85`,
+            `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1000&h=750&fit=crop&auto=format&q=85`,
+            `https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=1000&h=750&fit=crop&auto=format&q=85`
           ];
           finalPhotoUrls = fallbackImages;
         }
@@ -223,14 +234,15 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         }
         
         const photos = {
-          thumbnail: finalPhotoUrls.map((url: string) => url?.replace('maxWidthPx=800&maxHeightPx=600', 'maxWidthPx=200&maxHeightPx=150')).filter(Boolean),
+          thumbnail: finalPhotoUrls.map((url: string) => url.replace('maxWidthPx=1000&maxHeightPx=750', 'maxWidthPx=200&maxHeightPx=150')).filter(Boolean) as string[],
           medium: finalPhotoUrls,
-          large: finalPhotoUrls.map((url: string) => url?.replace('maxWidthPx=800&maxHeightPx=600', 'maxWidthPx=1200&maxHeightPx=900')).filter(Boolean),
+          large: finalPhotoUrls.map((url: string) => url.replace('maxWidthPx=1000&maxHeightPx=750', 'maxWidthPx=1400&maxHeightPx=1050')).filter(Boolean) as string[],
           count: finalPhotoUrls.length
         };
         
         console.log(`📸 Photo debugging for ${placeName}:`, {
-          rawPhotos: place.photos?.length || 0,
+          rawPhotos: rawPhotos.length,
+          topPhotos: topPhotos.length,
           originalUrls: photoUrls.length,
           finalUrls: finalPhotoUrls.length,
           hasPhotos: finalPhotoUrls.length > 0,

@@ -116,6 +116,42 @@ export default function EnhancedPlaceCard({
 
   const moodDisplay = getMoodDisplay();
 
+  const formatLocation = useCallback((formatted: string, vicinity: string) => {
+    try {
+      const source = (formatted && formatted.length > 0 ? formatted : vicinity) ?? '';
+      if (!source) return 'Location not available';
+      const cleaned = source.split(',').map(s => s.trim()).filter(Boolean).filter(s => {
+        const l = s.toLowerCase();
+        if (l === 'philippines') return false;
+        if (l.includes('metro manila')) return false;
+        if (l === 'ncr' || l.includes('national capital region') || l.includes('kalakhang maynila')) return false;
+        return true;
+      });
+      const cityList = ['quezon city','makati','taguig','pasig','mandaluyong','san juan','manila','pasay','parañaque','paranaque','muntinlupa','marikina','valenzuela','caloocan','navotas','malabon','las piñas','las pinas'];
+      let city = '';
+      for (let i = cleaned.length - 1; i >= 0; i--) {
+        const part = cleaned[i];
+        const l = part.toLowerCase();
+        if (l.includes(' city') || cityList.includes(l)) { city = part; break; }
+      }
+      if (!city && cleaned.length > 0) city = cleaned[cleaned.length - 1];
+      const mallKeywords = ['mall','center','centre','plaza','market','park','district','complex','galleria','arcade','square','town center','uptown','downtown','heights','estates'];
+      const mallBrands = ['sm','ayala malls','robinsons','glorietta','greenbelt','festival','trinoma','uptown mall','shangri-la','power plant','market! market!','venice grand canal'];
+      let venue = '';
+      for (let i = 0; i < cleaned.length; i++) {
+        const part = cleaned[i];
+        const l = part.toLowerCase();
+        if (mallKeywords.some(k => l.includes(k)) || mallBrands.some(b => l.includes(b))) { venue = part; break; }
+      }
+      if (!venue && cleaned.length > 1) venue = cleaned[cleaned.length - 2];
+      if (venue && city) return `${venue} • ${city}`;
+      if (city) return city;
+      return cleaned[0] ?? 'Location not available';
+    } catch (e) {
+      return 'Location not available';
+    }
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={styles.imageCardContainer}>
@@ -172,7 +208,7 @@ export default function EnhancedPlaceCard({
       >
         <View style={styles.placeInfo}>
           <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeLocation}>{place.formatted_address || place.vicinity || 'Address not available'}</Text>
+          <Text style={styles.placeLocation}>{formatLocation(place.formatted_address ?? '', place.vicinity ?? '')}</Text>
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
               {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}
