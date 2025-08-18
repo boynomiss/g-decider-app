@@ -16,7 +16,8 @@ import { getAPIKey, validateAPIKeys } from '../../../shared/constants/config/api
 const getGooglePlacesKey = () => {
   try {
     return getAPIKey.places();
-  } catch {
+  } catch (error) {
+    console.warn('Google Places API key not configured:', error instanceof Error ? error.message : String(error));
     return '';
   }
 };
@@ -24,7 +25,8 @@ const getGooglePlacesKey = () => {
 const getGoogleNaturalLanguageKey = () => {
   try {
     return getAPIKey.naturalLanguage();
-  } catch {
+  } catch (error) {
+    console.warn('Google Natural Language API key not configured:', error instanceof Error ? error.message : String(error));
     return '';
   }
 };

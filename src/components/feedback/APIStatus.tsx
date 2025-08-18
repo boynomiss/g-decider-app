@@ -14,7 +14,14 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
 
     const checkAPIStatus = async () => {
       try {
-        const GOOGLE_API_KEY = getAPIKey.places();
+        let GOOGLE_API_KEY: string;
+        try {
+          GOOGLE_API_KEY = getAPIKey.places();
+        } catch {
+          console.log('No Google Places API key found, using fallback mode');
+          setApiStatus('fallback');
+          return;
+        }
         
         if (!GOOGLE_API_KEY || GOOGLE_API_KEY.length === 0) {
           console.log('No Google Places API key found, using fallback mode');

@@ -5,6 +5,14 @@
  * All keys should be set via environment variables.
  */
 
+// Debug environment variables
+console.log('🔑 Environment variables debug:', {
+  GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ? '✅ Present' : '❌ Missing',
+  GOOGLE_NATURAL_LANGUAGE: process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY ? '✅ Present' : '❌ Missing',
+  GEMINI: process.env.EXPO_PUBLIC_GEMINI_API_KEY ? '✅ Present' : '❌ Missing',
+  FIREBASE: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? '✅ Present' : '❌ Missing'
+});
+
 export const API_KEYS = {
   // Google Places API (New)
   GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
@@ -68,14 +76,16 @@ export const validateAPIKeys = {
 export const getAPIKey = {
   places: (): string => {
     const key = API_KEYS.GOOGLE_PLACES;
+    console.log('🔑 getAPIKey.places() called, key length:', key?.length || 0);
     if (!key || key.length === 0) {
-      console.warn('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
-      return '';
+      throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
     }
     return key;
   },
   
   naturalLanguage: (): string => {
+    const key = API_KEYS.GOOGLE_NATURAL_LANGUAGE;
+    console.log('🔑 getAPIKey.naturalLanguage() called, key length:', key?.length || 0);
     if (!validateAPIKeys.isNaturalLanguageConfigured()) {
       throw new Error('Google Natural Language API key not configured. Please set EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY');
     }

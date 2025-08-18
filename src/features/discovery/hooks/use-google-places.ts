@@ -82,9 +82,17 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
     setError(null);
 
     try {
-      const apiKey = getAPIKey.places();
-      console.log('🔍 API Key loaded:', apiKey ? '✅ Present' : '❌ Missing');
-      console.log('🔍 API Key length:', apiKey?.length || 0);
+      let apiKey: string;
+      try {
+        apiKey = getAPIKey.places();
+        console.log('🔍 API Key loaded:', apiKey ? '✅ Present' : '❌ Missing');
+        console.log('🔍 API Key length:', apiKey?.length || 0);
+      } catch {
+        console.log('❌ Google Places API key not configured, cannot fetch places');
+        setError('Google Places API key not configured');
+        setPlaces([]);
+        return;
+      }
       
       const url = 'https://places.googleapis.com/v1/places:searchText';
       
@@ -335,7 +343,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       setIsLoading(false);
       setIsFetching(false);
     }
-  }, []);
+  }, [isFetching]);
 
   const clearPlaces = useCallback(() => {
     setPlaces([]);
