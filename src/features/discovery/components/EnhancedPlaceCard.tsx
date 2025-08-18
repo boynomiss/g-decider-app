@@ -323,8 +323,8 @@ export default function EnhancedPlaceCard({
               }}
               activeOpacity={0.7}
             >
-              <X size={24} color="#FFFFFF" />
-              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>Pass</Text>
+              <X size={24} color="#FF6B6B" />
+              <Text style={[styles.actionText, { color: '#FF6B6B', fontWeight: '600' }]}>Pass</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -335,8 +335,8 @@ export default function EnhancedPlaceCard({
               }}
               activeOpacity={0.7}
             >
-              <RotateCcw size={24} color="#FFFFFF" />
-              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>Restart</Text>
+              <RotateCcw size={24} color="#666666" />
+              <Text style={[styles.actionText, { color: '#666666', fontWeight: '600' }]}>Restart</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -349,10 +349,10 @@ export default function EnhancedPlaceCard({
             >
               <Heart 
                 size={24} 
-                color="#FFFFFF" 
-                fill={isSaved ? '#FFFFFF' : 'transparent'}
+                color="#4CAF50" 
+                fill={isSaved ? '#4CAF50' : 'transparent'}
               />
-              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>
+              <Text style={[styles.actionText, { color: '#4CAF50', fontWeight: '600' }]}>
                 {isSaved ? 'Saved' : 'Save'}
               </Text>
             </TouchableOpacity>
@@ -623,28 +623,28 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   passButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
     minWidth: 80,
   },
   restartButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
     minWidth: 80,
   },
   saveButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
     minWidth: 80,
   },
   savedButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
