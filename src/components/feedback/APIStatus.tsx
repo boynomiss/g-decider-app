@@ -29,19 +29,40 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
           return;
         }
         
-        const params = new URLSearchParams({
-          location: '14.5176,121.0509',
-          radius: '5000',
-          type: 'restaurant',
-          key: GOOGLE_API_KEY
+        // Use new Places API for status check
+        const url = 'https://places.googleapis.com/v1/places:searchNearby';
+        const requestBody = {
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: 14.5176,
+                longitude: 121.0509
+              },
+              radius: 5000
+            }
+          },
+          includedTypes: ['restaurant'],
+          maxResultCount: 1
+        };
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_API_KEY,
+            'X-Goog-FieldMask': 'places.id'
+          },
+          body: JSON.stringify(requestBody)
         });
 
-        const response = await fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.status === 'OK') {
-          setApiStatus('working');
-        } else if (data.status === 'REQUEST_DENIED') {
+        if (response.ok) {
+          const data = await response.json();
+          if (data.places && data.places.length > 0) {
+            setApiStatus('working');
+          } else {
+            setApiStatus('fallback');
+          }
+        } else if (response.status === 403) {
           setApiStatus('fallback');
         } else {
           setApiStatus('error');

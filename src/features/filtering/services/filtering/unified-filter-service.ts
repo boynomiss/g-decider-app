@@ -323,29 +323,51 @@ export class UnifiedFilterService {
         throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
       }
     }
-    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=place_id,name,formatted_address,geometry,opening_hours,reviews,user_ratings_total,rating,price_level&key=${key}`;
+    const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`;
     
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,regularOpeningHours,reviews,userRatingCount,rating,priceLevel'
+        }
+      });
+      
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`HTTP ${response.status} ${response.statusText}: ${text}`);
-      }
-      const json = await response.json();
-      
-      if (json.status !== 'OK') {
         console.error('❌ Place details API status error:', {
-          status: json.status,
-          errorMessage: json.error_message,
-          placeId
+          errorMessage: text,
+          placeId,
+          status: response.status
         });
         return null;
       }
       
-      const result = json.result || null;
+      const result = await response.json();
       
       if (result) {
-        this.setCache(cacheKey, result);
+        // Transform new API response to match legacy format for compatibility
+        const transformedResult = {
+          place_id: result.id,
+          name: result.displayName?.text || result.displayName,
+          formatted_address: result.formattedAddress,
+          geometry: result.location ? {
+            location: {
+              lat: result.location.latitude,
+              lng: result.location.longitude
+            }
+          } : undefined,
+          opening_hours: result.regularOpeningHours,
+          reviews: result.reviews,
+          user_ratings_total: result.userRatingCount,
+          rating: result.rating,
+          price_level: result.priceLevel
+        };
+        
+        this.setCache(cacheKey, transformedResult);
+        return transformedResult;
       }
       
       return result;

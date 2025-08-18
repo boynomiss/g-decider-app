@@ -2,7 +2,7 @@ import { Linking } from 'react-native';
 import { getAPIKey } from '../../../../shared/constants/config/api-keys';
 
 // Google Places API configuration
-const GOOGLE_PLACES_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
+const GOOGLE_PLACES_DETAILS_URL = 'https://places.googleapis.com/v1/places';
 
 // Lazy load API key to avoid initialization errors
 const getGoogleApiKey = () => {
@@ -43,43 +43,52 @@ export class ContactService {
         return {};
       }
       
-      const url = `${GOOGLE_PLACES_DETAILS_URL}?place_id=${placeId}&fields=formatted_phone_number,international_phone_number,website,name,url,formatted_address,opening_hours,price_level,rating,user_ratings_total&key=${apiKey}`;
+      const url = `${GOOGLE_PLACES_DETAILS_URL}/${placeId}`;
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'nationalPhoneNumber,internationalPhoneNumber,websiteUri,displayName,formattedAddress,regularOpeningHours,priceLevel,rating,userRatingCount'
+        }
+      });
+      
+      if (!response.ok) {
+        console.log('📞 Google Places API error:', response.status, response.statusText);
+        return {};
+      }
+      
       const data = await response.json();
       
-      if (data.status === 'OK' && data.result) {
+      if (data) {
         const contactInfo: ContactInfo = {};
         
-        // Prioritize phone number with validation
-        if (data.result.formatted_phone_number && this.isValidPhoneNumber(data.result.formatted_phone_number)) {
-          contactInfo.phoneNumber = data.result.formatted_phone_number;
-          contactInfo.formattedPhoneNumber = data.result.formatted_phone_number;
-          console.log('📞 Valid phone number found:', data.result.formatted_phone_number);
-        } else if (data.result.international_phone_number && this.isValidPhoneNumber(data.result.international_phone_number)) {
-          contactInfo.phoneNumber = data.result.international_phone_number;
-          contactInfo.formattedPhoneNumber = data.result.international_phone_number;
-          console.log('📞 Valid international phone number found:', data.result.international_phone_number);
+        // Prioritize phone number with validation (new API format)
+        if (data.nationalPhoneNumber && this.isValidPhoneNumber(data.nationalPhoneNumber)) {
+          contactInfo.phoneNumber = data.nationalPhoneNumber;
+          contactInfo.formattedPhoneNumber = data.nationalPhoneNumber;
+          console.log('📞 Valid phone number found:', data.nationalPhoneNumber);
+        } else if (data.internationalPhoneNumber && this.isValidPhoneNumber(data.internationalPhoneNumber)) {
+          contactInfo.phoneNumber = data.internationalPhoneNumber;
+          contactInfo.formattedPhoneNumber = data.internationalPhoneNumber;
+          console.log('📞 Valid international phone number found:', data.internationalPhoneNumber);
         } else {
           console.log('📞 No valid phone number found in Google Places API');
         }
         
-        // Add website if available (prioritize official website over Google Maps URL)
-        if (data.result.website) {
-          contactInfo.website = data.result.website;
-        } else if (data.result.url) {
-          // Use Google Maps URL as fallback if no official website
-          contactInfo.website = data.result.url;
+        // Add website if available (new API format)
+        if (data.websiteUri) {
+          contactInfo.website = data.websiteUri;
         }
         
         console.log('📞 Contact info found:', contactInfo);
         console.log('🌐 Google Places API data:', {
-          phone: data.result.formatted_phone_number,
-          website: data.result.website,
-          url: data.result.url,
-          address: data.result.formatted_address,
-          rating: data.result.rating,
-          priceLevel: data.result.price_level
+          phone: data.nationalPhoneNumber,
+          website: data.websiteUri,
+          address: data.formattedAddress,
+          rating: data.rating,
+          priceLevel: data.priceLevel
         });
         return contactInfo;
       } else {

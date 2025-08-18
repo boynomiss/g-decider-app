@@ -7,13 +7,13 @@ import { getAPIKey } from '../../../shared/constants/config/api-keys';
 const getGooglePlacesApiKey = (): string => {
   try {
     return getAPIKey.places();
-  } catch (error) {
+  } catch {
     console.error('❌ No Google Places API key available for image sourcing');
     return '';
   }
 };
 
-const GOOGLE_PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place';
+// const GOOGLE_PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place'; // Unused after migration to new API
 const GOOGLE_PLACES_PHOTO_URL = 'https://maps.googleapis.com/maps/api/place/photo';
 
 // Helper: Get high-quality photos from Google Places API
@@ -21,16 +21,37 @@ export const getGooglePlacesPhotos = async (placeId: string, maxPhotos: number =
   try {
     console.log('📸 Fetching Google Places photos for place ID:', placeId);
     
-    // Get place details with photos
-    const detailsUrl = `${GOOGLE_PLACES_BASE_URL}/details/json?place_id=${placeId}&fields=photos&key=${getGooglePlacesApiKey()}`;
-    const response = await fetch(detailsUrl);
+    // Get place details with photos using new API
+    const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
+    const response = await fetch(detailsUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': getGooglePlacesApiKey(),
+        'X-Goog-FieldMask': 'photos'
+      }
+    });
+    
+    if (!response.ok) {
+      console.log('📸 Google Places API error:', response.status, response.statusText);
+      return [];
+    }
+    
     const data = await response.json();
     
-    if (data.status === 'OK' && data.result.photos) {
-      const photos = data.result.photos.slice(0, maxPhotos);
-      const photoUrls = photos.map((photo: any) => 
-        `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
-      );
+    if (data && data.photos) {
+      const photos = data.photos.slice(0, maxPhotos);
+      const photoUrls = photos.map((photo: any) => {
+        // New API uses 'name' field instead of 'photo_reference'
+        if (photo.name) {
+          // Extract photo reference from the name field
+          const photoRef = photo.name.split('/photos/')[1];
+          if (photoRef) {
+            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${getGooglePlacesApiKey()}`;
+          }
+        }
+        return null;
+      }).filter(Boolean);
       
       console.log(`📸 Found ${photoUrls.length} Google Places photos`);
       return photoUrls;
@@ -49,25 +70,56 @@ export const searchGooglePlacesImages = async (query: string, location: string):
   try {
     console.log('🔍 Searching Google Places for:', query);
     
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&radius=5000&key=${getGooglePlacesApiKey()}`;
-    const response = await fetch(searchUrl);
-    const data = await response.json();
-    
-    if (data.status === 'OK' && data.results.length > 0) {
-      const photos: string[] = [];
-      
-      // Get photos from the first few results
-      for (const place of data.results.slice(0, 3)) {
-        if (place.photos && place.photos.length > 0) {
-          const placePhotos = place.photos.slice(0, 2).map((photo: any) => 
-            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
-          );
-          photos.push(...placePhotos);
+    // Use new Places API for text search
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
+    const requestBody = {
+      textQuery: query,
+      locationBias: {
+        circle: {
+          center: {
+            latitude: parseFloat(location.split(',')[0] || '14.5176') || 14.5176,
+            longitude: parseFloat(location.split(',')[1] || '121.0509') || 121.0509
+          },
+          radius: 5000
         }
+      },
+      maxResultCount: 3
+    };
+    
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': getGooglePlacesApiKey(),
+        'X-Goog-FieldMask': 'places.photos'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.places && data.places.length > 0) {
+        const photos: string[] = [];
+        
+        // Get photos from the first few results (new API format)
+        for (const place of data.places.slice(0, 3)) {
+          if (place.photos && place.photos.length > 0) {
+            const placePhotos = place.photos.slice(0, 2).map((photo: any) => {
+              if (photo.name) {
+                const photoRef = photo.name.split('/photos/')[1];
+                if (photoRef) {
+                  return `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photoRef}&maxwidth=800&key=${getGooglePlacesApiKey()}`;
+                }
+              }
+              return null;
+            }).filter(Boolean);
+            photos.push(...placePhotos);
+          }
+        }
+        
+        console.log(`📸 Found ${photos.length} additional photos from Google Places search`);
+        return photos;
       }
-      
-      console.log(`📸 Found ${photos.length} additional photos from Google Places search`);
-      return photos;
     }
     
     return [];
@@ -99,20 +151,41 @@ export const getBusinessProfileImages = async (placeName: string, location: stri
   try {
     console.log('🏢 Searching for business profile images:', placeName);
     
-    // Use Google Places API to find the business
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(placeName + ' ' + location)}&key=${getGooglePlacesApiKey()}`;
-    const response = await fetch(searchUrl);
-    const data = await response.json();
+    // Use new Places API to find the business
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
+    const requestBody = {
+      textQuery: `${placeName} ${location}`,
+      maxResultCount: 1
+    };
     
-    if (data.status === 'OK' && data.results.length > 0) {
-      const place = data.results[0];
-      if (place.photos && place.photos.length > 0) {
-        const photos = place.photos.slice(0, 4).map((photo: any) => 
-          `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
-        );
-        
-        console.log(`📸 Found ${photos.length} business profile photos`);
-        return photos;
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': getGooglePlacesApiKey(),
+        'X-Goog-FieldMask': 'places.photos'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.places && data.places.length > 0) {
+        const place = data.places[0];
+        if (place.photos && place.photos.length > 0) {
+          const photos = place.photos.slice(0, 4).map((photo: any) => {
+            if (photo.name) {
+              const photoRef = photo.name.split('/photos/')[1];
+              if (photoRef) {
+                return `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photoRef}&maxwidth=800&key=${getGooglePlacesApiKey()}`;
+              }
+            }
+            return null;
+          }).filter(Boolean);
+          
+          console.log(`📸 Found ${photos.length} business profile photos`);
+          return photos;
+        }
       }
     }
     
@@ -136,26 +209,57 @@ export const getNearbyPlaceImages = async (category: string, location: string): 
     };
     
     const placeType = typeMap[category] || 'establishment';
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/nearbysearch/json?location=${encodeURIComponent(location)}&radius=2000&type=${placeType}&key=${getGooglePlacesApiKey()}`;
     
-    const response = await fetch(searchUrl);
-    const data = await response.json();
-    
-    if (data.status === 'OK' && data.results.length > 0) {
-      const photos: string[] = [];
-      
-      // Get photos from nearby places
-      for (const place of data.results.slice(0, 2)) {
-        if (place.photos && place.photos.length > 0) {
-          const placePhotos = place.photos.slice(0, 2).map((photo: any) => 
-            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
-          );
-          photos.push(...placePhotos);
+    // Use new Places API for nearby search
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby';
+    const requestBody = {
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: parseFloat(location.split(',')[0] || '14.5176') || 14.5176,
+            longitude: parseFloat(location.split(',')[1] || '121.0509') || 121.0509
+          },
+          radius: 2000
         }
+      },
+      includedTypes: [placeType],
+      maxResultCount: 2
+    };
+    
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': getGooglePlacesApiKey(),
+        'X-Goog-FieldMask': 'places.photos'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.places && data.places.length > 0) {
+        const photos: string[] = [];
+        
+        // Get photos from nearby places (new API format)
+        for (const place of data.places.slice(0, 2)) {
+          if (place.photos && place.photos.length > 0) {
+            const placePhotos = place.photos.slice(0, 2).map((photo: any) => {
+              if (photo.name) {
+                const photoRef = photo.name.split('/photos/')[1];
+                if (photoRef) {
+                  return `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photoRef}&maxwidth=800&key=${getGooglePlacesApiKey()}`;
+                }
+              }
+              return null;
+            }).filter(Boolean);
+            photos.push(...placePhotos);
+          }
+        }
+        
+        console.log(`📸 Found ${photos.length} nearby place photos`);
+        return photos;
       }
-      
-      console.log(`📸 Found ${photos.length} nearby place photos`);
-      return photos;
     }
     
     return [];
