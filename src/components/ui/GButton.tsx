@@ -109,11 +109,11 @@ export default function GButton({ size = 120 }: GButtonProps) {
     }
   };
 
-  // Navigate to instant recommendations page (same as instant recommendations flow)
+  // Navigate directly to results page
   const handlePress = () => {
     if (!isDisabled) {
-      console.log('🎯 G! button pressed - navigating to instant recommendations');
-      router.push('/instant-recommendations');
+      console.log('🎯 G! button pressed - navigating to results page');
+      router.push('/results');
     } else {
       // Trigger shake animation when disabled button is pressed
       triggerShake();
