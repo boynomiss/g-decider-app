@@ -299,13 +299,11 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         const numericPriceLevel = normalizePriceLevel(place.priceLevel);
 
         // Determine budget label from numeric price level
-        const budget = ((): 'P' | 'PP' | 'PPP' | 'PPPP' => {
+        const budget = ((): 'P' | 'PP' | 'PPP' => {
           const lvl = typeof numericPriceLevel === 'number' ? numericPriceLevel : 2;
-          if (lvl <= 0) return 'P';
-          if (lvl === 1) return 'P';
-          if (lvl === 2) return 'PP';
-          if (lvl === 3) return 'PPP';
-          return 'PPPP';
+          if (lvl <= 1) return 'P';
+          if (lvl <= 2) return 'PP';
+          return 'PPP';
         })();
 
         // Determine category from types
@@ -326,7 +324,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           vicinity: place.formattedAddress || 'Unknown Location',
           images: finalPhotoUrls, // Keep for backward compatibility
           photos: photos, // New structured photos object
-          budget: budget as 'P' | 'PP' | 'PPP' | 'PPPP',
+          budget: budget as 'P' | 'PP' | 'PPP',
           price_level: (numericPriceLevel ?? 2),
           tags: place.types || [],
           description: `${place.displayName?.text || 'This place'} is a great place to visit.`,
