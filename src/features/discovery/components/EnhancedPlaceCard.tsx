@@ -316,31 +316,31 @@ export default function EnhancedPlaceCard({
           {/* Action Buttons */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity 
-              style={styles.actionButton} 
+              style={[styles.actionButton, styles.passButton]} 
               onPress={() => {
                 console.log('🔴 Pass button pressed');
                 onPass && onPass();
               }}
               activeOpacity={0.7}
             >
-              <X size={24} color="#FF6B6B" />
-              <Text style={[styles.actionText, { color: '#FF6B6B' }]}>Pass</Text>
+              <X size={24} color="#FFFFFF" />
+              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>Pass</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.actionButton} 
+              style={[styles.actionButton, styles.restartButton]} 
               onPress={() => {
                 console.log('🔄 Restart button pressed');
                 onRestart && onRestart();
               }}
               activeOpacity={0.7}
             >
-              <RotateCcw size={24} color="#4CAF50" />
-              <Text style={[styles.actionText, { color: '#4CAF50' }]}>Restart</Text>
+              <RotateCcw size={24} color="#FFFFFF" />
+              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>Restart</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.actionButton} 
+              style={[styles.actionButton, isSaved ? styles.savedButton : styles.saveButton]} 
               onPress={() => {
                 console.log('💖 Save button pressed, isSaved:', isSaved);
                 onSave && onSave();
@@ -349,10 +349,10 @@ export default function EnhancedPlaceCard({
             >
               <Heart 
                 size={24} 
-                color={isSaved ? '#F44336' : '#4CAF50'} 
-                fill={isSaved ? '#F44336' : 'transparent'}
+                color="#FFFFFF" 
+                fill={isSaved ? '#FFFFFF' : 'transparent'}
               />
-              <Text style={[styles.actionText, { color: isSaved ? '#F44336' : '#4CAF50' }]}>
+              <Text style={[styles.actionText, { color: '#FFFFFF', fontWeight: '600' }]}>
                 {isSaved ? 'Saved' : 'Save'}
               </Text>
             </TouchableOpacity>
@@ -432,15 +432,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  saveButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 20,
-    padding: 8,
-    zIndex: 1,
-  },
+
   // Old UI Content Styles
   placeInfo: {
     padding: 20, // Increased from 16 to 20 for better overall spacing
@@ -628,9 +620,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginTop: 12,
     paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: '#F8F8F8',
+    paddingVertical: 12,
+    backgroundColor: '#F0F0F0',
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  passButton: {
+    backgroundColor: '#FF6B6B',
+  },
+  restartButton: {
+    backgroundColor: '#4CAF50',
+  },
+  saveButton: {
+    backgroundColor: '#2196F3',
+  },
+  savedButton: {
+    backgroundColor: '#F44336',
   },
 });
