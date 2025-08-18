@@ -471,7 +471,7 @@ export default function EnhancedPlaceCard({
             {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
                 testID="contact-button"
-                style={styles.contactButton}
+                style={[styles.contactButton, styles.mapButtonFlex]}
                 onPress={handleCall}
                 activeOpacity={0.7}
                 accessibilityLabel="Contact"
@@ -746,9 +746,10 @@ const styles = StyleSheet.create({
   },
   placeActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,
+    gap: 8 as const,
   },
   actionButton: {
     flexDirection: 'column',
@@ -771,6 +772,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     minHeight: 40,
+    marginLeft: 0,
   },
   actionText: {
     fontSize: 12,
@@ -788,7 +790,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginRight: 8,
+    marginRight: 0,
     minHeight: 40,
   },
   mapButtonFlex: {
