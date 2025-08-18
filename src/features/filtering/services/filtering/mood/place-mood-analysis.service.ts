@@ -13,6 +13,7 @@
  */
 
 import { googlePlacesClient, googleNaturalLanguageClient } from '../../../../../services/api/api/google-api-clients';
+import { getAPIKey } from '../../../../../shared/constants/config/api-keys';
 import { filterConfigRegistry } from '../config-registry';
 import { FilterCoreUtils as FilterUtilities } from '../filter-core-utils';
 import { ConsolidatedFilterLogger } from '../filter-logger';
@@ -588,9 +589,30 @@ export function createPlaceMoodAnalysisService(
   naturalLanguageApiKey?: string,
   config?: Partial<MoodAnalysisConfig>
 ): PlaceMoodAnalysisService {
+  let places = placesApiKey;
+  let naturalLanguage = naturalLanguageApiKey;
+  
+  if (!places) {
+    try {
+      places = getAPIKey.places();
+    } catch (error) {
+      console.error('❌ No Google Places API key available for mood analysis');
+      places = '';
+    }
+  }
+  
+  if (!naturalLanguage) {
+    try {
+      naturalLanguage = getAPIKey.naturalLanguage();
+    } catch (error) {
+      console.warn('⚠️ No Google Natural Language API key available for mood analysis');
+      naturalLanguage = undefined;
+    }
+  }
+  
   return new PlaceMoodAnalysisService(
-    placesApiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
-    naturalLanguageApiKey || process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY,
+    places,
+    naturalLanguage,
     config
   );
 }

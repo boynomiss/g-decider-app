@@ -47,6 +47,7 @@ import {
 } from './filter-core-utils';
 import { ConsolidatedFilterLogger } from './filter-logger';
 import { createPlaceMoodAnalysisService } from './mood/place-mood-analysis.service';
+import { getAPIKey } from '../../../../shared/constants/config/api-keys';
 
 // Add these imports to match the UI logic exactly
 // Fix the import paths to match the actual directory structure
@@ -86,19 +87,22 @@ export class UnifiedFilterService {
     minprice?: number, 
     maxprice?: number
   ): Promise<any[]> {
-    const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+    let key = apiKey;
+    if (!key) {
+      try {
+        key = getAPIKey.places();
+      } catch (error) {
+        console.error('❌ No Google Places API key available');
+        throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      }
+    }
     
     console.log('🔑 textSearch API key check:', {
       hasApiKey: !!key,
       keyLength: key.length,
       keyPrefix: key.substring(0, 10) + '...',
-      source: apiKey ? 'parameter' : 'environment'
+      source: apiKey ? 'parameter' : 'centralized config'
     });
-    
-    if (!key) {
-      console.error('❌ No Google Places API key available');
-      throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
-    }
     
     // Try new Google Places API first, fallback to legacy if it fails
     try {
@@ -310,7 +314,15 @@ export class UnifiedFilterService {
     const cached = this.getCached<Record<string, any>>(cacheKey);
     if (cached) return cached;
 
-    const key = apiKey || process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+    let key = apiKey;
+    if (!key) {
+      try {
+        key = getAPIKey.places();
+      } catch (error) {
+        console.error('❌ No Google Places API key available');
+        throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      }
+    }
     const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=place_id,name,formatted_address,geometry,opening_hours,reviews,user_ratings_total,rating,price_level&key=${key}`;
     
     try {

@@ -7,8 +7,17 @@
  * - Smart validation to prevent generic/unrelated images
  */
 
-// Environment variables for API keys
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+import { getAPIKey } from '../../../shared/constants/config/api-keys';
+
+// Get API key using centralized configuration
+const getGooglePlacesApiKey = (): string => {
+  try {
+    return getAPIKey.places();
+  } catch (error) {
+    console.error('❌ No Google Places API key available for photo URL generation');
+    return '';
+  }
+};
 
 
 export interface PhotoReference {
@@ -86,11 +95,11 @@ export function generatePhotoUrl(
 
   // For new Places API, use the new photo endpoint
   if (photoReference.startsWith('places/')) {
-    return `https://places.googleapis.com/v1/${photoReference}/media?maxWidthPx=${maxWidth}&maxHeightPx=${maxHeight}&key=${GOOGLE_PLACES_API_KEY}`;
+    return `https://places.googleapis.com/v1/${photoReference}/media?maxWidthPx=${maxWidth}&maxHeightPx=${maxHeight}&key=${getGooglePlacesApiKey()}`;
   }
   
   // For legacy API, use the legacy photo endpoint
-  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&maxheight=${maxHeight}&photoreference=${photoReference}&key=${GOOGLE_PLACES_API_KEY}`;
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&maxheight=${maxHeight}&photoreference=${photoReference}&key=${getGooglePlacesApiKey()}`;
 }
 
 /**
@@ -451,7 +460,7 @@ async function generateStreetViewPhotos(
     // Skip if we can't get valid values (shouldn't happen with our logic, but safety first)
     if (heading === undefined || pitch === undefined) continue;
     
-    const url = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&key=${GOOGLE_PLACES_API_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&key=${getGooglePlacesApiKey()}`;
     
     // Validate Street View image exists
     try {
@@ -500,7 +509,7 @@ async function searchSimilarPlacePhotos(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+          'X-Goog-Api-Key': getGooglePlacesApiKey(),
           'X-Goog-FieldMask': 'places.id,places.displayName,places.photos,places.rating,places.userRatingCount'
         },
         body: JSON.stringify({

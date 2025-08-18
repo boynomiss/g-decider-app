@@ -7,6 +7,7 @@ import EnhancedPlaceCard from './EnhancedPlaceCard';
 import { useRouter } from 'expo-router';
 import { unifiedFilterService } from '../../filtering/services/filtering/unified-filter-service';
 import { useAppStore } from '../../../store/store';
+import { getAPIKey } from '../../../shared/constants/config/api-keys';
 
 interface InstantRecommendationsProps {
   onPlaceSelect?: (place: PlaceData) => void;
@@ -101,7 +102,14 @@ export default function InstantRecommendations({
         maxRadius: (currentFilters.distanceRange || 10) * 1000, // Convert km to meters
         minResults: 10,
         maxResults: 20,
-        apiKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || ''
+        apiKey: (() => {
+          try {
+            return getAPIKey.places();
+          } catch (error) {
+            console.error('❌ No Google Places API key available');
+            throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+          }
+        })()
       };
 
       console.log('🔍 Search params:', searchParams);

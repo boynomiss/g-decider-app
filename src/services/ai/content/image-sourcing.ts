@@ -1,8 +1,17 @@
 // Enhanced Image Sourcing Utilities
 // Focuses on getting actual photos of places from Google Places, Maps, and other real sources
 
-// Environment variables for API keys
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '';
+import { getAPIKey } from '../../../shared/constants/config/api-keys';
+
+// Get API key using centralized configuration
+const getGooglePlacesApiKey = (): string => {
+  try {
+    return getAPIKey.places();
+  } catch (error) {
+    console.error('❌ No Google Places API key available for image sourcing');
+    return '';
+  }
+};
 
 const GOOGLE_PLACES_BASE_URL = 'https://maps.googleapis.com/maps/api/place';
 const GOOGLE_PLACES_PHOTO_URL = 'https://maps.googleapis.com/maps/api/place/photo';
@@ -13,14 +22,14 @@ export const getGooglePlacesPhotos = async (placeId: string, maxPhotos: number =
     console.log('📸 Fetching Google Places photos for place ID:', placeId);
     
     // Get place details with photos
-    const detailsUrl = `${GOOGLE_PLACES_BASE_URL}/details/json?place_id=${placeId}&fields=photos&key=${GOOGLE_PLACES_API_KEY}`;
+    const detailsUrl = `${GOOGLE_PLACES_BASE_URL}/details/json?place_id=${placeId}&fields=photos&key=${getGooglePlacesApiKey()}`;
     const response = await fetch(detailsUrl);
     const data = await response.json();
     
     if (data.status === 'OK' && data.result.photos) {
       const photos = data.result.photos.slice(0, maxPhotos);
       const photoUrls = photos.map((photo: any) => 
-        `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_PLACES_API_KEY}`
+        `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
       );
       
       console.log(`📸 Found ${photoUrls.length} Google Places photos`);
@@ -40,7 +49,7 @@ export const searchGooglePlacesImages = async (query: string, location: string):
   try {
     console.log('🔍 Searching Google Places for:', query);
     
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&radius=5000&key=${GOOGLE_PLACES_API_KEY}`;
+    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&radius=5000&key=${getGooglePlacesApiKey()}`;
     const response = await fetch(searchUrl);
     const data = await response.json();
     
@@ -51,7 +60,7 @@ export const searchGooglePlacesImages = async (query: string, location: string):
       for (const place of data.results.slice(0, 3)) {
         if (place.photos && place.photos.length > 0) {
           const placePhotos = place.photos.slice(0, 2).map((photo: any) => 
-            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_PLACES_API_KEY}`
+            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
           );
           photos.push(...placePhotos);
         }
@@ -74,7 +83,7 @@ export const getStreetViewImages = async (lat: number, lng: number): Promise<str
     console.log('🗺️ Fetching Street View images for:', lat, lng);
     
     // Street View API endpoint
-    const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&key=${GOOGLE_PLACES_API_KEY}`;
+    const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&key=${getGooglePlacesApiKey()}`;
     
     // Note: Street View API returns a single image, not multiple
     // We'll use this as a fallback option
@@ -91,7 +100,7 @@ export const getBusinessProfileImages = async (placeName: string, location: stri
     console.log('🏢 Searching for business profile images:', placeName);
     
     // Use Google Places API to find the business
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(placeName + ' ' + location)}&key=${GOOGLE_PLACES_API_KEY}`;
+    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/textsearch/json?query=${encodeURIComponent(placeName + ' ' + location)}&key=${getGooglePlacesApiKey()}`;
     const response = await fetch(searchUrl);
     const data = await response.json();
     
@@ -99,7 +108,7 @@ export const getBusinessProfileImages = async (placeName: string, location: stri
       const place = data.results[0];
       if (place.photos && place.photos.length > 0) {
         const photos = place.photos.slice(0, 4).map((photo: any) => 
-          `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_PLACES_API_KEY}`
+          `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
         );
         
         console.log(`📸 Found ${photos.length} business profile photos`);
@@ -127,7 +136,7 @@ export const getNearbyPlaceImages = async (category: string, location: string): 
     };
     
     const placeType = typeMap[category] || 'establishment';
-    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/nearbysearch/json?location=${encodeURIComponent(location)}&radius=2000&type=${placeType}&key=${GOOGLE_PLACES_API_KEY}`;
+    const searchUrl = `${GOOGLE_PLACES_BASE_URL}/nearbysearch/json?location=${encodeURIComponent(location)}&radius=2000&type=${placeType}&key=${getGooglePlacesApiKey()}`;
     
     const response = await fetch(searchUrl);
     const data = await response.json();
@@ -139,7 +148,7 @@ export const getNearbyPlaceImages = async (category: string, location: string): 
       for (const place of data.results.slice(0, 2)) {
         if (place.photos && place.photos.length > 0) {
           const placePhotos = place.photos.slice(0, 2).map((photo: any) => 
-            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${GOOGLE_PLACES_API_KEY}`
+            `${GOOGLE_PLACES_PHOTO_URL}?photoreference=${photo.photo_reference}&maxwidth=800&key=${getGooglePlacesApiKey()}`
           );
           photos.push(...placePhotos);
         }
@@ -259,7 +268,7 @@ export const getEnhancedStreetViewImages = async (lat: number, lng: number, coun
       const heading = headings[headingIndex];
       const pitch = pitches[pitchIndex];
       
-      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&key=${GOOGLE_PLACES_API_KEY}`;
+      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=800x600&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&key=${getGooglePlacesApiKey()}`;
       photos.push(streetViewUrl);
     }
     

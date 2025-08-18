@@ -7,6 +7,7 @@
 import { createEntityMoodAnalysisService } from './entity-mood-analysis.service';
 import { createPlaceMoodAnalysisService } from './place-mood-analysis.service';
 import { MoodAnalysisConfig } from '../../types';
+import { getAPIKey } from '../../../../../shared/constants/config/api-keys';
 
 /**
  * Create a new EntityMoodAnalysisService instance
@@ -30,11 +31,26 @@ export function createPlaceMoodService(
  * Create default mood services with environment variables
  */
 export function createDefaultMoodServices() {
+  let placesKey = '';
+  let naturalLanguageKey: string | undefined;
+  
+  try {
+    placesKey = getAPIKey.places();
+  } catch (error) {
+    console.error('❌ No Google Places API key available for default mood services');
+  }
+  
+  try {
+    naturalLanguageKey = getAPIKey.naturalLanguage();
+  } catch (error) {
+    console.warn('⚠️ No Google Natural Language API key available for default mood services');
+  }
+  
   return {
     entity: createEntityMoodService(),
     place: createPlaceMoodService(
-      process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
-      process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY
+      placesKey,
+      naturalLanguageKey
     )
   };
 } 
