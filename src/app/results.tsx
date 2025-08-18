@@ -252,7 +252,7 @@ export default function ResultsScreen() {
   return (
     <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
       {/* Place Card */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 100 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 150 }}>
         <View style={styles.singleResultContainer}>
           {/* Places counter */}
           {places.length > 0 && (

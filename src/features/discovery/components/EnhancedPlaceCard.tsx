@@ -315,6 +315,7 @@ export default function EnhancedPlaceCard({
           
           {/* Action Buttons */}
           <View style={styles.actionButtonsRow}>
+            {console.log('🎯 Rendering action buttons row')}
             <TouchableOpacity 
               style={[styles.actionButton, styles.passButton]} 
               onPress={() => {
@@ -621,6 +622,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 0,
     paddingVertical: 0,
+    backgroundColor: '#F0F0F0',
+    minHeight: 60,
+    borderRadius: 8,
   },
   passButton: {
     backgroundColor: 'transparent',
