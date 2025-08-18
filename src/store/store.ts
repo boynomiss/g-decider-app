@@ -13,9 +13,22 @@ import { FilterApiBridge } from '../features/filtering/services/filtering/filter
 import { PlaceMoodAnalysisService } from '../features/filtering/services/filtering/mood/place-mood-analysis.service';
 import { getAPIKey } from '../shared/constants/config/api-keys';
 
-// API Configuration
-const GOOGLE_PLACES_API_KEY = getAPIKey.places();
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
+// API Configuration - lazy loaded to avoid initialization errors
+const getGooglePlacesKey = () => {
+  try {
+    return getAPIKey.places();
+  } catch {
+    return '';
+  }
+};
+
+const getGoogleNaturalLanguageKey = () => {
+  try {
+    return getAPIKey.naturalLanguage();
+  } catch {
+    return '';
+  }
+};
 
 // Default location (BGC, Philippines)
 const DEFAULT_LOCATION = { lat: 14.5176, lng: 121.0509 };
@@ -144,11 +157,13 @@ const [AppContext, useAppStore] = createContextHook(() => {
 
   // Initialize services
   useEffect(() => {
-    if (GOOGLE_PLACES_API_KEY) {
+    const placesKey = getGooglePlacesKey();
+    if (placesKey) {
       filterApiBridgeRef.current = new FilterApiBridge();
       
-      if (GOOGLE_NATURAL_LANGUAGE_API_KEY) {
-        placeMoodServiceRef.current = new PlaceMoodAnalysisService(GOOGLE_NATURAL_LANGUAGE_API_KEY);
+      const nlKey = getGoogleNaturalLanguageKey();
+      if (nlKey) {
+        placeMoodServiceRef.current = new PlaceMoodAnalysisService(nlKey);
       }
     }
   }, []);

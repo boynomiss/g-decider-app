@@ -12,9 +12,23 @@
 
 import { getAPIKey, validateAPIKeys } from '../../../shared/constants/config/api-keys';
 
-// Environment variables for API keys
-const GOOGLE_PLACES_API_KEY = getAPIKey.places();
-const GOOGLE_NATURAL_LANGUAGE_API_KEY = getAPIKey.naturalLanguage();
+// Environment variables for API keys - lazy loaded to avoid initialization errors
+const getGooglePlacesKey = () => {
+  try {
+    return getAPIKey.places();
+  } catch {
+    return '';
+  }
+};
+
+const getGoogleNaturalLanguageKey = () => {
+  try {
+    return getAPIKey.naturalLanguage();
+  } catch {
+    return '';
+  }
+};
+
 const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend';
 
 // API Endpoints
@@ -29,7 +43,7 @@ export class GooglePlacesClient {
   private baseUrl: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || GOOGLE_PLACES_API_KEY;
+    this.apiKey = apiKey || getGooglePlacesKey();
     this.baseUrl = PLACES_API_BASE_URL;
   }
 
@@ -170,7 +184,7 @@ export class GoogleNaturalLanguageClient {
   private baseUrl: string;
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || GOOGLE_NATURAL_LANGUAGE_API_KEY;
+    this.apiKey = apiKey || getGoogleNaturalLanguageKey();
     this.baseUrl = NATURAL_LANGUAGE_API_BASE_URL;
   }
 
@@ -268,8 +282,8 @@ export const googleNaturalLanguageClient = new GoogleNaturalLanguageClient();
  * Configuration object for easy access to API settings
  */
 export const GoogleAPIConfig = {
-  placesApiKey: GOOGLE_PLACES_API_KEY,
-  naturalLanguageApiKey: GOOGLE_NATURAL_LANGUAGE_API_KEY,
+  get placesApiKey() { return getGooglePlacesKey(); },
+  get naturalLanguageApiKey() { return getGoogleNaturalLanguageKey(); },
   projectId: GOOGLE_CLOUD_PROJECT_ID,
   endpoints: {
     places: PLACES_API_BASE_URL,

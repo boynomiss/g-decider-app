@@ -67,10 +67,12 @@ export const validateAPIKeys = {
  */
 export const getAPIKey = {
   places: (): string => {
-    if (!validateAPIKeys.isPlacesConfigured()) {
-      throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+    const key = API_KEYS.GOOGLE_PLACES;
+    if (!key || key.length === 0) {
+      console.warn('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
+      return '';
     }
-    return API_KEYS.GOOGLE_PLACES;
+    return key;
   },
   
   naturalLanguage: (): string => {

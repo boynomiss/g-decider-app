@@ -15,6 +15,13 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
     const checkAPIStatus = async () => {
       try {
         const GOOGLE_API_KEY = getAPIKey.places();
+        
+        if (!GOOGLE_API_KEY || GOOGLE_API_KEY.length === 0) {
+          console.log('No Google Places API key found, using fallback mode');
+          setApiStatus('fallback');
+          return;
+        }
+        
         const params = new URLSearchParams({
           location: '14.5176,121.0509',
           radius: '5000',
@@ -32,7 +39,8 @@ export default function APIStatus({ isVisible = false }: APIStatusProps) {
         } else {
           setApiStatus('error');
         }
-      } catch {
+      } catch (error) {
+        console.log('API check failed:', error);
         setApiStatus('fallback');
       }
     };

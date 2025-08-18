@@ -2,8 +2,16 @@ import { Linking } from 'react-native';
 import { getAPIKey } from '../../../../shared/constants/config/api-keys';
 
 // Google Places API configuration
-const GOOGLE_API_KEY = getAPIKey.places();
 const GOOGLE_PLACES_DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
+
+// Lazy load API key to avoid initialization errors
+const getGoogleApiKey = () => {
+  try {
+    return getAPIKey.places();
+  } catch {
+    return '';
+  }
+};
 
 interface ContactInfo {
   phoneNumber?: string;
@@ -29,7 +37,13 @@ export class ContactService {
    */
   async getContactInfo(placeId: string, placeName?: string): Promise<ContactInfo> {
     try {
-      const url = `${GOOGLE_PLACES_DETAILS_URL}?place_id=${placeId}&fields=formatted_phone_number,international_phone_number,website,name,url,formatted_address,opening_hours,price_level,rating,user_ratings_total&key=${GOOGLE_API_KEY}`;
+      const apiKey = getGoogleApiKey();
+      if (!apiKey) {
+        console.log('📞 No Google Places API key available, skipping API call');
+        return {};
+      }
+      
+      const url = `${GOOGLE_PLACES_DETAILS_URL}?place_id=${placeId}&fields=formatted_phone_number,international_phone_number,website,name,url,formatted_address,opening_hours,price_level,rating,user_ratings_total&key=${apiKey}`;
       
       const response = await fetch(url);
       const data = await response.json();
