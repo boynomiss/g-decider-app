@@ -228,13 +228,16 @@ export default function EnhancedPlaceCard({
     }
   };
 
-  const getBudgetDisplay = (): 'P' | 'PP' | 'PPP' | 'PPPP' => {
+  const getBudgetDisplay = (): 'P' | 'PP' | 'PPP' => {
     const priceLevel = place.price_level;
-    const lvl = typeof priceLevel === 'number' ? priceLevel : 2;
-    if (lvl <= 1) return 'P';
-    if (lvl === 2) return 'PP';
-    if (lvl === 3) return 'PPP';
-    return 'PPPP';
+    if (typeof priceLevel === 'number') {
+      if (priceLevel <= 1) return 'P';
+      if (priceLevel <= 2) return 'PP';
+      return 'PPP';
+    }
+    const b = (place.budget ?? '') as string;
+    if (b === 'P' || b === 'PP' || b === 'PPP') return b;
+    return 'PP';
   };
 
   const moodDisplay = getMoodDisplay();
