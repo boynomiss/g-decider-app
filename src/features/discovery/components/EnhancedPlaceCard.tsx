@@ -620,13 +620,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexWrap: 'nowrap',
-    gap: 4 as const,
+    gap: 0 as const,
     marginBottom: 8,
   },
   websiteInlineButton: {
-    marginLeft: 4,
-    paddingHorizontal: 2,
-    paddingVertical: 2,
+    marginLeft: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     borderRadius: 4,
   },
   budgetContainer: {
