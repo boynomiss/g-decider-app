@@ -396,9 +396,10 @@ export default function EnhancedPlaceCard({
                       accessibilityLabel="Open website"
                       onPress={handleWebsite}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={styles.websiteInlineButton}
                     >
-                      <Globe size={18} color="#8B5FBF" />
+                      <Globe size={14} color="#8B5FBF" />
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -605,7 +606,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4A4A4A',
-    marginBottom: 8,
+    marginBottom: 0,
     textAlign: 'center',
   },
   placeLocation: {
@@ -620,12 +621,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexWrap: 'nowrap',
     gap: 8 as const,
+    marginBottom: 8,
   },
   websiteInlineButton: {
     marginLeft: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   budgetContainer: {
     alignSelf: 'center',
