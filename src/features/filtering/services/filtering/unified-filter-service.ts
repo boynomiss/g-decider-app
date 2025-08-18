@@ -528,9 +528,13 @@ export class UnifiedFilterService {
     
     // Remove duplicates and filter out empty strings (exact UI logic)
     const uniqueTerms = [...new Set(searchTerms)].filter(term => term.trim().length > 0);
-    
+
+    // Rotate/swap tokens with a small seeded randomness for variety per press
+    const seed = this.createSeed();
+    const rotatedTerms = this.rotateArray(uniqueTerms, Math.floor(seed % Math.max(1, uniqueTerms.length)));
+
     // Create optimized search strategies for API efficiency
-    return this.createOptimizedSearchStrategies(uniqueTerms, params);
+    return this.createOptimizedSearchStrategies(rotatedTerms, params);
   }
 
   /**
@@ -539,29 +543,32 @@ export class UnifiedFilterService {
    */
   private createOptimizedSearchStrategies(terms: string[], params: SearchParams): string {
     const strategies: string[] = [];
-    
+
+    const seed = this.createSeed();
+    const shuffledTerms = this.seededShuffle([...terms], seed);
+
     // Strategy 1: Core category + mood combination (most specific)
     if (params.lookingFor && params.mood !== null) {
-      const coreTerms = terms.slice(0, 8); // Limit core terms
+      const coreTerms = shuffledTerms.slice(0, 8);
       strategies.push(coreTerms.join(' '));
     }
-    
+
     // Strategy 2: Atmosphere-focused search (using exact UI terms)
-    const atmosphereTerms = terms.filter(term => 
+    const atmosphereTerms = shuffledTerms.filter(term =>
       !['restaurant', 'cafe', 'bar', 'park', 'museum'].includes(term)
     ).slice(0, 6);
     if (atmosphereTerms.length > 0) {
       strategies.push(atmosphereTerms.join(' '));
     }
-    
+
     // Strategy 3: Place type + context combinations
-    const placeTypes = terms.filter(term => 
+    const placeTypes = shuffledTerms.filter(term =>
       ['restaurant', 'cafe', 'bar', 'park', 'museum', 'gallery', 'theater'].includes(term)
     );
     if (placeTypes.length > 0 && params.mood !== null) {
       const mood = getMoodCategory(params.mood);
       if (mood) {
-        const moodTerms = [mood.label.toLowerCase(), ...mood.atmosphereKeywords].slice(0, 3);
+        const moodTerms = this.seededShuffle([mood.label.toLowerCase(), ...mood.atmosphereKeywords], seed).slice(0, 3);
         placeTypes.forEach(placeType => {
           moodTerms.forEach(moodTerm => {
             strategies.push(`${moodTerm} ${placeType}`);
@@ -569,11 +576,13 @@ export class UnifiedFilterService {
         });
       }
     }
-    
+
+    // Randomly rotate strategy order slightly to vary token order
+    const rotated = this.rotateArray(strategies, Math.floor(seed % Math.max(1, strategies.length)));
+
     // Limit strategies to avoid API overload
-    const limitedStrategies = strategies.slice(0, 5);
-    
-    // Use OR operator for multiple strategies (Google Places API supports this)
+    const limitedStrategies = rotated.slice(0, 5);
+
     return limitedStrategies.join(' OR ');
   }
 
@@ -778,8 +787,12 @@ export class UnifiedFilterService {
     const resultsMap: Map<string, PlaceResult> = new Map();
 
     // Search loop with incremental 500m expansion
-    let lastRadiusTried = initialRadius;
-    let radius = initialRadius;
+    // Apply slight radius jitter within a safe band (±15%) per request
+    const jitterPct = (this.createSeed() % 31) / 1000 - 0.015; // roughly -1.5%..+1.5%
+    const jitteredInitial = Math.max(1000, Math.min(maxRadius, Math.round(initialRadius * (1 + jitterPct))));
+
+    let lastRadiusTried = jitteredInitial;
+    let radius = jitteredInitial;
     while (radius <= maxRadius) {
       this.currentRadius = radius;
       lastRadiusTried = radius;
@@ -865,13 +878,9 @@ export class UnifiedFilterService {
 
       if (resultsMap.size >= minResults) break;
 
-      // If no places found within the radius, increment by 500m
-      if (resultsMap.size === 0) {
-        radius = Math.min(radius + 500, maxRadius);
-      } else {
-        // If some results found but not enough, continue gentle expansion
-        radius = Math.min(radius + 500, maxRadius);
-      }
+      // Vary expansion step slightly (400-700m) for diversity
+      const step = 400 + Math.floor((this.createSeed() % 301));
+      radius = Math.min(radius + step, maxRadius);
     }
 
     // If still not enough results, progressively expand beyond maxRadius up to a hard cap
@@ -1450,7 +1459,8 @@ export class UnifiedFilterService {
    * Select places using legacy logic (simple slice)
    */
   private selectLegacyPlaces(places: PlaceResult[], count: number): PlaceResult[] {
-    return places.slice(0, count);
+    const shuffled = this.seededShuffle([...places], this.createSeed());
+    return shuffled.slice(0, count);
   }
 
   /**
@@ -1472,6 +1482,32 @@ export class UnifiedFilterService {
     result.splice(insertIndex, 0, advertisedPlace);
     
     return result;
+  }
+
+  private createSeed(): number {
+    const now = Date.now();
+    const rand = Math.floor(Math.random() * 1_000_000);
+    return (now ^ rand) >>> 0;
+  }
+
+  private seededShuffle<T>(array: T[], seed: number): T[] {
+    let s = seed >>> 0;
+    const a: T[] = [...array];
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      const j = s % (i + 1);
+      const ai = a[i] as T;
+      const aj = a[j] as T;
+      a[i] = aj as T;
+      a[j] = ai as T;
+    }
+    return a;
+  }
+
+  private rotateArray<T>(arr: T[], by: number): T[] {
+    if (arr.length === 0) return arr;
+    const n = ((by % arr.length) + arr.length) % arr.length;
+    return arr.slice(n).concat(arr.slice(0, n));
   }
 }
 

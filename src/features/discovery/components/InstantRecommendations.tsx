@@ -70,6 +70,20 @@ export default function InstantRecommendations({
     }
   };
 
+  const seededShuffle = <T,>(array: T[], seed: number): T[] => {
+    let s = seed >>> 0;
+    const a: T[] = [...array];
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      const j = s % (i + 1);
+      const ai = a[i] as T;
+      const aj = a[j] as T;
+      a[i] = aj as T;
+      a[j] = ai as T;
+    }
+    return a;
+  };
+
   const fetchRealRecommendations = async (): Promise<RecommendationCategory[]> => {
     console.log('🔍 Fetching real recommendations from Google API...');
     
@@ -123,17 +137,20 @@ export default function InstantRecommendations({
       const places = await unifiedFilterService.searchPlaces(searchParams);
       console.log('✅ Got real places from Google API:', places.length);
 
+      const seed = (Date.now() ^ Math.floor(Math.random()*1_000_000)) >>> 0;
+      const shuffledRaw = seededShuffle(places, seed);
+
       if (places.length === 0) {
         console.log('⚠️ No places found from Google API');
         return [];
       }
 
       // Convert places to the expected format
-      const convertedPlaces: PlaceData[] = places.map(place => ({
+      const convertedPlaces: PlaceData[] = shuffledRaw.map(place => ({
         id: place.place_id,
         place_id: place.place_id,
         name: place.name,
-        location: place.address,
+        location: place.address ?? 'Unknown Location',
         images: [], // Google API places don't have images in this format
         budget: place.raw?.price_level ? (['P', 'PP', 'PPP'][place.raw.price_level - 1] as 'P' | 'PP' | 'PPP') : 'P',
         tags: place.tags || [],
@@ -151,7 +168,7 @@ export default function InstantRecommendations({
         reviewCount: place.user_ratings_total || 0,
         reviews: place.user_ratings_total || 0,
         website: '',
-        vicinity: place.address,
+        vicinity: place.address ?? 'Unknown Location',
         formatted_address: place.address,
         types: place.tags || [],
         price_level: place.raw?.price_level,
