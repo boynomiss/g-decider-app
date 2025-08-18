@@ -252,7 +252,7 @@ export default function ResultsScreen() {
   return (
     <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
       {/* Place Card */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 150 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 220 }}>
         <View style={styles.singleResultContainer}>
           {/* Places counter */}
           {places.length > 0 && (
@@ -292,6 +292,19 @@ export default function ResultsScreen() {
 
         </View>
       </ScrollView>
+
+      {/* Bottom Action Bar */}
+      <View style={styles.bottomActionBar} testID="bottom-action-bar">
+        <TouchableOpacity testID="bottom-pass" style={styles.bottomAction} onPress={handlePass} activeOpacity={0.7}>
+          <Text style={[styles.bottomActionText, { color: '#FF6B6B' }]}>Pass</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="bottom-restart" style={styles.bottomAction} onPress={handleRestart} activeOpacity={0.7}>
+          <Text style={[styles.bottomActionText, { color: '#666666' }]}>Restart</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="bottom-save" style={styles.bottomAction} onPress={() => handleSavePlace(placeToShow as any)} activeOpacity={0.7}>
+          <Text style={[styles.bottomActionText, { color: '#4CAF50' }]}>{isSaved(placeToShow.id) ? 'Saved' : 'Save'}</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Footer */}
       <Footer />
@@ -361,6 +374,31 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-
-
+  bottomActionBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 140,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    zIndex: 10,
+  },
+  bottomAction: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  bottomActionText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

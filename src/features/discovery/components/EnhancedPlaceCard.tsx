@@ -314,9 +314,10 @@ export default function EnhancedPlaceCard({
           <View style={styles.divider} />
           
           {/* Action Buttons */}
-          <View style={styles.actionButtonsRow}>
+          <View style={styles.actionButtonsRow} testID="action-buttons-row">
             {console.log('🎯 Rendering action buttons row')}
             <TouchableOpacity 
+              testID="pass-button"
               style={[styles.actionButton, styles.passButton]} 
               onPress={() => {
                 console.log('🔴 Pass button pressed');
@@ -329,6 +330,7 @@ export default function EnhancedPlaceCard({
             </TouchableOpacity>
             
             <TouchableOpacity 
+              testID="restart-button"
               style={[styles.actionButton, styles.restartButton]} 
               onPress={() => {
                 console.log('🔄 Restart button pressed');
@@ -341,6 +343,7 @@ export default function EnhancedPlaceCard({
             </TouchableOpacity>
             
             <TouchableOpacity 
+              testID="save-button"
               style={[styles.actionButton, isSaved ? styles.savedButton : styles.saveButton]} 
               onPress={() => {
                 console.log('💖 Save button pressed, isSaved:', isSaved);
@@ -564,14 +567,16 @@ const styles = StyleSheet.create({
     marginTop: 16, // Added consistent top margin
   },
   actionButton: {
-    flexDirection: 'column',        // Vertical layout (icon above text)
+    flexDirection: 'column',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 8,
     gap: 6,
-    minWidth: 60,
     backgroundColor: 'transparent',
+    flex: 1,
+    minWidth: 0,
   },
   actionText: {
     fontSize: 12, // Reduced from 14 to 12 for better proportion
@@ -618,40 +623,38 @@ const styles = StyleSheet.create({
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 16,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#F0F0F0',
     minHeight: 60,
     borderRadius: 8,
+    width: '100%',
   },
   passButton: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
     paddingVertical: 12,
     borderRadius: 25,
-    minWidth: 80,
   },
   restartButton: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
     paddingVertical: 12,
     borderRadius: 25,
-    minWidth: 80,
   },
   saveButton: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
     paddingVertical: 12,
     borderRadius: 25,
-    minWidth: 80,
   },
   savedButton: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
     paddingVertical: 12,
     borderRadius: 25,
-    minWidth: 80,
   },
 });
