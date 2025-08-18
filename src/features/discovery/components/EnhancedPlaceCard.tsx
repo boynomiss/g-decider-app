@@ -516,8 +516,8 @@ export default function EnhancedPlaceCard({
                 accessibilityRole="button"
                 accessibilityLabel="Restart"
               >
-                <RotateCcw size={24} color="#8B5FBF" />
-                <Text style={[styles.actionText, { color: '#8B5FBF', fontWeight: '600' }]}>Restart</Text>
+                <RotateCcw size={24} color="#808080" />
+                <Text style={[styles.actionText, { color: '#808080', fontWeight: '600' }]}>Restart</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: 'transparent',
     minHeight: 60,
     borderRadius: 8,
     width: '100%',
