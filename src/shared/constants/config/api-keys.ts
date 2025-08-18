@@ -7,10 +7,15 @@
 
 // Debug environment variables
 console.log('🔑 Environment variables debug:', {
-  GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ? '✅ Present' : '❌ Missing',
-  GOOGLE_NATURAL_LANGUAGE: process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY ? '✅ Present' : '❌ Missing',
-  GEMINI: process.env.EXPO_PUBLIC_GEMINI_API_KEY ? '✅ Present' : '❌ Missing',
-  FIREBASE: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? '✅ Present' : '❌ Missing'
+  GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ? `✅ Present (${process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY.substring(0, 10)}...)` : '❌ Missing',
+  GOOGLE_NATURAL_LANGUAGE: process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY ? `✅ Present (${process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY.substring(0, 10)}...)` : '❌ Missing',
+  GEMINI: process.env.EXPO_PUBLIC_GEMINI_API_KEY ? `✅ Present (${process.env.EXPO_PUBLIC_GEMINI_API_KEY.substring(0, 10)}...)` : '❌ Missing',
+  FIREBASE: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? `✅ Present (${process.env.EXPO_PUBLIC_FIREBASE_API_KEY.substring(0, 10)}...)` : '❌ Missing'
+});
+
+console.log('🔑 Raw environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  allEnvKeys: Object.keys(process.env).filter(key => key.includes('GOOGLE') || key.includes('GEMINI') || key.includes('FIREBASE'))
 });
 
 export const API_KEYS = {
