@@ -48,27 +48,33 @@ export class AIDescriptionService {
    */
   async generateDescription(restaurantData: RestaurantData): Promise<string> {
     const cacheKey = this.generateCacheKey(restaurantData);
-    
-    // Check cache first
     const cached = descriptionCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       console.log('🎯 Using cached AI description');
       return cached.description;
     }
 
+    const prompt = this.buildGeminiPrompt(restaurantData);
+
     try {
-      const description = await this.callGeminiAPI(restaurantData);
-      
-      // Cache the result
-      descriptionCache.set(cacheKey, {
-        description,
-        timestamp: Date.now()
-      });
-      
-      console.log('🤖 Generated new AI description with Gemini');
+      let description: string | null = null;
+      if (GEMINI_API_KEY) {
+        try {
+          description = await this.callGeminiAPI(prompt);
+          console.log('🤖 Generated new AI description with Gemini');
+        } catch (geminiErr) {
+          console.error('❌ Gemini provider failed, falling back to Toolkit LLM:', geminiErr);
+        }
+      }
+      if (!description) {
+        description = await this.callToolkitLLM(prompt);
+        console.log('🤖 Generated new AI description with Toolkit LLM');
+      }
+
+      descriptionCache.set(cacheKey, { description, timestamp: Date.now() });
       return description;
     } catch (error) {
-      console.error('❌ Error generating AI description:', error);
+      console.error('❌ Error generating AI description after providers:', error);
       return this.generateFallbackDescription(restaurantData);
     }
   }
@@ -76,50 +82,30 @@ export class AIDescriptionService {
   /**
    * Call Google Gemini API to generate description
    */
-  private async callGeminiAPI(restaurantData: RestaurantData): Promise<string> {
-    const prompt = this.buildGeminiPrompt(restaurantData);
-    
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+  private async callGeminiAPI(prompt: string): Promise<string> {
+    const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 150,
-        }
+        contents: [ { parts: [ { text: prompt } ] } ],
+        generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 150 }
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(`Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!generatedText) {
-      throw new Error('No content generated from Gemini API');
-    }
-
+    const data: any = await response.json();
+    const generatedText: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) throw new Error('No content generated from Gemini API');
     return generatedText.trim();
   }
 
   /**
-   * Build a comprehensive prompt for Gemini AI
+   * Build a comprehensive prompt for AI providers
    */
   private buildGeminiPrompt(restaurantData: RestaurantData): string {
     const {
@@ -252,6 +238,28 @@ Please create a description that highlights the ambiance, cuisine, and what make
       'night': 'evening/dinner'
     };
     return timeMap[time as keyof typeof timeMap] || 'any time of day';
+  }
+
+  private async callToolkitLLM(prompt: string): Promise<string> {
+    type LLMResponse = { completion?: string };
+    const response = await fetch('https://toolkit.rork.com/text/llm/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You are a concise restaurant copywriter. Keep responses to 2-3 sentences.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Toolkit LLM error: ${response.status} - ${text}`);
+    }
+    const data: LLMResponse = await response.json();
+    const completion = data?.completion ?? '';
+    if (!completion) throw new Error('Empty completion from Toolkit LLM');
+    return completion.trim();
   }
 
   /**
