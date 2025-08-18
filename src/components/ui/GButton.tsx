@@ -47,6 +47,7 @@ export default function GButton({ size = 120 }: GButtonProps) {
     } else {
       // Stop pulse animation when disabled
       pulseAnim.setValue(1);
+      return undefined;
     }
   }, [isDisabled, pulseAnim]);
 
