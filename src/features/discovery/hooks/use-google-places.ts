@@ -187,8 +187,8 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
 
       // Transform Google Places API response to PlaceMoodData format
       const transformedPlaces: PlaceMoodData[] = data.places.map((place: any) => {
-        // Generate photo URLs
-        const photos = place.photos?.map((photo: any) => {
+        // Generate photo URLs with proper structure
+        const photoUrls = place.photos?.map((photo: any) => {
           if (photo.name) {
             // Extract photo reference from the name field
             const photoRef = photo.name.split('/photos/')[1];
@@ -198,6 +198,28 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           }
           return null;
         }).filter(Boolean) || [];
+        
+        // Determine place name first
+        const placeName = place.displayName?.text || place.displayName || 'Unknown Place';
+        
+        // Create photos object with different sizes for compatibility
+        const photos = {
+          thumbnail: photoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=200&maxheight=150')).filter(Boolean),
+          medium: photoUrls,
+          large: photoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=1200&maxheight=900')).filter(Boolean),
+          count: photoUrls.length
+        };
+        
+        // Debug photo processing
+        if (place.photos && place.photos.length > 0) {
+          console.log(`📸 Photo debugging for ${placeName}:`, {
+            rawPhotos: place.photos.length,
+            processedUrls: photoUrls.length,
+            sampleRawPhoto: place.photos[0],
+            sampleProcessedUrl: photoUrls[0],
+            photosStructure: photos
+          });
+        }
 
         // Determine budget level from price level
         const budget = place.priceLevel ? 
@@ -213,20 +235,24 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         const mood = place.types?.includes('bar') || place.types?.includes('nightclub') ? 'hype' :
                     place.types?.includes('park') || place.types?.includes('library') ? 'chill' :
                     'neutral';
-
-        const placeName = place.displayName?.text || place.displayName || 'Unknown Place';
         
         return {
           id: place.id,
           name: placeName,
           location: place.formattedAddress || 'Unknown Location',
-          images: photos,
+          formatted_address: place.formattedAddress || 'Unknown Location',
+          vicinity: place.formattedAddress || 'Unknown Location',
+          images: photoUrls, // Keep for backward compatibility
+          photos: photos, // New structured photos object
           budget: budget as 'P' | 'PP' | 'PPP',
+          price_level: place.priceLevel || 2,
           tags: place.types || [],
           description: `${place.displayName?.text || 'This place'} is a great place to visit.`,
+          editorial_summary: `${place.displayName?.text || 'This place'} is a great place to visit.`,
           openHours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || 'Hours not available',
           category: category as 'food' | 'activity' | 'something-new',
           mood: mood as 'chill' | 'hype' | 'neutral',
+          final_mood: mood as 'chill' | 'hype' | 'neutral',
           socialContext: ['solo', 'with-bae', 'barkada'] as const,
           timeOfDay: ['morning', 'afternoon', 'night'] as const,
           coordinates: place.location ? {
@@ -237,7 +263,13 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           reviewCount: place.userRatingCount || 0,
           reviews: [],
           website: place.websiteUri || '',
-          phone: place.nationalPhoneNumber || ''
+          phone: place.nationalPhoneNumber || '',
+          contactActions: {
+            canCall: !!place.nationalPhoneNumber,
+            canVisitWebsite: !!place.websiteUri,
+            callUrl: place.nationalPhoneNumber ? `tel:${place.nationalPhoneNumber}` : undefined,
+            websiteUrl: place.websiteUri || undefined
+          }
         };
       });
 
