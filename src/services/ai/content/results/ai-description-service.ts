@@ -109,8 +109,6 @@ export class AIDescriptionService {
    */
   private buildGeminiPrompt(restaurantData: RestaurantData): string {
     const {
-      // name,
-      // location,
       budget,
       tags,
       reviews,
@@ -120,17 +118,11 @@ export class AIDescriptionService {
       timeOfDay
     } = restaurantData;
 
-    // Extract key information from reviews
-    const reviewHighlights = reviews?.slice(0, 3).map(review => 
-      `"${review.text}" (${review.rating}/5 stars)`
-    ).join('\n') || '';
+    const reviewFacts = reviews?.slice(0, 3).map(review => {
+      const txt = (review.text || '').replace(/\s+/g, ' ').trim();
+      return txt ? `- Review (${review.rating}/5): ${txt}` : '';
+    }).filter(Boolean).join('\n');
 
-    // Build mood context
-    const moodContext = this.getMoodContext(mood);
-    const socialContextText = this.getSocialContext(socialContext);
-    const timeContext = this.getTimeContext(timeOfDay);
-
-    // Create cuisine and features from tags
     const cuisineTags = tags.filter(tag => 
       !tag.toLowerCase().includes('budget') && 
       !tag.toLowerCase().includes('price') &&
@@ -143,42 +135,65 @@ export class AIDescriptionService {
       tag.toLowerCase().includes('family') ||
       tag.toLowerCase().includes('group') ||
       tag.toLowerCase().includes('live') ||
-      tag.toLowerCase().includes('bar')
+      tag.toLowerCase().includes('bar') ||
+      tag.toLowerCase().includes('cafe') ||
+      tag.toLowerCase().includes('coffee') ||
+      tag.toLowerCase().includes('bakery')
     );
 
-    return `You are a helpful assistant that describes restaurants. Generate a concise, engaging 2-3 sentence description for the following restaurant, emphasizing aspects that align with a '${moodContext}' vibe.
+    const moodContext = this.getMoodContext(mood);
+    const socialContextText = this.getSocialContext(socialContext);
+    const timeContext = this.getTimeContext(timeOfDay);
 
-Cuisine: ${cuisineTags.join(', ')}
-Price Level: ${this.getBudgetText(budget)}
-Key Features: ${features.join(', ')}
-Category: ${category || 'restaurant'}
+    return `You are an assistant that writes strictly factual, extractive, single-sentence place descriptions.
 
-Context:
-- Mood: ${moodContext}
-- Social Setting: ${socialContextText}
-- Time of Day: ${timeContext}
+Rules:
+- Use only details explicitly present in the provided data (tags, category, budget text, and review facts).
+- No embellishment, hype, advice, or assumptions. No subjective adjectives unless quoted from reviews.
+- Do NOT invent dishes, features, or ambiance not present in the data.
+- Do NOT include the place name or location.
+- Output exactly ONE sentence, 12–28 words, plain text.
 
-${reviewHighlights ? `Sample Reviews (for ambiance/vibe hints):\n${reviewHighlights}\n` : ''}
+Data:
+- Category: ${category || 'restaurant'}
+- Cuisine/Tags: ${cuisineTags.join(', ') || 'n/a'}
+- Features: ${features.join(', ') || 'n/a'}
+- Price Level: ${this.getBudgetText(budget)}
+- Mood cue: ${moodContext}
+- Social setting: ${socialContextText}
+- Time of day: ${timeContext}
+${reviewFacts ? `- Reviews:\n${reviewFacts}` : ''}
 
-Please create a description that highlights the ambiance, cuisine, and what makes this place special. Focus on the experience and atmosphere that would appeal to someone looking for a ${moodContext} experience. DO NOT mention the restaurant name or location as these are already displayed elsewhere. Keep it to 2-3 sentences maximum.`;
+Write the one-sentence factual description now.`;
   }
 
   /**
    * Generate a fallback description when AI fails
    */
   private generateFallbackDescription(restaurantData: RestaurantData): string {
-    const { tags, budget, mood } = restaurantData;
-    
+    const { tags, budget } = restaurantData;
     const budgetText = this.getBudgetText(budget);
+
     const cuisineTags = tags.filter(tag => 
       !tag.toLowerCase().includes('budget') && 
       !tag.toLowerCase().includes('price') &&
       !tag.toLowerCase().includes('mood')
     ).slice(0, 3);
-    
-    const moodContext = this.getMoodContext(mood);
-    
-    return `This establishment offers a delightful dining experience with ${budgetText} pricing and ${cuisineTags.join(', ')} options. It provides a ${moodContext} atmosphere perfect for all guests.`;
+
+    const featureTags = tags.filter(tag =>
+      tag.toLowerCase().includes('bar') ||
+      tag.toLowerCase().includes('outdoor') ||
+      tag.toLowerCase().includes('cafe') ||
+      tag.toLowerCase().includes('coffee') ||
+      tag.toLowerCase().includes('bakery') ||
+      tag.toLowerCase().includes('family') ||
+      tag.toLowerCase().includes('group')
+    ).slice(0, 2);
+
+    const cuisineText = cuisineTags.length ? cuisineTags.join(', ') : 'food and drinks';
+    const featuresText = featureTags.length ? `, featuring ${featureTags.join(', ')}` : '';
+
+    return `${cuisineText} with ${budgetText} pricing${featuresText}.`;
   }
 
   /**
@@ -219,13 +234,13 @@ Please create a description that highlights the ambiance, cuisine, and what make
    */
   private getSocialContext(social?: string): string {
     const contextMap = {
-      'solo': 'perfect for solo dining',
-      'couple': 'romantic atmosphere',
-      'family': 'family-friendly environment',
-      'group': 'great for group gatherings',
-      'business': 'professional setting'
-    };
-    return contextMap[social as keyof typeof contextMap] || 'suitable for all occasions';
+      'solo': 'solo-friendly',
+      'couple': 'for couples',
+      'family': 'family-friendly',
+      'group': 'good for groups',
+      'business': 'business-friendly'
+    } as const;
+    return contextMap[(social || '') as keyof typeof contextMap] || 'general audience';
   }
 
   /**
@@ -247,7 +262,7 @@ Please create a description that highlights the ambiance, cuisine, and what make
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: 'You are a concise restaurant copywriter. Keep responses to 2-3 sentences.' },
+          { role: 'system', content: 'You write strictly factual, extractive, single-sentence place descriptions (12–28 words). No embellishment. Use only provided data. Do not include the place name or location.' },
           { role: 'user', content: prompt }
         ]
       })
