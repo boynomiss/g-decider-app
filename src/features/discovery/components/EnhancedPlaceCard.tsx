@@ -450,9 +450,28 @@ export default function EnhancedPlaceCard({
           />
 
           <View style={styles.placeActions}>
+            <TouchableOpacity 
+              testID="maps-button"
+              style={[
+                styles.mapButton,
+                (place.contactActions?.canCall ? styles.mapButtonFlex : styles.mapButtonFull)
+              ]}
+              onPress={() => {
+                const url = `https://maps.google.com/?q=${encodeURIComponent(place.formatted_address || place.vicinity || '')}`;
+                Linking.openURL(url);
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="View in Maps"
+              accessibilityRole="button"
+            >
+              <MapPin size={16} color="#8B5FBF" />
+              <Text style={styles.mapButtonText}>View in Maps</Text>
+            </TouchableOpacity>
+
             {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
-                style={styles.actionButton} 
+                testID="contact-button"
+                style={styles.contactButton}
                 onPress={handleCall}
                 activeOpacity={0.7}
               >
@@ -460,17 +479,6 @@ export default function EnhancedPlaceCard({
                 <Text style={styles.actionText}>Call</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity 
-              style={styles.mapButton} 
-              onPress={() => {
-                const url = `https://maps.google.com/?q=${encodeURIComponent(place.formatted_address || place.vicinity || '')}`;
-                Linking.openURL(url);
-              }}
-              activeOpacity={0.7}
-            >
-              <MapPin size={16} color="#8B5FBF" />
-              <Text style={styles.mapButtonText}>View in Maps</Text>
-            </TouchableOpacity>
 
             {showRemoveButton && onRemove && (
               <TouchableOpacity 
@@ -752,6 +760,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  contactButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6 as const,
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-end',
+    minWidth: 84,
+  },
   actionText: {
     fontSize: 12,
     color: '#8B5FBF',
@@ -768,7 +788,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginHorizontal: 4,
+    marginRight: 8,
+    minHeight: 40,
+  },
+  mapButtonFlex: {
+    flex: 1,
+  },
+  mapButtonFull: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+    marginRight: 0,
   },
   mapButtonText: {
     fontSize: 14,
