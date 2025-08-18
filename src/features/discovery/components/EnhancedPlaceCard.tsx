@@ -474,9 +474,11 @@ export default function EnhancedPlaceCard({
                 style={styles.contactButton}
                 onPress={handleCall}
                 activeOpacity={0.7}
+                accessibilityLabel="Contact"
+                accessibilityRole="button"
               >
-                <Phone size={16} color="#8B5FBF" />
-                <Text style={styles.actionText}>Call</Text>
+                <Phone size={16} color="#FFFFFF" />
+                <Text style={styles.contactButtonText}>Call</Text>
               </TouchableOpacity>
             )}
 
@@ -761,16 +763,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   contactButton: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6 as const,
-    backgroundColor: 'transparent',
-    alignSelf: 'flex-end',
-    minWidth: 84,
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 40,
   },
   actionText: {
     fontSize: 12,
@@ -814,6 +814,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
     borderRadius: 8,
     gap: 4 as const,
+  },
+  contactButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+    textAlign: 'center',
   },
   removeText: {
     fontSize: 12,
