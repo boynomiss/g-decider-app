@@ -12,7 +12,7 @@ import { useAppStore } from '../store/store';
 export default function InstantRecommendationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userLocation } = useAppStore();
+  const { userLocation, setCurrentSuggestion } = useAppStore();
 
   const handlePlaceSelect = (place: any) => {
     // Integrate with the G button's decision flow by setting the place as the current suggestion
@@ -21,6 +21,30 @@ export default function InstantRecommendationsScreen() {
       // Set the place as the current suggestion in the store
       // This mimics what the G button does when generating a suggestion
       console.log('🎯 Instant recommendation selected:', place.name);
+      
+      // Convert the place to the expected Suggestion format and set it in the store
+      const suggestion = {
+        id: place.place_id || place.id,
+        name: place.name,
+        location: place.formatted_address || place.vicinity || place.location,
+        images: place.photos?.medium || place.images || [],
+        budget: place.budget || 'P',
+        tags: place.types || place.tags || [],
+        description: place.description || `${place.name} is a great place to visit.`,
+        openHours: place.openHours,
+        category: place.category,
+        mood: place.mood,
+        socialContext: place.socialContext || ['solo', 'with-bae', 'barkada'],
+        timeOfDay: place.timeOfDay || ['morning', 'afternoon', 'night'],
+        coordinates: place.coordinates,
+        rating: place.rating || 0,
+        reviewCount: place.reviewCount || place.user_ratings_total || 0,
+        reviews: place.reviews || [],
+        website: place.website || ''
+      };
+      
+      // Set the current suggestion in the store
+      setCurrentSuggestion(suggestion);
       
       // Navigate to results page where the place will be displayed
       router.push('/results');

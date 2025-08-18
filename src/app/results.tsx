@@ -22,6 +22,7 @@ export default function ResultsScreen() {
   const { 
     currentSuggestion,
     setCurrentSuggestion,
+    resetSuggestion,
     userLocation,
     filters
   } = useAppStore();
@@ -85,7 +86,7 @@ export default function ResultsScreen() {
     }
   }, [filters.category]);
 
-  // Auto-fetch places when page loads
+  // Auto-fetch places when page loads (only if no current suggestion exists)
   useEffect(() => {
     const initializePlaces = async () => {
       console.log('🎯 initializePlaces called:', {
@@ -93,21 +94,25 @@ export default function ResultsScreen() {
         isLoading,
         error,
         userLocation,
-        filters: filters?.category
+        filters: filters?.category,
+        hasCurrentSuggestion: !!currentSuggestion
       });
       
-      if (places.length === 0 && !isLoading && !error) {
+      // Only fetch from Google API if we don't have a current suggestion and no places loaded
+      if (!currentSuggestion && places.length === 0 && !isLoading && !error) {
         console.log('🎯 Initializing places from Google API');
         const query = buildQueryFromFilters();
         const location = userLocation || { lat: 14.5176, lng: 121.0509 }; // Default to BGC
         const distanceRange = filters?.distanceRange || 10; // Default to 10km if not set
         console.log('🔍 Fetching places with query:', query, 'location:', location, 'category:', filters?.category, 'distance:', distanceRange + 'km');
         await fetchPlaces(query, location, distanceRange);
+      } else if (currentSuggestion) {
+        console.log('🎯 Using current suggestion from store:', currentSuggestion.name);
       }
     };
 
     initializePlaces();
-  }, [places.length, isLoading, error, fetchPlaces, userLocation, filters?.category, buildQueryFromFilters]);
+  }, [places.length, isLoading, error, fetchPlaces, userLocation, filters?.category, buildQueryFromFilters, currentSuggestion]);
 
   // Debug logging for places state
   useEffect(() => {
@@ -122,16 +127,16 @@ export default function ResultsScreen() {
     });
   }, [places, isLoading, error, currentPlaceIndex, userLocation?.lat, userLocation?.lng, filters?.category]);
 
-  // Auto-set current suggestion when places are loaded
+  // Auto-set current suggestion when places are loaded (only if no current suggestion exists)
   useEffect(() => {
-    if (places.length > 0 && currentPlaceIndex < places.length) {
+    if (!currentSuggestion && places.length > 0 && currentPlaceIndex < places.length) {
       const currentPlace = places[currentPlaceIndex];
       if (currentPlace && setCurrentSuggestion) {
         console.log('🎯 Setting current suggestion from Google API:', currentPlace.name);
         setCurrentSuggestion(currentPlace as any);
       }
     }
-  }, [places, currentPlaceIndex, setCurrentSuggestion]);
+  }, [places, currentPlaceIndex, setCurrentSuggestion, currentSuggestion]);
 
 
 
@@ -146,6 +151,7 @@ export default function ResultsScreen() {
   const handleRestart = () => {
     clearPlaces();
     setCurrentPlaceIndex(0);
+    resetSuggestion(); // Clear the current suggestion when restarting
     router.push('/home');
   };
 
@@ -181,10 +187,11 @@ export default function ResultsScreen() {
     paddingTop: insets.top,
   };
 
-  // Determine which place to show
-  const placeToShow = places.length > 0 && currentPlaceIndex < places.length && places[currentPlaceIndex]
-    ? places[currentPlaceIndex] 
-    : currentSuggestion || mockPlace;
+  // Determine which place to show - prioritize current suggestion from store
+  const placeToShow = currentSuggestion || 
+    (places.length > 0 && currentPlaceIndex < places.length && places[currentPlaceIndex]
+      ? places[currentPlaceIndex] 
+      : mockPlace);
 
   // Debug logging for placeToShow
   useEffect(() => {
