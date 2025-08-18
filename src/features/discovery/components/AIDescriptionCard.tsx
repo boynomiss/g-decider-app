@@ -8,6 +8,7 @@ interface AIDescriptionCardProps {
   error: string | null;
   onRetry: () => void;
   onGenerate: () => void;
+  variant?: 'card' | 'inline';
 }
 
 export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
@@ -15,13 +16,61 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
   isLoading,
   error,
   onRetry,
-  onGenerate
+  onGenerate,
+  variant = 'card',
 }) => {
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState<boolean>(false);
 
   const toggleDescription = () => {
     setIsDescriptionExpanded(!isDescriptionExpanded);
   };
+
+  if (variant === 'inline') {
+    if (isLoading) {
+      return (
+        <View style={styles.inlineContainer}>
+          <Text style={styles.inlineLoadingText}>Generating description…</Text>
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.inlineContainer}>
+          <Text style={styles.inlineErrorText}>Failed to generate description</Text>
+          <TouchableOpacity onPress={onRetry} style={styles.inlineRetry}>
+            <Text style={styles.inlineRetryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (!description) {
+      return (
+        <TouchableOpacity style={styles.inlineGenerate} onPress={onGenerate} testID="ai-generate-inline">
+          <Text style={styles.inlineGenerateText}>Generate description</Text>
+        </TouchableOpacity>
+      );
+    }
+    return (
+      <View style={styles.inlineContainer} testID="ai-description-inline">
+        <Text
+          style={styles.inlineDescription}
+          numberOfLines={isDescriptionExpanded ? undefined : 3}
+        >
+          {description}
+        </Text>
+        {description.length > 150 && (
+          <TouchableOpacity onPress={toggleDescription} style={styles.inlineExpandButton} activeOpacity={0.7}>
+            <Text style={styles.inlineExpandText}>{isDescriptionExpanded ? 'Show Less' : 'Read More'}</Text>
+            {isDescriptionExpanded ? (
+              <ChevronUp size={16} color="#8B5FBF" />
+            ) : (
+              <ChevronDown size={16} color="#8B5FBF" />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -81,7 +130,6 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
         >
           {description}
         </Text>
-        
         {description.length > 150 && (
           <TouchableOpacity 
             style={styles.expandButton} 
@@ -98,7 +146,6 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
             )}
           </TouchableOpacity>
         )}
-        
         <TouchableOpacity style={styles.regenerateButton} onPress={onRetry}>
           <Text style={styles.regenerateButtonText}>Regenerate</Text>
         </TouchableOpacity>
@@ -211,4 +258,49 @@ const styles = StyleSheet.create({
     color: '#8B5FBF',
     fontWeight: '500',
   },
-}); 
+  inlineContainer: {
+    marginTop: 8,
+  },
+  inlineDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#4A4A4A',
+  },
+  inlineExpandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  inlineExpandText: {
+    fontSize: 12,
+    color: '#8B5FBF',
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  inlineGenerate: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+  },
+  inlineGenerateText: {
+    fontSize: 12,
+    color: '#8B5FBF',
+    fontWeight: '500',
+  },
+  inlineLoadingText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  inlineErrorText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+  },
+  inlineRetry: {
+    paddingVertical: 4,
+  },
+  inlineRetryText: {
+    fontSize: 12,
+    color: '#8B5FBF',
+    fontWeight: '500',
+  },
+});

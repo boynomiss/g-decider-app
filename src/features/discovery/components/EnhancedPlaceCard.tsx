@@ -298,6 +298,7 @@ export default function EnhancedPlaceCard({
             error={aiDescriptionError}
             onRetry={() => generateDescription(place as unknown as any)}
             onGenerate={() => generateDescription(place as unknown as any)}
+            variant="inline"
           />
 
           <View style={styles.placeActions}>
