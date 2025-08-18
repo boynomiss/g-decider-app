@@ -26,9 +26,9 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
   console.log('🎯 useGooglePlaces hook initialized');
   
   const [places, setPlaces] = useState<PlaceMoodData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false); // Prevent multiple simultaneous calls
+  const [isFetching, setIsFetching] = useState<boolean>(false); // Prevent multiple simultaneous calls
   
   // Simple cache to prevent duplicate API calls
   const lastRequestRef = useRef<{
@@ -36,6 +36,31 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
     location: { lat: number; lng: number } | undefined;
     distanceRange: number;
   } | null>(null);
+
+  // Session seed to introduce small randomness per session
+  const sessionSeedRef = useRef<number>((Date.now() ^ Math.floor(Math.random() * 1_000_000)) >>> 0);
+  const shuffleCounterRef = useRef<number>(0);
+
+  const seededShuffle = <T,>(array: T[], seed: number): T[] => {
+    let s = seed >>> 0;
+    const a: T[] = [...array];
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      const j = s % (i + 1);
+      const ai = a[i] as T;
+      const aj = a[j] as T;
+      a[i] = aj as T;
+      a[j] = ai as T;
+    }
+    return a;
+  };
+
+  const rotateTokens = (q: string, offset: number): string => {
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (tokens.length <= 1) return q;
+    const n = ((offset % tokens.length) + tokens.length) % tokens.length;
+    return tokens.slice(n).concat(tokens.slice(0, n)).join(' ');
+  };
 
   // Log when places state changes
   useEffect(() => {
@@ -62,9 +87,13 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       console.log('⚠️ Distance range too large (> 50km), capping at 50km');
       distanceRange = 50;
     }
+
+    // Lightly rotate/swap query tokens to introduce variety per press
+    const rotationOffset = (sessionSeedRef.current + (++shuffleCounterRef.current)) % 7;
+    const rotatedQuery = rotateTokens(query, rotationOffset);
     
     // Check if this is a duplicate request
-    const currentRequest = { query, location, distanceRange };
+    const currentRequest = { query: rotatedQuery, location, distanceRange };
     if (lastRequestRef.current && 
         lastRequestRef.current.query === currentRequest.query &&
         lastRequestRef.current.distanceRange === currentRequest.distanceRange &&
@@ -97,14 +126,16 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       const url = 'https://places.googleapis.com/v1/places:searchText';
       
       const requestBody: any = {
-        textQuery: query,
+        textQuery: rotatedQuery,
         maxResultCount: 20,
-        regionCode: 'PH' // Restrict to Philippines
+        regionCode: 'PH'
       };
 
       if (location) {
-        // Use distance range for location bias (convert km to meters)
-        const radiusInMeters = Math.min(distanceRange * 1000, 50000); // Cap at 50km max
+        // Use distance range for location bias (convert km to meters) with slight jitter ±10%
+        const baseRadius = Math.min(distanceRange * 1000, 50000);
+        const jitterPct = (((sessionSeedRef.current + shuffleCounterRef.current) % 201) - 100) / 1000; // -0.1..+0.1
+        const radiusInMeters = Math.max(500, Math.round(baseRadius * (1 + jitterPct)));
         
         requestBody.locationBias = {
           circle: {
@@ -116,7 +147,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           }
         };
         
-        console.log(`📍 Using location bias with ${distanceRange}km radius (${radiusInMeters}m)`);
+        console.log(`📍 Using location bias with ~${distanceRange}km radius (${radiusInMeters}m, jitter ${Math.round(jitterPct*100)}%)`);
       }
       
       console.log('🔍 Google Places API request body:', JSON.stringify(requestBody, null, 2));
@@ -225,7 +256,10 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         while (finalPhotoUrls.length < minImages && finalPhotoUrls.length > 0) {
           const originalLength = finalPhotoUrls.length;
           for (let i = 0; i < originalLength && finalPhotoUrls.length < minImages; i++) {
-            finalPhotoUrls.push(finalPhotoUrls[i]);
+            const next = finalPhotoUrls[i];
+            if (typeof next === 'string') {
+              finalPhotoUrls.push(next);
+            }
           }
         }
         
@@ -391,10 +425,14 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         }
       }
       
-      console.log('🔍 About to set places state with:', filteredPlaces.length, 'places');
-      setPlaces(filteredPlaces);
-      console.log(`✅ Fetched ${filteredPlaces.length} places from Google API`);
-      console.log('🔍 First transformed place:', filteredPlaces[0]);
+      // Shuffle API results client-side for variety per session
+      const seed = (sessionSeedRef.current + (++shuffleCounterRef.current)) >>> 0;
+      const shuffled = seededShuffle(filteredPlaces, seed);
+
+      console.log('🔍 About to set places state with:', shuffled.length, 'places (shuffled)');
+      setPlaces(shuffled);
+      console.log(`✅ Fetched ${shuffled.length} places from Google API`);
+      console.log('🔍 First transformed place:', shuffled[0]);
       console.log('🔍 Places state should now be updated');
       
     } catch (err) {
