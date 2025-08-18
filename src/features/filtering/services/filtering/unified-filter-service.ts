@@ -75,7 +75,7 @@ export class UnifiedFilterService {
   private advertisedPlaces: AdvertisedPlace[] = [];
 
   // Constants - now using registry for configuration data
-  private readonly DISTANCE_STEPS = [5000, 10000, 15000, 20000];
+  private readonly DISTANCE_STEPS = [3000, 5000, 8000, 12000, 20000, 30000, 50000];
 
   // Google Places API wrappers - Updated to use new API with fallback
   private async textSearch(
@@ -701,8 +701,8 @@ export class UnifiedFilterService {
         return cached;
       }
 
-      // Perform search with filters
-      const results = await this.searchWithFilters(params);
+      // Perform search with filters using built-in fallbacks to avoid empty results
+      const results = await this.searchWithFallbacks(params);
       
       // Cache results
       this.setCache(cacheKey, results);
@@ -758,9 +758,12 @@ export class UnifiedFilterService {
     const resultsMap: Map<string, PlaceResult> = new Map();
 
     // Search loop with radius expansion
+    let lastRadiusTried = initialRadius;
     for (const radius of this.DISTANCE_STEPS) {
       if (radius < initialRadius) continue;
       if (radius > maxRadius) break;
+      this.currentRadius = radius;
+      lastRadiusTried = radius;
 
       // Try cache first
       const cacheKey = `${textQuery}-${lat}-${lng}-${radius}`;
@@ -783,24 +786,18 @@ export class UnifiedFilterService {
         
         // Generate image URLs from photos
         const imageUrls = place.photos?.map((photo: any) => {
-          // Google Places API v3 uses 'name' field, not 'photo_reference'
           if (photo.name) {
-            // Extract photo reference from the name field
-            // Format: "places/{place_id}/photos/{photo_reference}"
             const photoRef = photo.name.split('/photos/')[1];
             if (photoRef) {
-              // Generate Google Places photo URL
               return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${apiKey}`;
             }
           }
-          // Fallback for legacy format
           if (photo.photo_reference) {
             return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photo.photo_reference}&key=${apiKey}`;
           }
           return null;
         }).filter(Boolean) || [];
         
-        // Debug logging for image processing
         console.log(`📸 Processing images for ${place.name}:`, {
           hasPhotos: !!place.photos,
           photoCount: place.photos?.length || 0,
@@ -808,7 +805,6 @@ export class UnifiedFilterService {
           sampleUrl: imageUrls[0] || 'No URLs generated'
         });
         
-        // Additional debug logging for the final PlaceResult
         const finalPhotos = imageUrls.length > 0 ? {
           thumbnail: imageUrls,
           medium: imageUrls,
@@ -837,7 +833,6 @@ export class UnifiedFilterService {
           radiusUsed: radius,
           expanded: radius > initialRadius,
           raw: place,
-          // Add photos in the format expected by EnhancedPlaceCard
           photos: finalPhotos
         };
 
@@ -848,6 +843,52 @@ export class UnifiedFilterService {
       this.setCache(cacheKey, Array.from(resultsMap.values()));
 
       if (resultsMap.size >= minResults) break;
+    }
+
+    // If still not enough results, progressively expand beyond maxRadius up to a hard cap
+    if (this.config.expansionEnabled && resultsMap.size < minResults) {
+      const hardCap = Math.max(maxRadius, 50000);
+      let radius = lastRadiusTried;
+      while (radius < hardCap && resultsMap.size < minResults) {
+        radius = Math.min(radius + this.config.expansionIncrement, hardCap);
+        this.currentRadius = radius;
+        this.currentExpansionCount += 1;
+        const cacheKey = `${textQuery}-${lat}-${lng}-${radius}`;
+        const cached = this.getCached<PlaceResult[]>(cacheKey);
+        if (cached) {
+          cached.forEach(place => resultsMap.set(place.place_id, place));
+          continue;
+        }
+        try {
+          const places = await this.textSearch(textQuery, lat, lng, radius, apiKey, budgetMap?.minprice, budgetMap?.maxprice);
+          for (const place of places) {
+            if (!place || !place.place_id) continue;
+            const existing = resultsMap.get(place.place_id);
+            const latLng = place.geometry?.location;
+            const pr: PlaceResult = {
+              place_id: place.place_id,
+              name: place.name,
+              address: place.formatted_address || place.vicinity,
+              lat: latLng?.lat,
+              lng: latLng?.lng,
+              rating: place.rating,
+              user_ratings_total: place.user_ratings_total,
+              opening_hours: place.opening_hours,
+              descriptor: existing?.descriptor || '',
+              tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
+              radiusUsed: radius,
+              expanded: true,
+              raw: place,
+              photos: undefined
+            };
+            resultsMap.set(place.place_id, pr);
+          }
+          this.setCache(cacheKey, Array.from(resultsMap.values()));
+        } catch (e) {
+          console.warn('Radius expansion fetch failed', e);
+          break;
+        }
+      }
     }
 
     // Apply progressive filtering
