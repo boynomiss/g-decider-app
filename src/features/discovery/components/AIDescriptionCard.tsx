@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#333',
     marginBottom: 8,
+    textAlign: 'center',
   },
   expandButton: {
     flexDirection: 'row',
@@ -265,6 +266,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: '#4A4A4A',
+    textAlign: 'center',
   },
   inlineExpandButton: {
     flexDirection: 'row',
