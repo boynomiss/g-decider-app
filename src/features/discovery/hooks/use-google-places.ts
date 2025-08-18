@@ -187,29 +187,21 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
 
       // Transform Google Places API response to PlaceMoodData format
       const transformedPlaces: PlaceMoodData[] = data.places.map((place: any) => {
-        // Generate photo URLs with proper structure
         const photoUrls = place.photos?.map((photo: any) => {
           if (photo.name) {
-            // Extract photo reference from the name field
-            const photoRef = photo.name.split('/photos/')[1];
-            if (photoRef) {
-              return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${apiKey}`;
-            }
+            const resourceName = photo.name; // e.g., "places/PLACE_ID/photos/PHOTO_ID"
+            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=800&maxHeightPx=600&key=${apiKey}`;
           }
           return null;
         }).filter(Boolean) || [];
         
-        // Determine place name first
         const placeName = place.displayName?.text || place.displayName || 'Unknown Place';
         
-        // Ensure minimum 3 and maximum 5 images
         const minImages = 3;
         const maxImages = 5;
         
-        // If we have fewer than minimum, duplicate existing photos or add fallbacks
         let finalPhotoUrls = [...photoUrls];
         
-        // If we have no photos, add fallback images
         if (finalPhotoUrls.length === 0) {
           const fallbackImages = [
             `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop&auto=format&q=80`,
@@ -219,7 +211,6 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           finalPhotoUrls = fallbackImages;
         }
         
-        // If we have fewer than minimum, duplicate existing photos
         while (finalPhotoUrls.length < minImages && finalPhotoUrls.length > 0) {
           const originalLength = finalPhotoUrls.length;
           for (let i = 0; i < originalLength && finalPhotoUrls.length < minImages; i++) {
@@ -227,20 +218,17 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           }
         }
         
-        // If we have more than maximum, take only the first maxImages
         if (finalPhotoUrls.length > maxImages) {
           finalPhotoUrls = finalPhotoUrls.slice(0, maxImages);
         }
         
-        // Create photos object with different sizes for compatibility
         const photos = {
-          thumbnail: finalPhotoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=200&maxheight=150')).filter(Boolean),
+          thumbnail: finalPhotoUrls.map((url: string) => url?.replace('maxWidthPx=800&maxHeightPx=600', 'maxWidthPx=200&maxHeightPx=150')).filter(Boolean),
           medium: finalPhotoUrls,
-          large: finalPhotoUrls.map((url: string) => url?.replace('maxwidth=800&maxheight=600', 'maxwidth=1200&maxheight=900')).filter(Boolean),
+          large: finalPhotoUrls.map((url: string) => url?.replace('maxWidthPx=800&maxHeightPx=600', 'maxWidthPx=1200&maxHeightPx=900')).filter(Boolean),
           count: finalPhotoUrls.length
         };
         
-        // Debug photo processing
         console.log(`📸 Photo debugging for ${placeName}:`, {
           rawPhotos: place.photos?.length || 0,
           originalUrls: photoUrls.length,
