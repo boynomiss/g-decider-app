@@ -757,8 +757,7 @@ export class UnifiedFilterService {
       socialContext: socialContext || null,
       budget: budget || null,
       timeOfDay: timeOfDay === 'any' ? 'afternoon' : timeOfDay,
-      distanceRange: null,
-      location: undefined
+      distanceRange: null
     });
 
     if (!validation.isValid) {
@@ -895,7 +894,7 @@ export class UnifiedFilterService {
             if (!place || !place.place_id) continue;
             const existing = resultsMap.get(place.place_id);
             const latLng = place.geometry?.location;
-            const pr: PlaceResult = {
+            const basePr: Omit<PlaceResult, 'photos'> & Partial<Pick<PlaceResult, 'photos'>> = {
               place_id: place.place_id,
               name: place.name,
               address: place.formatted_address || place.vicinity,
@@ -908,9 +907,9 @@ export class UnifiedFilterService {
               tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
               radiusUsed: radius,
               expanded: true,
-              raw: place,
-              photos: undefined
+              raw: place
             };
+            const pr: PlaceResult = basePr as PlaceResult;
             resultsMap.set(place.place_id, pr);
           }
           this.setCache(cacheKey, Array.from(resultsMap.values()));
@@ -1491,6 +1490,22 @@ export const unifiedFilterService = UnifiedFilterService.getInstance();
  * 
  * @deprecated Use unifiedFilterService directly instead
  */
+// Legacy result type for backward compatibility
+interface LegacyDiscoveryResult {
+  places: (PlaceResult | AdvertisedPlace)[];
+  loadingState: 'loading' | 'complete' | 'error';
+  expansionInfo?: {
+    expansionCount: number;
+    finalRadius: number;
+    totalPlacesFound: number;
+  };
+  poolInfo: {
+    remainingPlaces: number;
+    totalPoolSize: number;
+    needsRefresh: boolean;
+  };
+}
+
 export class PlaceDiscoveryLogic {
   private service: UnifiedFilterService;
 
