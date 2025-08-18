@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions, LayoutChangeEvent } from 'react-native';
 import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../types';
+import { useAIDescription } from '../hooks/use-ai-description';
+import { AIDescriptionCard } from './AIDescriptionCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -32,6 +34,7 @@ export default function EnhancedPlaceCard({
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(Math.max(320, screenWidth - 40));
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+  const { aiDescription, isLoading: isAIDescriptionLoading, error: aiDescriptionError, generateDescription, clearDescription } = useAIDescription();
 
   const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -46,6 +49,14 @@ export default function EnhancedPlaceCard({
     const merged = photos.length > 0 ? photos : legacy;
     return merged.filter((u) => typeof u === 'string' && u.length > 0);
   }, [place.photos?.medium, place.images]);
+
+  useEffect(() => {
+    console.log('[EnhancedPlaceCard] generating AI description for place:', place?.name);
+    generateDescription(place as unknown as any);
+    return () => {
+      clearDescription();
+    };
+  }, [place, generateDescription, clearDescription]);
 
   const handleImageScroll = (event: { nativeEvent: { layoutMeasurement: { width: number }; contentOffset: { x: number } } }) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width || containerWidth;
@@ -280,6 +291,15 @@ export default function EnhancedPlaceCard({
               );
             })()}
           </View>
+
+          <AIDescriptionCard
+            description={aiDescription}
+            isLoading={isAIDescriptionLoading}
+            error={aiDescriptionError}
+            onRetry={() => generateDescription(place as unknown as any)}
+            onGenerate={() => generateDescription(place as unknown as any)}
+          />
+
           <View style={styles.placeActions}>
             {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
