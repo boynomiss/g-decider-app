@@ -3,9 +3,11 @@ import {
   View, 
   StyleSheet, 
   ScrollView, 
-  Alert
+  Alert,
+  Text,
+  TouchableOpacity
 } from 'react-native';
-import { ResultsLayout } from '@/components/results/ResultsLayout';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../store/store';
@@ -13,8 +15,7 @@ import { useSavedPlaces } from '../features/saved-places';
 import { PlaceMoodData as PlaceData } from '../features/discovery/types';
 import { ErrorBoundary } from '../components/feedback/ErrorBoundary';
 import { EnhancedPlaceCard, useGooglePlaces } from '../features/discovery';
-
-import { LoadingState, ErrorState, EmptyState } from '../components/results/ResultStates';
+import { Footer } from '../features/auth';
 
 
 export default function ResultsScreen() {
@@ -45,7 +46,7 @@ export default function ResultsScreen() {
   } = useGooglePlaces();
 
   // State for current place index
-  const [currentPlaceIndex, setCurrentPlaceIndex] = useState<number>(0);
+  const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
 
   // Mock place as fallback
   const mockPlace = {
@@ -111,7 +112,7 @@ export default function ResultsScreen() {
     };
 
     initializePlaces();
-  }, [places.length, isLoading, error, fetchPlaces, userLocation, filters?.category, filters?.distanceRange, buildQueryFromFilters, currentSuggestion]);
+  }, [places.length, isLoading, error, fetchPlaces, userLocation, filters?.category, buildQueryFromFilters, currentSuggestion]);
 
   // Debug logging for places state
   useEffect(() => {
@@ -124,7 +125,7 @@ export default function ResultsScreen() {
       category: filters?.category,
       placesData: places.slice(0, 2) // Log first 2 places
     });
-  }, [places, isLoading, error, currentPlaceIndex, userLocation, filters?.category]);
+  }, [places, isLoading, error, currentPlaceIndex, userLocation?.lat, userLocation?.lng, filters?.category]);
 
   // Auto-set current suggestion when places are loaded (only if no current suggestion exists)
   useEffect(() => {
@@ -166,7 +167,7 @@ export default function ResultsScreen() {
     try {
       await savePlace(place);
       Alert.alert('Success', 'Place saved to your favorites!');
-    } catch (_e) {
+    } catch (error) {
       Alert.alert('Error', 'Failed to save place. Please try again.');
     }
   };
@@ -175,7 +176,7 @@ export default function ResultsScreen() {
     try {
       await removePlace(place.id);
       Alert.alert('Success', 'Place removed from favorites!');
-    } catch (_e) {
+    } catch (error) {
       Alert.alert('Error', 'Failed to remove place. Please try again.');
     }
   };
@@ -189,7 +190,10 @@ export default function ResultsScreen() {
     await fetchPlaces(query, location, distanceRange);
   };
 
-  const topInset = insets.top;
+  const containerStyle = {
+    ...styles.container,
+    paddingTop: insets.top,
+  };
 
   // Determine which place to show - prioritize current suggestion from store
   const placeToShow = currentSuggestion || 
@@ -213,34 +217,52 @@ export default function ResultsScreen() {
   // Show loading state
   if (isLoading && places.length === 0) {
     return (
-      <ResultsLayout topInset={topInset}>
-        <LoadingState testID="results-loading" />
-      </ResultsLayout>
+      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>🔍 Finding amazing places for you...</Text>
+        </View>
+        <Footer />
+      </LinearGradient>
     );
   }
 
   // Show error state
   if (error && places.length === 0) {
     return (
-      <ResultsLayout topInset={topInset}>
-        <ErrorState message={String(error)} onRetry={handleRefreshPlaces} testID="results-error" />
-      </ResultsLayout>
+      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>❌ {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefreshPlaces}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+        <Footer />
+      </LinearGradient>
     );
   }
 
   // Show no results state (when API succeeds but no places found)
   if (!isLoading && !error && places.length === 0) {
     return (
-      <ResultsLayout topInset={topInset}>
-        <EmptyState onRetry={handleRefreshPlaces} testID="results-empty" />
-      </ResultsLayout>
+      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>🔍 No places found in your area</Text>
+          <Text style={styles.errorText}>Try adjusting your distance or category preferences</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefreshPlaces}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+        <Footer />
+      </LinearGradient>
     );
   }
 
   return (
-    <ResultsLayout topInset={topInset}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 200 }}>
+    <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+      {/* Place Card */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 220 }}>
         <View style={styles.singleResultContainer}>
+
           <ErrorBoundary componentName="PlaceCard">
             <EnhancedPlaceCard
               place={placeToShow as any}
@@ -266,9 +288,14 @@ export default function ResultsScreen() {
               }}
             />
           </ErrorBoundary>
+
+
         </View>
       </ScrollView>
-    </ResultsLayout>
+
+      {/* Footer */}
+      <Footer />
+    </LinearGradient>
   );
 }
 
@@ -278,7 +305,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 0,
+    paddingTop: 20,
   },
   singleResultContainer: {
     width: '100%',
@@ -286,5 +313,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#8B5FBF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  placesCounter: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  counterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });

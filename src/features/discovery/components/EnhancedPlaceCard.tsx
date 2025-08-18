@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions, LayoutChangeEvent } from 'react-native';
-import { Phone, Globe, Star, MapPin, Clock, Trash } from 'lucide-react-native';
-import { ResultActionBar } from '@/components/results/ResultActionBar';
+import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../types';
 import { useAIDescription } from '../hooks/use-ai-description';
 import { AIDescriptionCard } from './AIDescriptionCard';
@@ -495,12 +494,51 @@ export default function EnhancedPlaceCard({
             )}
           </View>
           <View style={styles.divider} />
-          <ResultActionBar 
-            onPass={onPass}
-            onRestart={onRestart}
-            onSave={onSave}
-            isSaved={isSaved}
-          />
+          <View style={styles.actionButtonsRow} testID="action-buttons-row">
+            <TouchableOpacity 
+              testID="pass-button"
+              style={[styles.actionButton, styles.passButton]} 
+              onPress={() => {
+                onPass && onPass();
+              }}
+              activeOpacity={0.7}
+            >
+              <X size={24} color="#FF6B6B" />
+              <Text style={[styles.actionText, { color: '#FF6B6B', fontWeight: '600' }]}>Pass</Text>
+            </TouchableOpacity>
+
+            {onRestart ? (
+              <TouchableOpacity
+                testID="restart-button"
+                style={[styles.actionButton, styles.restartButton]}
+                onPress={onRestart}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Restart"
+              >
+                <RotateCcw size={24} color="#8B5FBF" />
+                <Text style={[styles.actionText, { color: '#8B5FBF', fontWeight: '600' }]}>Restart</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity 
+              testID="save-button"
+              style={[styles.actionButton, isSaved ? styles.savedButton : styles.saveButton]} 
+              onPress={() => {
+                onSave && onSave();
+              }}
+              activeOpacity={0.7}
+            >
+              <Heart 
+                size={24} 
+                color="#4CAF50" 
+                fill={isSaved ? '#4CAF50' : 'transparent'}
+              />
+              <Text style={[styles.actionText, { color: '#4CAF50', fontWeight: '600' }]}>
+                {isSaved ? 'Saved' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     </View>
@@ -723,9 +761,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 8,
-    gap: 4 as const,
+    gap: 6 as const,
     backgroundColor: 'transparent',
     flex: 1,
     minWidth: 0,
@@ -810,36 +848,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 16,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: 'transparent',
-    minHeight: 52,
+    paddingVertical: 8,
+    backgroundColor: '#F0F0F0',
+    minHeight: 60,
     borderRadius: 8,
     width: '100%',
   },
   passButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 25,
   },
   restartButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#EDEDED',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 25,
   },
   saveButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 25,
   },
   savedButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 25,
   },
 });
