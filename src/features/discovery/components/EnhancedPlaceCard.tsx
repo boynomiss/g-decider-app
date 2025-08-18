@@ -280,15 +280,6 @@ export default function EnhancedPlaceCard({
               );
             })()}
           </View>
-          {place.description ? (
-            <Text style={styles.descriptionText}>
-              {place.description}
-            </Text>
-          ) : (
-            <Text style={styles.placeholderText}>
-              AI description will appear here once generated. This place offers a unique experience worth exploring!
-            </Text>
-          )}
           <View style={styles.placeActions}>
             {place.contactActions && place.contactActions.canCall && (
               <TouchableOpacity 
