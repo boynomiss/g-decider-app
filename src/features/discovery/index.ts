@@ -11,6 +11,7 @@ export { usePlaceDiscovery } from './hooks/use-place-discovery';
 export { useAIDescription } from './hooks/use-ai-description';
 export { useAIProjectAgent } from './hooks/use-ai-project-agent';
 export { useScrapingService } from './hooks/use-scraping-service';
+export { useGooglePlaces } from './hooks/use-google-places';
 
 // Types
 export type { DiscoveryFilters, DiscoveryResult, PlaceData } from './types';

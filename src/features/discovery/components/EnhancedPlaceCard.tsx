@@ -13,9 +13,9 @@ interface EnhancedPlaceCardProps {
   onRemove?: () => void;
   onPass?: () => void;
   onRestart?: () => void;
-  isSaved?: false;
-  showFullDetails?: false;
-  showRemoveButton?: false;
+  isSaved?: boolean;
+  showFullDetails?: boolean;
+  showRemoveButton?: boolean;
 }
 
 export default function EnhancedPlaceCard({
@@ -317,7 +317,10 @@ export default function EnhancedPlaceCard({
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity 
               style={styles.actionButton} 
-              onPress={onPass}
+              onPress={() => {
+                console.log('🔴 Pass button pressed');
+                onPass && onPass();
+              }}
               activeOpacity={0.7}
             >
               <X size={24} color="#FF6B6B" />
@@ -326,7 +329,10 @@ export default function EnhancedPlaceCard({
             
             <TouchableOpacity 
               style={styles.actionButton} 
-              onPress={onRestart}
+              onPress={() => {
+                console.log('🔄 Restart button pressed');
+                onRestart && onRestart();
+              }}
               activeOpacity={0.7}
             >
               <RotateCcw size={24} color="#4CAF50" />
@@ -335,7 +341,10 @@ export default function EnhancedPlaceCard({
             
             <TouchableOpacity 
               style={styles.actionButton} 
-              onPress={onSave}
+              onPress={() => {
+                console.log('💖 Save button pressed, isSaved:', isSaved);
+                onSave && onSave();
+              }}
               activeOpacity={0.7}
             >
               <Heart 
@@ -568,6 +577,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     gap: 6,
+    minWidth: 60,
+    backgroundColor: 'transparent',
   },
   actionText: {
     fontSize: 12, // Reduced from 14 to 12 for better proportion
@@ -616,5 +627,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 12,
+    marginBottom: 8,
   },
 });

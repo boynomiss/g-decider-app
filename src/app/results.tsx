@@ -313,13 +313,25 @@ export default function ResultsScreen() {
             <EnhancedPlaceCard
               place={placeToShow as any}
               onPress={() => console.log('Place pressed')}
-              onSave={() => handleSavePlace(placeToShow as any)}
-              onRemove={() => handleRemovePlace(placeToShow as any)}
+              onSave={() => {
+                console.log('🎯 Results: Save callback triggered');
+                handleSavePlace(placeToShow as any);
+              }}
+              onRemove={() => {
+                console.log('🎯 Results: Remove callback triggered');
+                handleRemovePlace(placeToShow as any);
+              }}
               isSaved={isSaved(placeToShow.id)}
               showFullDetails={true}
               showRemoveButton={false}
-              onPass={handlePass}
-              onRestart={handleRestart}
+              onPass={() => {
+                console.log('🎯 Results: Pass callback triggered');
+                handlePass();
+              }}
+              onRestart={() => {
+                console.log('🎯 Results: Restart callback triggered');
+                handleRestart();
+              }}
             />
           </ErrorBoundary>
 
