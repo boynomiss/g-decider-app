@@ -369,7 +369,7 @@ export default function EnhancedPlaceCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
+    width: '100%',
     marginVertical: 8,
   },
   imageCardContainer: {
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   imageWrapper: {
-    width: screenWidth - 32, // Full container width minus margins
+    width: '100%',
     height: '100%',
   },
   placeImage: {
