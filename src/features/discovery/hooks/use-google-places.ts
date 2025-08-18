@@ -18,7 +18,7 @@ interface UseGooglePlacesReturn {
   places: PlaceMoodData[];
   isLoading: boolean;
   error: string | null;
-  fetchPlaces: (query: string, location?: { lat: number; lng: number }, distanceRange?: number) => Promise<void>;
+  fetchPlaces: (query: string, location?: { lat: number; lng: number }, distanceRange?: number, options?: { force?: boolean; randomize?: boolean }) => Promise<void>;
   clearPlaces: () => void;
 }
 
@@ -70,16 +70,14 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
     });
   }, [places]);
 
-  const fetchPlaces = useCallback(async (query: string, location?: { lat: number; lng: number }, distanceRange: number = 10) => {
-    console.log('🎯 fetchPlaces called with:', { query, location, distanceRange });
+  const fetchPlaces = useCallback(async (query: string, location?: { lat: number; lng: number }, distanceRange: number = 10, options?: { force?: boolean; randomize?: boolean }) => {
+    console.log('🎯 fetchPlaces called with:', { query, location, distanceRange, options });
     
-    // Prevent multiple simultaneous calls
     if (isFetching) {
       console.log('🔄 Already fetching places, skipping duplicate call');
       return;
     }
     
-    // Validate distance range to prevent wasteful API calls
     if (distanceRange < 1) {
       console.log('⚠️ Distance range too small (< 1km), setting to minimum 1km');
       distanceRange = 1;
@@ -88,13 +86,12 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       distanceRange = 50;
     }
 
-    // Lightly rotate/swap query tokens to introduce variety per press
-    const rotationOffset = (sessionSeedRef.current + (++shuffleCounterRef.current)) % 7;
+    const randomSalt = options?.randomize ? Math.floor(Math.random() * 1_000_000) : 0;
+    const rotationOffset = (sessionSeedRef.current + (++shuffleCounterRef.current) + randomSalt) % 7;
     const rotatedQuery = rotateTokens(query, rotationOffset);
     
-    // Check if this is a duplicate request
     const currentRequest = { query: rotatedQuery, location, distanceRange };
-    if (lastRequestRef.current && 
+    if (!options?.force && lastRequestRef.current && 
         lastRequestRef.current.query === currentRequest.query &&
         lastRequestRef.current.distanceRange === currentRequest.distanceRange &&
         lastRequestRef.current.location?.lat === currentRequest.location?.lat &&
@@ -103,7 +100,6 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       return;
     }
     
-    // Store current request for future comparison
     lastRequestRef.current = currentRequest;
     
     setIsFetching(true);
@@ -132,9 +128,8 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
       };
 
       if (location) {
-        // Use distance range for location bias (convert km to meters) with slight jitter ±10%
         const baseRadius = Math.min(distanceRange * 1000, 50000);
-        const jitterPct = (((sessionSeedRef.current + shuffleCounterRef.current) % 201) - 100) / 1000; // -0.1..+0.1
+        const jitterPct = (((sessionSeedRef.current + shuffleCounterRef.current + randomSalt) % 201) - 100) / 1000;
         const radiusInMeters = Math.max(500, Math.round(baseRadius * (1 + jitterPct)));
         
         requestBody.locationBias = {
@@ -448,8 +443,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         }
       }
       
-      // Shuffle API results client-side for variety per session
-      const seed = (sessionSeedRef.current + (++shuffleCounterRef.current)) >>> 0;
+      const seed = (sessionSeedRef.current + (++shuffleCounterRef.current) + randomSalt) >>> 0;
       const shuffled = seededShuffle(filteredPlaces, seed);
 
       console.log('🔍 About to set places state with:', shuffled.length, 'places (shuffled)');
@@ -469,8 +463,12 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
   }, [isFetching]);
 
   const clearPlaces = useCallback(() => {
+    console.log('🧹 Clearing places and resetting session randomness');
     setPlaces([]);
     setError(null);
+    lastRequestRef.current = null;
+    sessionSeedRef.current = (Date.now() ^ Math.floor(Math.random() * 1_000_000)) >>> 0;
+    shuffleCounterRef.current = 0;
   }, []);
 
   return {
