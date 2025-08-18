@@ -151,26 +151,30 @@ export class AIDescriptionService {
     const socialContextText = this.getSocialContext(socialContext);
     const timeContext = this.getTimeContext(timeOfDay);
 
-    return `You are an assistant that writes strictly factual, extractive, single-sentence place descriptions.
+    return `You generate engaging, specific venue descriptions.
 
-Rules:
-- Use only details explicitly present in the provided data (tags, category, budget text, and review facts).
-- No embellishment, hype, advice, or assumptions. No subjective adjectives unless quoted from reviews.
-- Do NOT invent dishes, features, or ambiance not present in the data.
-- Do NOT include the place name or location.
-- Output exactly ONE sentence, 12–28 words, plain text.
+Output:
+- Exactly 2 sentences, 15–35 words total, plain text only.
+- First sentence: distinctive visual/atmospheric feature or unique selling point.
+- Second sentence: what visitors can expect or why they'd choose this place.
+
+Strict rules:
+- Do not include the place name or location.
+- Never start with: "This establishment is", "This moderate-priced restaurant", "This venue offers", "Located in", "Suitable for any time of day", "General audience", "Calm and quiet atmosphere".
+- Use only details explicitly present in the data below (category, tags, features, reviews, price level, mood/time/social cues). No invented features or hype.
+- Use concrete, sensory wording; avoid generic adjectives unless quoted from reviews.
 
 Data:
 - Category: ${category || 'restaurant'}
 - Cuisine/Tags: ${cuisineTags.join(', ') || 'n/a'}
 - Features: ${features.join(', ') || 'n/a'}
-- Price Level: ${this.getBudgetText(budget)}
+- Price level: ${this.getBudgetText(budget)}
 - Mood cue: ${moodContext}
 - Social setting: ${socialContextText}
 - Time of day: ${timeContext}
 ${reviewFacts ? `- Reviews:\n${reviewFacts}` : ''}
 
-Write the one-sentence factual description now.`;
+Write the description now.`;
   }
 
   /**
@@ -196,15 +200,31 @@ Write the one-sentence factual description now.`;
       tag.toLowerCase().includes('group')
     ).slice(0, 2);
 
-    const cuisineText = cuisineTags.length ? cuisineTags.join(', ') : 'food and drinks';
-    const featuresText = featureTags.length ? `, featuring ${featureTags.join(', ')}` : '';
+    const cuisineText = cuisineTags.length ? cuisineTags.join(', ') : 'comfort classics';
+    const primaryFeature = featureTags[0] || 'cozy seating';
 
-    return `${cuisineText} with ${budgetText} pricing${featuresText}.`;
+    const moodText = this.getMoodContext(restaurantData.mood);
+    const socialText = this.getSocialContext(restaurantData.socialContext);
+    const timeText = this.getTimeContext(restaurantData.timeOfDay);
+
+    const firstParts: string[] = [this.capitalizeFirst(primaryFeature), 'with', cuisineText];
+    if (moodText) firstParts.push(',', moodText);
+    const first = firstParts.join(' ').replace(/\s+,/g, ',');
+
+    const secondParts: string[] = ['Expect', budgetText, 'pricing'];
+    if (socialText) secondParts.push('and', socialText);
+    if (timeText) secondParts.push('for', timeText);
+    secondParts.push('with', 'straightforward', 'choices');
+    const second = secondParts.join(' ');
+
+    return `${first}. ${second}.`;
   }
 
-  /**
-   * Generate cache key for restaurant data
-   */
+  private capitalizeFirst(text: string): string {
+    if (!text) return '';
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
   private generateCacheKey(restaurantData: RestaurantData): string {
     const { name, location, budget, tags, mood } = restaurantData;
     return `${name}-${location}-${budget}-${mood}-${tags.join(',')}`.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -226,13 +246,12 @@ Write the one-sentence factual description now.`;
    * Get mood context for AI prompt
    */
   private getMoodContext(mood?: number): string {
-    if (!mood) return 'neutral';
-    
-    if (mood >= 80) return 'exciting and vibrant';
-    if (mood >= 60) return 'energetic and lively';
-    if (mood >= 40) return 'casual and comfortable';
-    if (mood >= 20) return 'relaxed and peaceful';
-    return 'calm and quiet';
+    if (mood === undefined || mood === null) return '';
+    if (mood >= 80) return 'pulsing with music and crowd energy';
+    if (mood >= 60) return 'buzzing with conversation and laughter';
+    if (mood >= 40) return 'relaxed vibe with gentle background music';
+    if (mood >= 20) return 'peaceful retreat with soft lighting';
+    return 'intimate setting with hushed conversations';
   }
 
   /**
@@ -243,10 +262,11 @@ Write the one-sentence factual description now.`;
       'solo': 'solo-friendly',
       'couple': 'for couples',
       'family': 'family-friendly',
-      'group': 'good for groups',
-      'business': 'business-friendly'
+      'group': 'spacious seating for groups',
+      'business': 'suitable for business meetups'
     } as const;
-    return contextMap[(social || '') as keyof typeof contextMap] || 'general audience';
+    const key = (social || '') as keyof typeof contextMap;
+    return contextMap[key] || '';
   }
 
   /**
@@ -258,7 +278,8 @@ Write the one-sentence factual description now.`;
       'afternoon': 'afternoon/lunch',
       'night': 'evening/dinner'
     };
-    return timeMap[time as keyof typeof timeMap] || 'any time of day';
+    const mapped = timeMap[time as keyof typeof timeMap];
+    return mapped || '';
   }
 
   private async callToolkitLLM(prompt: string): Promise<string> {
@@ -268,7 +289,7 @@ Write the one-sentence factual description now.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: 'You write strictly factual, extractive, single-sentence place descriptions (12–28 words). No embellishment. Use only provided data. Do not include the place name or location.' },
+          { role: 'system', content: 'You write engaging, specific venue descriptions in exactly 2 sentences (15–35 words total). First sentence: distinctive visual/atmosphere. Second: what visitors can expect. No place name or location. Avoid forbidden openings. Use only provided data.' },
           { role: 'user', content: prompt }
         ]
       })
