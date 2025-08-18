@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, ScrollView, Dimensions, LayoutChangeEvent } from 'react-native';
-import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X, RotateCcw } from 'lucide-react-native';
+import { Phone, Globe, Star, MapPin, Clock, Heart, Trash, X } from 'lucide-react-native';
 import { PlaceMoodData as PlaceData } from '../types';
 import { useAIDescription } from '../hooks/use-ai-description';
 import { AIDescriptionCard } from './AIDescriptionCard';
@@ -505,17 +505,6 @@ export default function EnhancedPlaceCard({
             >
               <X size={24} color="#FF6B6B" />
               <Text style={[styles.actionText, { color: '#FF6B6B', fontWeight: '600' }]}>Pass</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              testID="restart-button"
-              style={[styles.actionButton, styles.restartButton]} 
-              onPress={() => {
-                onRestart && onRestart();
-              }}
-              activeOpacity={0.7}
-            >
-              <RotateCcw size={24} color="#666666" />
-              <Text style={[styles.actionText, { color: '#666666', fontWeight: '600' }]}>Restart</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               testID="save-button"
