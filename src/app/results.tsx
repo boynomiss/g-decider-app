@@ -262,15 +262,7 @@ export default function ResultsScreen() {
       {/* Place Card */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: 220 }}>
         <View style={styles.singleResultContainer}>
-          {/* Places counter */}
-          {places.length > 0 && (
-            <View style={styles.placesCounter}>
-              <Text style={styles.counterText}>
-                {currentPlaceIndex + 1} of {places.length} places
-              </Text>
-            </View>
-          )}
-          
+
           <ErrorBoundary componentName="PlaceCard">
             <EnhancedPlaceCard
               place={placeToShow as any}
