@@ -130,7 +130,7 @@ export class AIDescriptionService {
       reviews,
       category,
       mood,
-      // socialContext,
+      socialContext,
       timeOfDay
     } = restaurantData;
 
