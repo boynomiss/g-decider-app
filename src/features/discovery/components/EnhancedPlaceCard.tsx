@@ -364,8 +364,36 @@ export default function EnhancedPlaceCard({
         activeOpacity={0.9}
       >
         <View style={styles.placeInfo}>
-          <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeLocation}>{formatLocation(place.formatted_address ?? '', place.vicinity ?? '')}</Text>
+          {(() => {
+            const rawFormatted = formatLocation(place.formatted_address ?? '', place.vicinity ?? '');
+            const cleanedLocation = rawFormatted === 'Location not available' ? '' : rawFormatted;
+            const normalize = (str: string) => str.toLowerCase().replace(/[^\w\s]/g, '').trim();
+            const formatSmart = (businessName: string, location: string): { displayName: string; displayLocation: string } => {
+              if (!businessName || !location) return { displayName: businessName || '', displayLocation: location || '' };
+              const locationParts = location.split(',').map(p => p.trim());
+              const mainLocation = locationParts[0] ?? '';
+              const additionalLocationInfo = locationParts.slice(1);
+              const normalizedBusinessName = normalize(businessName);
+              const normalizedMainLocation = normalize(mainLocation);
+              const locationInBusinessName = normalizedBusinessName.includes(normalizedMainLocation) && normalizedMainLocation.length > 0;
+              if (locationInBusinessName) {
+                return {
+                  displayName: businessName,
+                  displayLocation: additionalLocationInfo.length > 0 ? additionalLocationInfo.join(', ') : ''
+                };
+              }
+              return { displayName: businessName, displayLocation: location };
+            };
+            const smart = formatSmart(place.name ?? '', cleanedLocation);
+            return (
+              <>
+                <Text style={styles.placeName}>{smart.displayName}</Text>
+                {smart.displayLocation ? (
+                  <Text style={styles.placeLocation}>{smart.displayLocation}</Text>
+                ) : null}
+              </>
+            );
+          })()}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
               {getBudgetDisplay() === 'P' ? '₱' : getBudgetDisplay() === 'PP' ? '₱₱' : '₱₱₱'}
