@@ -74,8 +74,8 @@ export class UnifiedFilterService {
   private filterCache = new Map<string, any>();
   private advertisedPlaces: AdvertisedPlace[] = [];
 
-  // Constants - now using registry for configuration data
-  private readonly DISTANCE_STEPS = [3000, 5000, 8000, 12000, 20000, 30000, 50000];
+  // Constants - incremental 500m steps starting at default "short drive" (5km)
+  private readonly DISTANCE_STEPS = Array.from({ length: 31 }, (_, i) => 5000 + i * 500); // 5km -> 20km by 500m
 
   // Google Places API wrappers - Updated to use new API with fallback
   private async textSearch(
@@ -757,11 +757,10 @@ export class UnifiedFilterService {
 
     const resultsMap: Map<string, PlaceResult> = new Map();
 
-    // Search loop with radius expansion
+    // Search loop with incremental 500m expansion
     let lastRadiusTried = initialRadius;
-    for (const radius of this.DISTANCE_STEPS) {
-      if (radius < initialRadius) continue;
-      if (radius > maxRadius) break;
+    let radius = initialRadius;
+    while (radius <= maxRadius) {
       this.currentRadius = radius;
       lastRadiusTried = radius;
 
@@ -771,78 +770,85 @@ export class UnifiedFilterService {
       if (cached) {
         cached.forEach(place => resultsMap.set(place.place_id, place));
         if (resultsMap.size >= minResults) break;
-        continue;
-      }
+      } else {
+        // Search API
+        const places = await this.textSearch(textQuery, lat, lng, radius, apiKey, budgetMap?.minprice, budgetMap?.maxprice);
 
-      // Search API
-      const places = await this.textSearch(textQuery, lat, lng, radius, apiKey, budgetMap?.minprice, budgetMap?.maxprice);
-      
-      // Process results
-      for (const place of places) {
-        if (!place || !place.place_id) continue;
-        
-        const existing = resultsMap.get(place.place_id);
-        const latLng = place.geometry?.location;
-        
-        // Generate image URLs from photos
-        const imageUrls = place.photos?.map((photo: any) => {
-          if (photo.name) {
-            const photoRef = photo.name.split('/photos/')[1];
-            if (photoRef) {
-              return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${apiKey}`;
+        // Process results
+        for (const place of places) {
+          if (!place || !place.place_id) continue;
+
+          const existing = resultsMap.get(place.place_id);
+          const latLng = place.geometry?.location;
+
+          // Generate image URLs from photos
+          const imageUrls = place.photos?.map((photo: any) => {
+            if (photo.name) {
+              const photoRef = photo.name.split('/photos/')[1];
+              if (photoRef) {
+                return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photoRef}&key=${apiKey}`;
+              }
             }
-          }
-          if (photo.photo_reference) {
-            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photo.photo_reference}&key=${apiKey}`;
-          }
-          return null;
-        }).filter(Boolean) || [];
-        
-        console.log(`📸 Processing images for ${place.name}:`, {
-          hasPhotos: !!place.photos,
-          photoCount: place.photos?.length || 0,
-          generatedUrls: imageUrls.length,
-          sampleUrl: imageUrls[0] || 'No URLs generated'
-        });
-        
-        const finalPhotos = imageUrls.length > 0 ? {
-          thumbnail: imageUrls,
-          medium: imageUrls,
-          large: imageUrls,
-          count: imageUrls.length
-        } : undefined;
-        
-        console.log(`📸 Final photos structure for ${place.name}:`, {
-          hasFinalPhotos: !!finalPhotos,
-          photoCount: finalPhotos?.count || 0,
-          mediumCount: finalPhotos?.medium?.length || 0,
-          sampleMedium: finalPhotos?.medium?.[0] || 'No medium photos'
-        });
+            if (photo.photo_reference) {
+              return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&maxheight=600&photoreference=${photo.photo_reference}&key=${apiKey}`;
+            }
+            return null;
+          }).filter(Boolean) || [];
 
-        const pr: PlaceResult = {
-          place_id: place.place_id,
-          name: place.name,
-          address: place.formatted_address || place.vicinity,
-          lat: latLng?.lat,
-          lng: latLng?.lng,
-          rating: place.rating,
-          user_ratings_total: place.user_ratings_total,
-          opening_hours: place.opening_hours,
-          descriptor: existing?.descriptor || '',
-          tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
-          radiusUsed: radius,
-          expanded: radius > initialRadius,
-          raw: place,
-          photos: finalPhotos
-        };
+          console.log(`📸 Processing images for ${place.name}:`, {
+            hasPhotos: !!place.photos,
+            photoCount: place.photos?.length || 0,
+            generatedUrls: imageUrls.length,
+            sampleUrl: imageUrls[0] || 'No URLs generated'
+          });
 
-        resultsMap.set(place.place_id, pr);
+          const finalPhotos = imageUrls.length > 0 ? {
+            thumbnail: imageUrls,
+            medium: imageUrls,
+            large: imageUrls,
+            count: imageUrls.length
+          } : undefined;
+
+          console.log(`📸 Final photos structure for ${place.name}:`, {
+            hasFinalPhotos: !!finalPhotos,
+            photoCount: finalPhotos?.count || 0,
+            mediumCount: finalPhotos?.medium?.length || 0,
+            sampleMedium: finalPhotos?.medium?.[0] || 'No medium photos'
+          });
+
+          const pr: PlaceResult = {
+            place_id: place.place_id,
+            name: place.name,
+            address: place.formatted_address || place.vicinity,
+            lat: latLng?.lat,
+            lng: latLng?.lng,
+            rating: place.rating,
+            user_ratings_total: place.user_ratings_total,
+            opening_hours: place.opening_hours,
+            descriptor: existing?.descriptor || '',
+            tags: Array.from(new Set([...(existing?.tags || []), ...(place.types || [])])),
+            radiusUsed: radius,
+            expanded: radius > initialRadius,
+            raw: place,
+            photos: finalPhotos
+          };
+
+          resultsMap.set(place.place_id, pr);
+        }
+
+        // Cache results
+        this.setCache(cacheKey, Array.from(resultsMap.values()));
       }
-
-      // Cache results
-      this.setCache(cacheKey, Array.from(resultsMap.values()));
 
       if (resultsMap.size >= minResults) break;
+
+      // If no places found within the radius, increment by 500m
+      if (resultsMap.size === 0) {
+        radius = Math.min(radius + 500, maxRadius);
+      } else {
+        // If some results found but not enough, continue gentle expansion
+        radius = Math.min(radius + 500, maxRadius);
+      }
     }
 
     // If still not enough results, progressively expand beyond maxRadius up to a hard cap
