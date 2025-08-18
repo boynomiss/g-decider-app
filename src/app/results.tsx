@@ -46,6 +46,8 @@ export default function ResultsScreen() {
 
   // State for current place index
   const [currentPlaceIndex, setCurrentPlaceIndex] = useState<number>(0);
+  // Track first-pass initialization to avoid flashing EmptyState on initial render
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   // Mock place as fallback
   const mockPlace = {
@@ -108,6 +110,7 @@ export default function ResultsScreen() {
       } else if (currentSuggestion) {
         console.log('🎯 Using current suggestion from store:', currentSuggestion.name);
       }
+      setInitialized(true);
     };
 
     initializePlaces();
@@ -211,7 +214,7 @@ export default function ResultsScreen() {
   }, [placeToShow, places, currentPlaceIndex]);
 
   // Show loading state
-  if (isLoading && places.length === 0) {
+  if ((!initialized) || (isLoading && places.length === 0)) {
     return (
       <ResultsLayout topInset={topInset}>
         <LoadingState testID="results-loading" />
