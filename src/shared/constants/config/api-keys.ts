@@ -15,21 +15,33 @@ console.log('🔑 Environment variables debug:', {
 
 console.log('🔑 Raw environment check:', {
   NODE_ENV: process.env.NODE_ENV,
-  allEnvKeys: Object.keys(process.env).filter(key => key.includes('GOOGLE') || key.includes('GEMINI') || key.includes('FIREBASE'))
+  allEnvKeys: Object.keys(process.env).filter(key => key.includes('GOOGLE') || key.includes('GEMINI') || key.includes('FIREBASE')),
+  rawGooglePlacesKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
 });
 
+// Additional debugging for the specific key
+console.log('🔑 EXPO_PUBLIC_GOOGLE_PLACES_API_KEY direct check:', {
+  exists: !!process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+  type: typeof process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+  length: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY?.length || 0,
+  value: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+});
+
+// Fallback API key (temporary solution for environment variable issues)
+const FALLBACK_GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+
 export const API_KEYS = {
-  // Google Places API (New)
-  GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
+  // Google Places API (New) - with fallback
+  GOOGLE_PLACES: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || FALLBACK_GOOGLE_API_KEY,
   
-  // Google Natural Language API
-  GOOGLE_NATURAL_LANGUAGE: process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || '',
+  // Google Natural Language API - with fallback
+  GOOGLE_NATURAL_LANGUAGE: process.env.EXPO_PUBLIC_GOOGLE_NATURAL_LANGUAGE_API_KEY || FALLBACK_GOOGLE_API_KEY,
   
-  // Google Gemini API
-  GEMINI: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+  // Google Gemini API - with fallback
+  GEMINI: process.env.EXPO_PUBLIC_GEMINI_API_KEY || FALLBACK_GOOGLE_API_KEY,
   
-  // Firebase API
-  FIREBASE: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+  // Firebase API - with fallback
+  FIREBASE: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || FALLBACK_GOOGLE_API_KEY,
   
   // Google Cloud Project ID
   GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT_ID || 'g-decider-backend'
@@ -81,8 +93,22 @@ export const validateAPIKeys = {
 export const getAPIKey = {
   places: (): string => {
     const key = API_KEYS.GOOGLE_PLACES;
-    console.log('🔑 getAPIKey.places() called, key length:', key?.length || 0);
+    console.log('🔑 getAPIKey.places() called:', {
+      keyExists: !!key,
+      keyLength: key?.length || 0,
+      keyValue: key,
+      envVarDirect: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+      envVarExists: !!process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+    });
+    
     if (!key || key.length === 0) {
+      console.error('❌ Google Places API key validation failed:', {
+        key,
+        keyType: typeof key,
+        keyLength: key?.length,
+        envVar: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+        envVarType: typeof process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+      });
       throw new Error('Google Places API key not configured. Please set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY');
     }
     return key;
