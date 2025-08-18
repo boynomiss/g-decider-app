@@ -3,11 +3,9 @@ import {
   View, 
   StyleSheet, 
   ScrollView, 
-  Alert,
-  Text,
-  TouchableOpacity
+  Alert
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ResultsLayout } from '@/components/results/ResultsLayout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '../store/store';
@@ -15,7 +13,7 @@ import { useSavedPlaces } from '../features/saved-places';
 import { PlaceMoodData as PlaceData } from '../features/discovery/types';
 import { ErrorBoundary } from '../components/feedback/ErrorBoundary';
 import { EnhancedPlaceCard, useGooglePlaces } from '../features/discovery';
-import { Footer } from '../features/auth';
+
 import { LoadingState, ErrorState, EmptyState } from '../components/results/ResultStates';
 
 
@@ -47,7 +45,7 @@ export default function ResultsScreen() {
   } = useGooglePlaces();
 
   // State for current place index
-  const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
+  const [currentPlaceIndex, setCurrentPlaceIndex] = useState<number>(0);
 
   // Mock place as fallback
   const mockPlace = {
@@ -168,7 +166,7 @@ export default function ResultsScreen() {
     try {
       await savePlace(place);
       Alert.alert('Success', 'Place saved to your favorites!');
-    } catch (error) {
+    } catch (_e) {
       Alert.alert('Error', 'Failed to save place. Please try again.');
     }
   };
@@ -177,7 +175,7 @@ export default function ResultsScreen() {
     try {
       await removePlace(place.id);
       Alert.alert('Success', 'Place removed from favorites!');
-    } catch (error) {
+    } catch (_e) {
       Alert.alert('Error', 'Failed to remove place. Please try again.');
     }
   };
@@ -191,10 +189,7 @@ export default function ResultsScreen() {
     await fetchPlaces(query, location, distanceRange);
   };
 
-  const containerStyle = {
-    ...styles.container,
-    paddingTop: insets.top,
-  };
+  const topInset = insets.top;
 
   // Determine which place to show - prioritize current suggestion from store
   const placeToShow = currentSuggestion || 
@@ -218,39 +213,34 @@ export default function ResultsScreen() {
   // Show loading state
   if (isLoading && places.length === 0) {
     return (
-      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+      <ResultsLayout topInset={topInset}>
         <LoadingState testID="results-loading" />
-        <Footer />
-      </LinearGradient>
+      </ResultsLayout>
     );
   }
 
   // Show error state
   if (error && places.length === 0) {
     return (
-      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+      <ResultsLayout topInset={topInset}>
         <ErrorState message={String(error)} onRetry={handleRefreshPlaces} testID="results-error" />
-        <Footer />
-      </LinearGradient>
+      </ResultsLayout>
     );
   }
 
   // Show no results state (when API succeeds but no places found)
   if (!isLoading && !error && places.length === 0) {
     return (
-      <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
+      <ResultsLayout topInset={topInset}>
         <EmptyState onRetry={handleRefreshPlaces} testID="results-empty" />
-        <Footer />
-      </LinearGradient>
+      </ResultsLayout>
     );
   }
 
   return (
-    <LinearGradient colors={['#C8A8E9', '#B19CD9']} style={containerStyle}>
-      {/* Place Card */}
+    <ResultsLayout topInset={topInset}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 200 }}>
         <View style={styles.singleResultContainer}>
-
           <ErrorBoundary componentName="PlaceCard">
             <EnhancedPlaceCard
               place={placeToShow as any}
@@ -276,14 +266,9 @@ export default function ResultsScreen() {
               }}
             />
           </ErrorBoundary>
-
-
         </View>
       </ScrollView>
-
-      {/* Footer */}
-      <Footer />
-    </LinearGradient>
+    </ResultsLayout>
   );
 }
 
