@@ -74,12 +74,14 @@ export const cardStyles = StyleSheet.create({
 
 // Budget mapping utility
 export const getBudgetDisplay = (budget: 'P' | 'PP' | 'PPP' | null): string => {
+  if (!budget) return 'N/A';
+  
   const budgetMap = {
     'P': '₱',
     'PP': '₱₱', 
     'PPP': '₱₱₱'
   };
-  return budgetMap[budget || 'PP'];
+  return budgetMap[budget];
 };
 
 // Social context mapping utility
@@ -97,13 +99,14 @@ export const getPartySizeFromSocialContext = (socialContext: string): string => 
 // Or: import { getDistanceRadius } from '@/utils/filtering/configs/distance-config'
 
 // Budget price level mapping for Google Places API
+// Updated to be consistent with main budget configuration
 export const getBudgetPriceLevel = (budget: 'P' | 'PP' | 'PPP', category: string): { minprice?: number, maxprice?: number } => {
   if (category !== 'food') return {};
   
   switch (budget) {
-    case 'P': return { minprice: 0, maxprice: 1 };
-    case 'PP': return { minprice: 1, maxprice: 2 };
-    case 'PPP': return { minprice: 2, maxprice: 4 };
+    case 'P': return { minprice: 0, maxprice: 1 };   // Budget-Friendly: 0-1
+    case 'PP': return { minprice: 2, maxprice: 2 };  // Moderate: 2
+    case 'PPP': return { minprice: 3, maxprice: 4 }; // Premium: 3-4
     default: return {};
   }
 };

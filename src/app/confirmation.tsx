@@ -37,13 +37,13 @@ const HomeButton = React.memo(({ onPress }: { onPress: () => void }) => (
 export default function ConfirmationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentSuggestion, restartSession } = useAppStore();
+  const { currentSuggestion, resetSuggestion } = useAppStore();
 
   // Memoized handlers
   const handleGoHome = useCallback(() => {
-    restartSession();
+    resetSuggestion();
     router.push('/home');
-  }, [restartSession, router]);
+  }, [resetSuggestion, router]);
 
   // Memoized container style
   const containerStyle = useMemo(() => ({

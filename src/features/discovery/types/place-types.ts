@@ -22,6 +22,7 @@ export interface Suggestion {
   location: string;
   images: string[];
   budget: BudgetOption;
+  priceRange?: string; // Google Maps style price range (e.g., "₱200-400")
   tags: string[];
   description: string;
   openHours: string;

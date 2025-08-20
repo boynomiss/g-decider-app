@@ -44,7 +44,16 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           category: input.category,
           mood: getMoodNumber(input.mood),
           socialContext: input.socialContext?.length ? input.socialContext.join(', ') : 'solo',
-          timeOfDay: input.timeOfDay?.length ? input.timeOfDay.join(', ') : 'morning'
+          timeOfDay: input.timeOfDay?.length ? input.timeOfDay.join(', ') : 'morning',
+          // Enhanced Google Places API data
+          rating: input.rating,
+          reviewCount: input.reviews,
+          editorialSummary: input.editorial_summary,
+          openHours: input.openHours,
+          website: input.website,
+          phone: input.phone,
+          businessStatus: input.business_status,
+          openNow: input.open_now
         };
       } else {
         // PlaceData
@@ -64,13 +73,35 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           category: input.category,
           mood: getMoodNumber(input.final_mood || 'both'),
           socialContext: 'solo, with-bae, barkada',
-          timeOfDay: 'morning, afternoon, night'
+          timeOfDay: 'morning, afternoon, night',
+          // Enhanced Google Places API data
+          rating: input.rating,
+          reviewCount: input.reviewCount,
+          editorialSummary: input.editorial_summary,
+          openHours: input.openHours,
+          website: input.website,
+          phone: input.phone,
+          businessStatus: input.business_status,
+          openNow: input.open_now
         };
       }
 
       const description = await aiDescriptionService.generateDescription(restaurantData);
       setAiDescription(description);
       console.log('🤖 AI description generated successfully');
+      console.log('🔍 [useAIDescription] Data passed to AI service:', {
+        name: restaurantData.name,
+        hasReviews: restaurantData.reviews?.length > 0,
+        reviewCount: restaurantData.reviews?.length || 0,
+        hasRating: restaurantData.rating !== undefined,
+        rating: restaurantData.rating,
+        hasEditorialSummary: !!restaurantData.editorialSummary,
+        hasOpenHours: !!restaurantData.openHours,
+        hasWebsite: !!restaurantData.website,
+        hasPhone: !!restaurantData.phone,
+        businessStatus: restaurantData.businessStatus,
+        openNow: restaurantData.openNow
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate AI description';
       setError(errorMessage);

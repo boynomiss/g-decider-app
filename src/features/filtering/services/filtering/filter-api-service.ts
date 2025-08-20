@@ -7,6 +7,7 @@
 import { UnifiedFilters } from '../../../../services/cache/data/unified-cache-service';
 import { PlaceResult, ApiReadyFilterData, ReviewEntity } from '../../types';
 import { googlePlacesClient } from '../../../../services/api/api/google-api-clients';
+import { BUDGET_PRICE_MAPPING } from './configs/budget-config';
 
 // API configuration
 export interface APIConfig {
@@ -368,18 +369,13 @@ export class FilterAPIService {
 
   /**
    * Check if price level matches budget
+   * Updated to use consistent budget mapping
    */
   private isPriceInBudget(priceLevel: number, budget: 'P' | 'PP' | 'PPP'): boolean {
-    switch (budget) {
-      case 'P':
-        return priceLevel <= 1;
-      case 'PP':
-        return priceLevel >= 1 && priceLevel <= 2;
-      case 'PPP':
-        return priceLevel >= 2;
-      default:
-        return true;
-    }
+    const allowedPriceLevels = BUDGET_PRICE_MAPPING[budget];
+    if (!allowedPriceLevels) return true;
+    
+    return allowedPriceLevels.includes(priceLevel);
   }
 
   /**

@@ -62,11 +62,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8, // Reduced from 12
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 2, // Reduced from 4
     backgroundColor: 'transparent',
-    minHeight: 52,
+    minHeight: 44, // Reduced from 52
     borderRadius: 8,
     width: '100%',
   },
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 4, // Reduced from 6
     borderRadius: 8,
-    gap: 4 as const,
+    gap: 3 as const, // Reduced from 4
     backgroundColor: 'transparent',
     flex: 1,
     minWidth: 0,
@@ -91,25 +91,25 @@ const styles = StyleSheet.create({
   passButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 6, // Reduced from 8
     borderRadius: 25,
   },
   restartButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 6, // Reduced from 8
     borderRadius: 25,
   },
   saveButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 6, // Reduced from 8
     borderRadius: 25,
   },
   savedButton: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 8,
+    paddingVertical: 6, // Reduced from 8
     borderRadius: 25,
   },
 });

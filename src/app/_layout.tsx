@@ -9,7 +9,6 @@ import { AppContext } from "../store/store";
 import { AuthProvider } from "../features/auth/hooks/use-auth";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import colors from "../shared/constants/constants/colors";
-import { useComponentDebug, useRequiredComponentsValidation } from "../shared/hooks/use-component-validation";
 import { trpc, trpcClient } from "../../lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
@@ -58,38 +57,6 @@ export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
-
-  // Component validation - check that all critical components are available
-  const criticalComponents: Record<string, React.ComponentType<any> | undefined> = {
-    QueryClientProvider,
-    Stack,
-    GestureHandlerRootView,
-    SafeAreaProvider,
-    AppContext,
-    AuthProvider,
-    ErrorBoundary,
-    ThemeProvider
-  };
-
-  // Debug component availability in development
-  useComponentDebug(criticalComponents);
-
-  // Validate that all required components are available
-  const allComponentsAvailable = useRequiredComponentsValidation(criticalComponents);
-
-  // Show error if critical components are missing
-  if (!allComponentsAvailable) {
-    console.error('❌ Critical components are missing. App may not function properly.');
-    return React.createElement('div', {
-      style: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#ffebee',
-        padding: 20
-      }
-    }, 'Error: Critical components are missing. Check console for details.');
-  }
 
   return (
     <ErrorBoundary componentName="RootLayout">

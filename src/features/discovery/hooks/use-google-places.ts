@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { PlaceMoodData } from '../types';
 import { getAPIKey } from '../../../shared/constants/config/api-keys';
+import { BudgetUtils } from '../../../features/filtering/services/filtering/configs/budget-config';
+import { SocialContext, TimeOfDay } from '../../../features/filtering/types';
 
 // Helper function to calculate distance between two coordinates in kilometers
 const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -20,6 +22,7 @@ interface UseGooglePlacesReturn {
   error: string | null;
   fetchPlaces: (query: string, location?: { lat: number; lng: number }, distanceRange?: number, options?: { force?: boolean; randomize?: boolean }) => Promise<void>;
   clearPlaces: () => void;
+  fetchPlaceDetails: (placeId: string) => Promise<PlaceMoodData | null>;
 }
 
 export const useGooglePlaces = (): UseGooglePlacesReturn => {
@@ -158,7 +161,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': apiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.location,places.websiteUri,places.nationalPhoneNumber,places.regularOpeningHours,places.currentOpeningHours.openNow,places.businessStatus'
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.location,places.websiteUri,places.nationalPhoneNumber,places.regularOpeningHours,places.currentOpeningHours.openNow,places.businessStatus,places.reviews,places.editorialSummary'
         },
         body: JSON.stringify(requestBody)
       });
@@ -258,7 +261,7 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
             ...p,
             _quality: Number(p?.widthPx || 0) * Number(p?.heightPx || 0)
           }))
-          .sort((a: any, b: any) => (b._quality - a._quality));
+          .sort((a, b) => (b._quality - a._quality));
 
         const maxImages = 5;
         const minImages = 3;
@@ -336,12 +339,30 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
 
         const numericPriceLevel = normalizePriceLevel(place.priceLevel);
 
-        // Determine budget label from numeric price level
-        const budget = ((): 'P' | 'PP' | 'PPP' => {
-          const lvl = typeof numericPriceLevel === 'number' ? numericPriceLevel : 2;
-          if (lvl <= 1) return 'P';
-          if (lvl <= 2) return 'PP';
-          return 'PPP';
+        // Use centralized price range extraction service
+        const extractedPriceRange = BudgetUtils.extractPriceRangeFromGooglePlaces(place);
+
+        // Determine budget label from numeric price level or extracted price range
+        const budget = ((): 'P' | 'PP' | 'PPP' | null => {
+          // If we have an extracted price range, use that to determine budget
+          if (extractedPriceRange) {
+            if (extractedPriceRange.includes('₱1-200') || extractedPriceRange.includes('₱200-400')) {
+              return 'P';
+            } else if (extractedPriceRange.includes('₱400-600') || extractedPriceRange.includes('₱600-800')) {
+              return 'PP';
+            } else if (extractedPriceRange.includes('₱800+')) {
+              return 'PPP';
+            }
+          }
+          
+          // Fallback to numeric price level logic
+          if (typeof numericPriceLevel === 'number') {
+            if (numericPriceLevel <= 1) return 'P';
+            if (numericPriceLevel === 2) return 'PP';
+            if (numericPriceLevel >= 3) return 'PPP';
+          }
+          
+          return null;
         })();
 
         // Determine category from types
@@ -354,6 +375,18 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
                     place.types?.includes('park') || place.types?.includes('library') ? 'chill' :
                     'neutral';
         
+        // Extract and transform reviews from Google Places API
+        const reviews = place.reviews ? place.reviews.slice(0, 5).map((review: any) => ({
+          text: review.text?.text || review.text || '',
+          rating: review.rating || 0,
+          time: typeof review.time === 'number' ? review.time : new Date(review.time || Date.now()).getTime(),
+          author: review.authorAttribution?.displayName || 'Anonymous',
+          relativeTimeDescription: review.relativePublishTimeDescription || ''
+        })) : [];
+
+        // Get editorial summary if available
+        const editorialSummary = place.editorialSummary?.text || '';
+        
         return {
           id: place.id,
           name: placeName,
@@ -362,31 +395,32 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
           vicinity: place.formattedAddress || 'Unknown Location',
           images: finalPhotoUrls, // Keep for backward compatibility
           photos: photos, // New structured photos object
-          budget: budget as 'P' | 'PP' | 'PPP',
-          price_level: (numericPriceLevel ?? 2),
+          budget: budget as 'P' | 'PP' | 'PPP' | null, // Allow null for unknown budget
+          ...(extractedPriceRange && { priceRange: extractedPriceRange }),
+          ...(numericPriceLevel !== undefined && { price_level: numericPriceLevel }),
           tags: place.types || [],
-          description: `${place.displayName?.text || 'This place'} is a great place to visit.`,
-          editorial_summary: `${place.displayName?.text || 'This place'} is a great place to visit.`,
+          description: editorialSummary || `${place.displayName?.text || 'This place'} is a great place to visit.`,
+          editorial_summary: editorialSummary,
           openHours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || 'Hours not available',
           category: category as 'food' | 'activity' | 'something-new',
           mood: mood as 'chill' | 'hype' | 'neutral',
           final_mood: mood as 'chill' | 'hype' | 'neutral',
-          socialContext: ['solo', 'with-bae', 'barkada'] as const,
-          timeOfDay: ['morning', 'afternoon', 'night'] as const,
+          socialContext: ['solo', 'with-bae', 'barkada'] as SocialContext[],
+          timeOfDay: ['morning', 'afternoon', 'night'] as TimeOfDay[],
           coordinates: place.location ? {
             lat: place.location.latitude,
             lng: place.location.longitude
           } : { lat: 14.5176, lng: 121.0509 }, // Default to BGC
           rating: place.rating || 0,
           reviewCount: place.userRatingCount || 0,
-          reviews: [],
+          reviews: reviews,
           website: place.websiteUri || '',
           phone: place.nationalPhoneNumber || '',
           contactActions: {
             canCall: !!place.nationalPhoneNumber,
             canVisitWebsite: !!place.websiteUri,
-            callUrl: place.nationalPhoneNumber ? `tel:${place.nationalPhoneNumber}` : undefined,
-            websiteUrl: place.websiteUri || undefined
+            ...(place.nationalPhoneNumber && { callUrl: `tel:${place.nationalPhoneNumber}` }),
+            ...(place.websiteUri && { websiteUrl: place.websiteUri })
           },
           business_status: place.businessStatus,
           open_now: typeof place.currentOpeningHours?.openNow === 'boolean'
@@ -516,11 +550,229 @@ export const useGooglePlaces = (): UseGooglePlacesReturn => {
     shuffleCounterRef.current = 0;
   }, []);
 
+  /**
+   * Fetch detailed place information including reviews
+   */
+  const fetchPlaceDetails = useCallback(async (placeId: string): Promise<PlaceMoodData | null> => {
+    try {
+      let apiKey: string;
+      try {
+        apiKey = getAPIKey.places();
+        if (!apiKey) {
+          console.log('❌ Google Places API key not configured, cannot fetch place details');
+          return null;
+        }
+      } catch {
+        console.log('❌ Google Places API key not configured, cannot fetch place details');
+        return null;
+      }
+
+      const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,types,rating,userRatingCount,priceLevel,photos,location,websiteUri,nationalPhoneNumber,regularOpeningHours,currentOpeningHours.openNow,businessStatus,reviews,editorialSummary,reviews.authorAttribution,reviews.relativePublishTimeDescription'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Place details API error:', response.status, errorText);
+        return null;
+      }
+
+      const place = await response.json();
+      
+      if (!place) {
+        console.log('❌ No place data returned from API');
+        return null;
+      }
+
+      // Transform the detailed place data to PlaceMoodData format
+      const transformedPlace = (() => {
+        // Sort photos by quality (width * height) descending and take top N
+        const rawPhotos: any[] = Array.isArray(place.photos) ? [...place.photos] : [];
+        const sortedByQuality = rawPhotos
+          .map((p: any) => ({
+            ...p,
+            _quality: Number(p?.widthPx || 0) * Number(p?.heightPx || 0)
+          }))
+          .sort((a, b) => (b._quality - a._quality));
+
+        const maxImages = 5;
+        const minImages = 3;
+        const topPhotos = sortedByQuality.slice(0, maxImages);
+
+        const photoUrls = topPhotos.map((photo: any) => {
+          if (photo?.name) {
+            const resourceName = photo.name;
+            return `https://places.googleapis.com/v1/${resourceName}/media?maxWidthPx=1000&maxHeightPx=750&key=${apiKey ?? ''}`;
+          }
+          return null as unknown as string;
+        }).filter((u: string | null) => typeof u === 'string' && !!u) as string[];
+        
+        let finalPhotoUrls: string[] = [...photoUrls];
+        
+        if (finalPhotoUrls.length === 0) {
+          const fallbackImages: string[] = [
+            `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1000&h=750&fit=crop&auto=format&q=85`,
+            `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1000&h=750&fit=crop&auto=format&q=85`,
+            `https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=1000&h=750&fit=crop&auto=format&q=85`
+          ];
+          finalPhotoUrls = fallbackImages;
+        }
+        
+        while (finalPhotoUrls.length < minImages && finalPhotoUrls.length > 0) {
+          const originalLength = finalPhotoUrls.length;
+          for (let i = 0; i < originalLength && finalPhotoUrls.length < minImages; i++) {
+            const next = finalPhotoUrls[i];
+            if (typeof next === 'string') {
+              finalPhotoUrls.push(next);
+            }
+          }
+        }
+        
+        if (finalPhotoUrls.length > maxImages) {
+          finalPhotoUrls = finalPhotoUrls.slice(0, maxImages);
+        }
+        
+        const photos = {
+          thumbnail: finalPhotoUrls.map((url: string) => url.replace('maxWidthPx=1000&maxHeightPx=750', 'maxWidthPx=200&maxHeightPx=150')).filter(Boolean) as string[],
+          medium: finalPhotoUrls,
+          large: finalPhotoUrls.map((url: string) => url.replace('maxWidthPx=1000&maxHeightPx=750', 'maxWidthPx=1400&maxHeightPx=1050')).filter(Boolean) as string[],
+          count: finalPhotoUrls.length
+        };
+
+        // Normalize Google Places priceLevel
+        const normalizePriceLevel = (pl: unknown): number | undefined => {
+          if (pl == null) return undefined;
+          if (typeof pl === 'number') return pl;
+          if (typeof pl === 'string') {
+            const s = pl.toUpperCase();
+            if (s.includes('VERY_EXPENSIVE')) return 4;
+            if (s.includes('EXPENSIVE')) return 3;
+            if (s.includes('MODERATE')) return 2;
+            if (s.includes('INEXPENSIVE')) return 1;
+            if (s.includes('FREE')) return 0;
+            return undefined;
+          }
+          return undefined;
+        };
+
+        const numericPriceLevel = normalizePriceLevel(place.priceLevel);
+
+        // Use centralized price range extraction service
+        const extractedPriceRange = BudgetUtils.extractPriceRangeFromGooglePlaces(place);
+
+        // Determine budget label
+        const budget = ((): 'P' | 'PP' | 'PPP' | null => {
+          if (extractedPriceRange) {
+            if (extractedPriceRange.includes('₱1-200') || extractedPriceRange.includes('₱200-400')) {
+              return 'P';
+            } else if (extractedPriceRange.includes('₱400-600') || extractedPriceRange.includes('₱600-800')) {
+              return 'PP';
+            } else if (extractedPriceRange.includes('₱800+')) {
+              return 'PPP';
+            }
+          }
+          
+          if (typeof numericPriceLevel === 'number') {
+            if (numericPriceLevel <= 1) return 'P';
+            if (numericPriceLevel === 2) return 'PP';
+            if (numericPriceLevel >= 3) return 'PPP';
+          }
+          
+          return null;
+        })();
+
+        // Determine category from types
+        const category = place.types?.includes('restaurant') ? 'food' :
+                        place.types?.includes('park') || place.types?.includes('museum') ? 'activity' :
+                        'something-new';
+
+        // Determine mood based on place type
+        const mood = place.types?.includes('bar') || place.types?.includes('nightclub') ? 'hype' :
+                    place.types?.includes('park') || place.types?.includes('library') ? 'chill' :
+                    'neutral';
+        
+        // Extract and transform reviews
+        const reviews = place.reviews ? place.reviews.slice(0, 10).map((review: any) => ({
+          text: review.text?.text || review.text || '',
+          rating: review.rating || 0,
+          time: typeof review.time === 'number' ? review.time : new Date(review.time || Date.now()).getTime(),
+          author: review.authorAttribution?.displayName || 'Anonymous',
+          relativeTimeDescription: review.relativePublishTimeDescription || ''
+        })) : [];
+
+        // Get editorial summary if available
+        const editorialSummary = place.editorialSummary?.text || '';
+        
+        return {
+          id: place.id,
+          name: place.displayName?.text || place.displayName || 'Unknown Place',
+          location: place.formattedAddress || 'Unknown Location',
+          formatted_address: place.formattedAddress || 'Unknown Location',
+          vicinity: place.formattedAddress || 'Unknown Location',
+          images: finalPhotoUrls,
+          photos: photos,
+          budget: budget as 'P' | 'PP' | 'PPP' | null,
+          ...(extractedPriceRange && { priceRange: extractedPriceRange }),
+          ...(numericPriceLevel !== undefined && { price_level: numericPriceLevel }),
+          tags: place.types || [],
+          description: editorialSummary || `${place.displayName?.text || 'This place'} is a great place to visit.`,
+          editorial_summary: editorialSummary,
+          openHours: place.regularOpeningHours?.weekdayDescriptions?.join(', ') || 'Hours not available',
+          category: category as 'food' | 'activity' | 'something-new',
+          mood: mood as 'chill' | 'hype' | 'neutral',
+          final_mood: mood as 'chill' | 'hype' | 'neutral',
+          socialContext: ['solo', 'with-bae', 'barkada'] as SocialContext[],
+          timeOfDay: ['morning', 'afternoon', 'night'] as TimeOfDay[],
+          coordinates: place.location ? {
+            lat: place.location.latitude,
+            lng: place.location.longitude
+          } : { lat: 14.5176, lng: 121.0509 },
+          rating: place.rating || 0,
+          reviewCount: place.userRatingCount || 0,
+          reviews: reviews,
+          website: place.websiteUri || '',
+          phone: place.nationalPhoneNumber || '',
+          contactActions: {
+            canCall: !!place.nationalPhoneNumber,
+            canVisitWebsite: !!place.websiteUri,
+            ...(place.nationalPhoneNumber && { callUrl: `tel:${place.nationalPhoneNumber}` }),
+            ...(place.websiteUri && { websiteUrl: place.websiteUri })
+          },
+          business_status: place.businessStatus,
+          open_now: typeof place.currentOpeningHours?.openNow === 'boolean'
+            ? Boolean(place.currentOpeningHours.openNow)
+            : undefined
+        };
+      })();
+
+      console.log('🔍 Fetched detailed place information:', {
+        placeId,
+        name: transformedPlace.name,
+        reviewCount: transformedPlace.reviews.length,
+        hasEditorialSummary: !!transformedPlace.editorial_summary
+      });
+
+      return transformedPlace;
+      
+    } catch (error) {
+      console.error('❌ Error fetching place details:', error);
+      return null;
+    }
+  }, []);
+
   return {
     places,
     isLoading,
     error,
     fetchPlaces,
-    clearPlaces
+    clearPlaces,
+    fetchPlaceDetails
   };
 };

@@ -610,7 +610,33 @@ async function performFiltering(
       name: place.displayName?.text || place.name || 'Unknown Place',
       location: place.formattedAddress || place.location?.address || 'Unknown Location',
       images: place.photos ? place.photos.map((photo: any) => photo.name) : [],
-      budget: place.priceLevel ? (place.priceLevel === 1 ? 'P' : place.priceLevel === 2 ? 'PP' : 'PPP') : 'PP',
+      budget: place.priceLevel ? (place.priceLevel === 1 ? 'P' : place.priceLevel === 2 ? 'PP' : 'PPP') : null,
+      priceRange: (() => {
+          // Try to extract price range from place data
+          const typePriceMap = {
+              'convenience_store': '₱1-200',
+              'cafe': '₱200-400',
+              'restaurant': '₱400-800',
+              'fine_dining': '₱800+',
+              'park': '₱1-200',
+              'museum': '₱200-400',
+              'spa': '₱800+',
+              'bar': '₱400-600',
+              'night_club': '₱600-800',
+              'hotel': '₱800+',
+              'casino': '₱800+'
+          };
+          
+          if (place.types && Array.isArray(place.types)) {
+              for (const type of place.types) {
+                  if (typePriceMap[type]) {
+                      return typePriceMap[type];
+                  }
+              }
+          }
+          
+          return null;
+      })(),
       tags: place.types || [],
       description: place.description || 'A great place to visit',
       category: filters.category || 'food',

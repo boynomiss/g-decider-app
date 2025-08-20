@@ -53,7 +53,7 @@ import { getAPIKey } from '../../../../shared/constants/config/api-keys';
 import { getCategoryFilter } from './configs/category-config';
 import { getMoodCategory } from './configs/mood-config';
 import { getSocialContext } from './configs/social-config';
-import { getBudgetCategory } from './configs/budget-config';
+import { getBudgetCategory, BUDGET_PRICE_MAPPING } from './configs/budget-config';
 import { getTimeCategory } from './configs/time-config';
 
 type TimeRanges = Record<TimeOfDay, { startHour: number; endHour: number }>;
@@ -126,6 +126,17 @@ export class UnifiedFilterService {
       keyPrefix: key.substring(0, 10) + '...',
       source: apiKey ? 'parameter' : 'centralized config'
     });
+    
+    // If budget filtering is needed, prefer legacy API for better price filtering support
+    if (minprice !== undefined || maxprice !== undefined) {
+      console.log('💰 Budget filtering detected, using legacy API for better price filtering support');
+      try {
+        return await this.textSearchLegacyAPI(query, lat, lng, radius, key, minprice, maxprice);
+      } catch (error) {
+        console.warn('⚠️ Legacy API failed, falling back to new API:', error);
+        return await this.textSearchNewAPI(query, lat, lng, radius, key, minprice, maxprice);
+      }
+    }
     
     // Try new Google Places API first, fallback to legacy if it fails
     try {
@@ -232,7 +243,8 @@ export class UnifiedFilterService {
       },
       rating: place.rating || 0,
       user_ratings_total: place.userRatingCount || 0,
-      price_level: place.priceLevel || 0,
+      // Don't default to 0 - preserve undefined/null for proper filtering
+      price_level: place.priceLevel !== undefined ? place.priceLevel : undefined,
       types: place.types || [],
       opening_hours: place.regularOpeningHours ? {
         open_now: true, // Default to open since we don't have this info
@@ -493,14 +505,15 @@ export class UnifiedFilterService {
       }
     }
     
-    // 4. Budget terms (exact UI logic)
-    if (params.budget) {
-      const budget = getBudgetCategory(params.budget);
-      if (budget) {
-        searchTerms.push(budget.label.toLowerCase());
-        searchTerms.push(...budget.atmosphereKeywords);
-      }
-    }
+    // 4. Budget terms (exact UI logic) - REMOVED: Don't limit search by budget terms
+    // Budget filtering happens after API call, not during search
+    // if (params.budget) {
+    //   const budget = getBudgetCategory(params.budget);
+    //   if (budget) {
+    //     searchTerms.push(budget.label.toLowerCase());
+    //     searchTerms.push(...budget.atmosphereKeywords);
+    //   }
+    // }
     
     // 5. Time-based terms (exact UI logic)
     if (params.timeOfDay) {
@@ -776,9 +789,13 @@ export class UnifiedFilterService {
 
     // Get budget mapping from registry
     const budgetConfig = budget ? this.configRegistry.getConfig('budget', budget) : undefined;
-    const budgetMap = budgetConfig ? {
-      minprice: budgetConfig.googlePriceLevel - 1,
-      maxprice: budgetConfig.googlePriceLevel
+    
+    // Use the proper budget price mapping instead of narrow ranges
+    // Note: Google Places API v1 doesn't support price filtering in request body
+    // We'll filter results after receiving them based on priceLevel field
+    const budgetMap = budget ? {
+      minprice: Math.min(...(BUDGET_PRICE_MAPPING[budget] || [0, 4])),
+      maxprice: Math.max(...(BUDGET_PRICE_MAPPING[budget] || [0, 4]))
     } : undefined;
 
     // Use the new dynamic text search query builder (100% UI aligned)
@@ -806,6 +823,15 @@ export class UnifiedFilterService {
       } else {
         // Search API
         const places = await this.textSearch(textQuery, lat, lng, radius, apiKey, budgetMap?.minprice, budgetMap?.maxprice);
+
+        // Debug: Log price levels of returned places
+        console.log('🔍 [UnifiedFilterService] Places returned from API:', places.length);
+        places.forEach((place, index) => {
+          console.log(`🔍 [UnifiedFilterService] Place ${index + 1}: ${place.name}`);
+          console.log(`🔍 [UnifiedFilterService] - Original priceLevel: ${place.priceLevel}`);
+          console.log(`🔍 [UnifiedFilterService] - Converted price_level: ${place.price_level}`);
+          console.log(`🔍 [UnifiedFilterService] - Budget filter: ${budget}, Budget map:`, budgetMap);
+        });
 
         // Process results
         for (const place of places) {
@@ -931,7 +957,21 @@ export class UnifiedFilterService {
 
     // Apply progressive filtering
     let results = Array.from(resultsMap.values());
+    
+    // Debug: Log price levels before budget filtering
+    console.log('🔍 [UnifiedFilterService] Before budget filtering - Total places:', results.length);
+    results.slice(0, 5).forEach((place, index) => {
+      console.log(`🔍 [UnifiedFilterService] Place ${index + 1}: ${place.name}, price_level: ${place.price_level}`);
+    });
+    
     results = await this.monitoredFilter('budget', () => this.applyBudgetFilter(results, budget));
+    
+    // Debug: Log price levels after budget filtering
+    console.log('🔍 [UnifiedFilterService] After budget filtering - Total places:', results.length);
+    results.slice(0, 5).forEach((place, index) => {
+      console.log(`🔍 [UnifiedFilterService] Place ${index + 1}: ${place.name}, price_level: ${place.price_level}`);
+    });
+    
     results = await this.monitoredFilter('distance', () => this.applyDistanceFilter(results, lat, lng, maxRadius));
     
     if (timeOfDay && timeOfDay !== 'any') {
@@ -963,14 +1003,50 @@ export class UnifiedFilterService {
    * Apply budget filter (now using registry and shared utilities)
    */
   private applyBudgetFilter(places: PlaceResult[], budget?: BudgetOption): PlaceResult[] {
-    if (!budget) return places;
+    console.log('🔍 [applyBudgetFilter] Starting budget filter for budget:', budget);
+    console.log('🔍 [applyBudgetFilter] Total places before filtering:', places.length);
     
-    const budgetConfig = this.configRegistry.getConfig('budget', budget);
-    if (!budgetConfig) return places;
+    if (!budget) {
+      console.log('🔍 [applyBudgetFilter] No budget specified, returning all places');
+      return places;
+    }
     
-    return places.filter(place => 
-      FilterMatching.match('priceLevel', place.raw, [budgetConfig.googlePriceLevel])
-    );
+    const allowedPriceLevels = BUDGET_PRICE_MAPPING[budget as keyof typeof BUDGET_PRICE_MAPPING];
+    console.log('🔍 [applyBudgetFilter] Allowed price levels for budget', budget, ':', allowedPriceLevels);
+    
+    if (!allowedPriceLevels) {
+      console.log('🔍 [applyBudgetFilter] No allowed price levels found for budget:', budget);
+      return places;
+    }
+    
+    // Log price level distribution before filtering
+    const priceLevelCounts: Record<string, number> = {};
+    places.forEach(place => {
+      const level = place.price_level !== undefined ? place.price_level.toString() : 'undefined';
+      priceLevelCounts[level] = (priceLevelCounts[level] || 0) + 1;
+    });
+    console.log('🔍 [applyBudgetFilter] Price level distribution before filtering:', priceLevelCounts);
+    
+    const filteredPlaces = places.filter(place => {
+      // Use the place object directly, not place.raw, since price_level is on the place object
+      const matches = FilterMatching.match('priceLevel', place, allowedPriceLevels);
+      if (!matches) {
+        console.log(`🔍 [applyBudgetFilter] Place ${place.name} (price_level: ${place.price_level}) filtered out`);
+      }
+      return matches;
+    });
+    
+    console.log('🔍 [applyBudgetFilter] Total places after filtering:', filteredPlaces.length);
+    
+    // Log price level distribution after filtering
+    const filteredPriceLevelCounts: Record<string, number> = {};
+    filteredPlaces.forEach(place => {
+      const level = place.price_level !== undefined ? place.price_level.toString() : 'undefined';
+      filteredPriceLevelCounts[level] = (filteredPriceLevelCounts[level] || 0) + 1;
+    });
+    console.log('🔍 [applyBudgetFilter] Price level distribution after filtering:', filteredPriceLevelCounts);
+    
+    return filteredPlaces;
   }
 
   /**

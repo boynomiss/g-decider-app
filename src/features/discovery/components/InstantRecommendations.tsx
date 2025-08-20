@@ -152,7 +152,33 @@ export default function InstantRecommendations({
         name: place.name,
         location: place.address ?? 'Unknown Location',
         images: [], // Google API places don't have images in this format
-        budget: place.raw?.price_level ? (['P', 'PP', 'PPP'][place.raw.price_level - 1] as 'P' | 'PP' | 'PPP') : 'P',
+        budget: place.raw?.price_level ? (['P', 'PP', 'PPP'][place.raw.price_level - 1] as 'P' | 'PP' | 'PPP') : null,
+        priceRange: (() => {
+          // Try to extract price range from place data
+          const typePriceMap: Record<string, string> = {
+            'convenience_store': '₱1-200',
+            'cafe': '₱200-400',
+            'restaurant': '₱400-800',
+            'fine_dining': '₱800+',
+            'park': '₱1-200',
+            'museum': '₱200-400',
+            'spa': '₱800+',
+            'bar': '₱400-600',
+            'night_club': '₱600-800',
+            'hotel': '₱800+',
+            'casino': '₱800+'
+          };
+          
+          if (place.tags && Array.isArray(place.tags)) {
+            for (const tag of place.tags) {
+              if (typePriceMap[tag]) {
+                return typePriceMap[tag];
+              }
+            }
+          }
+          
+          return null;
+        })(),
         tags: place.tags || [],
         description: place.descriptor || `${place.name} is a great place to visit.`,
         openHours: place.opening_hours?.weekday_text?.join(', ') || 'Hours not available',

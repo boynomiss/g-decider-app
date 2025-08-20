@@ -12,7 +12,7 @@ export type LookingForOption = 'food' | 'activity' | 'something-new';
 export type MoodOption = 'chill' | 'neutral' | 'hype';
 export type SocialContext = 'solo' | 'with-bae' | 'barkada';
 export type TimeOfDay = 'morning' | 'afternoon' | 'night' | 'any';
-export type BudgetOption = 'P' | 'PP' | 'PPP';
+export type BudgetOption = 'P' | 'PP' | 'PPP' | null;
 export type LegacyBudgetOption = '0-2' | '2-3' | '2-4';
 export type LoadingState = 'initial' | 'searching' | 'expanding-distance' | 'limit-reach' | 'complete' | 'error';
 

@@ -3,15 +3,25 @@
 // This file contains all budget-related configurations used across the application
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isPlaceInBudget = exports.budgetToPriceLevel = exports.priceLevelToBudget = exports.getBudgetContext = exports.getBudgetPriceMapping = exports.getBudgetMappings = exports.getAllBudgetCategories = exports.validateBudget = exports.getPreferredPlaceTypes = exports.getBudgetDisplayText = exports.getBudgetLabel = exports.filterByBudget = exports.getBudgetCategory = exports.budgetOptions = exports.budgetCategories = exports.BudgetUtils = exports.BUDGET_PRICE_MAPPING = exports.BUDGET_CATEGORIES = void 0;
-// Single consolidated budget configuration
+// Enhanced price range mapping based on Google Maps style
+exports.GOOGLE_MAPS_PRICE_RANGES = {
+    '₱1-200': { min: 0, max: 200, level: 'P', label: 'Very Budget-Friendly', display: '₱' },
+    '₱200-400': { min: 200, max: 400, level: 'P', label: 'Budget-Friendly', display: '₱' },
+    '₱400-600': { min: 400, max: 600, level: 'PP', label: 'Moderate', display: '₱₱' },
+    '₱600-800': { min: 600, max: 800, level: 'PP', label: 'Moderate-Plus', display: '₱₱' },
+    '₱800+': { min: 800, max: Infinity, level: 'PPP', label: 'Premium', display: '₱₱₱' }
+};
+
+// Enhanced budget categories with price ranges
 exports.BUDGET_CATEGORIES = [
     {
         id: 'P',
         display: '₱',
         label: 'Budget-Friendly',
-        priceRange: { min: 0, max: 500 },
+        priceRange: { min: 0, max: 400 },
+        priceRanges: ['₱1-200', '₱200-400'],
         googlePriceLevel: 1,
-        description: 'Affordable dining and activities',
+        description: 'Affordable dining and activities under ₱400',
         preferredPlaceTypes: ['cafe', 'bakery', 'food', 'meal_takeaway', 'convenience_store', 'supermarket'],
         atmosphereKeywords: ['casual', 'simple', 'basic', 'affordable', 'no-frills']
     },
@@ -19,9 +29,10 @@ exports.BUDGET_CATEGORIES = [
         id: 'PP',
         display: '₱₱',
         label: 'Moderate',
-        priceRange: { min: 500, max: 1500 },
+        priceRange: { min: 400, max: 800 },
+        priceRanges: ['₱400-600', '₱600-800'],
         googlePriceLevel: 2,
-        description: 'Mid-range dining and experiences',
+        description: 'Mid-range dining and experiences ₱400-800',
         preferredPlaceTypes: ['restaurant', 'cafe', 'bar', 'movie_theater', 'museum', 'art_gallery'],
         atmosphereKeywords: ['comfortable', 'pleasant', 'decent', 'moderate', 'balanced']
     },
@@ -29,18 +40,19 @@ exports.BUDGET_CATEGORIES = [
         id: 'PPP',
         display: '₱₱₱',
         label: 'Premium',
-        priceRange: { min: 1500, max: 5000 },
+        priceRange: { min: 800, max: 5000 },
+        priceRanges: ['₱800+'],
         googlePriceLevel: 3,
-        description: 'High-end dining and luxury experiences',
+        description: 'High-end dining and luxury experiences ₱800+',
         preferredPlaceTypes: ['restaurant', 'bar', 'night_club', 'spa', 'casino', 'hotel'],
         atmosphereKeywords: ['luxurious', 'elegant', 'sophisticated', 'premium', 'exclusive']
     }
 ];
 // Budget to Google Places price_level mapping for backend filtering
 exports.BUDGET_PRICE_MAPPING = {
-    'P': [0, 1, 2], // Budget-Friendly: 0-2
-    'PP': [3], // Moderate: 3  
-    'PPP': [4] // Premium: 4
+    'P': [0, 1],        // Budget-Friendly: 0-1
+    'PP': [2],          // Moderate: 2  
+    'PPP': [3, 4]       // Premium: 3-4
 };
 // Utility functions for budget calculations
 class BudgetUtils {
@@ -149,7 +161,7 @@ class BudgetUtils {
      */
     static priceLevelToBudget(priceLevel) {
         if (priceLevel === null || priceLevel === undefined)
-            return 'PP'; // Default to moderate
+            return null; // No default - return null for unknown
         if (priceLevel <= 2)
             return 'P'; // Budget-friendly
         if (priceLevel === 3)
@@ -180,6 +192,113 @@ class BudgetUtils {
             return false;
         }
         return allowedPriceLevels.includes(placePriceLevel);
+    }
+    
+    /**
+     * Get price range from Google Maps style price string
+     */
+    static getPriceRangeFromString(priceString) {
+        // Parse strings like "₱200-400", "200-400 pesos", "₱800+"
+        const patterns = [
+            /₱?(\d+)-(\d+)/,           // ₱200-400 or 200-400
+            /₱?(\d+)\+/,               // ₱800+ or 800+
+            /(\d+)-(\d+)\s*pesos?/i,   // 200-400 pesos
+            /(\d+)\+\s*pesos?/i        // 800+ pesos
+        ];
+        
+        for (const pattern of patterns) {
+            const match = priceString.match(pattern);
+            if (match && match[1]) {
+                if (match[2]) {
+                    // Range format (e.g., 200-400)
+                    return { min: parseInt(match[1]), max: parseInt(match[2]) };
+                } else {
+                    // Plus format (e.g., 800+)
+                    return { min: parseInt(match[1]), max: Infinity };
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get budget category from price range
+     */
+    static getBudgetFromPriceRange(minPrice, maxPrice) {
+        if (maxPrice <= 400) return 'P';
+        if (maxPrice <= 800) return 'PP';
+        return 'PPP';
+    }
+    
+    /**
+     * Get Google Maps style price range from budget category
+     */
+    static getPriceRangesForBudget(budget) {
+        const category = this.getBudgetCategory(budget);
+        return category ? category.priceRanges : [];
+    }
+    
+    /**
+     * Get enhanced price display for a place
+     */
+    static getEnhancedPriceDisplay(place) {
+        // First try to get from place.priceRange if available
+        if (place.priceRange && typeof place.priceRange === 'string') {
+            return place.priceRange;
+        }
+        
+        // Try to infer from place types and other data
+        const inferredRange = this.inferPriceRangeFromPlaceData(place);
+        if (inferredRange) {
+            return inferredRange;
+        }
+        
+        // Fallback to traditional budget display
+        const budget = place.budget;
+        if (budget === 'P') return '₱ (Under ₱400)';
+        if (budget === 'PP') return '₱₱ (₱400-800)';
+        if (budget === 'PPP') return '₱₱₱ (₱800+)';
+        
+        return 'Price N/A';
+    }
+    
+    /**
+     * Infer price range from place data
+     */
+    static inferPriceRangeFromPlaceData(place) {
+        // Use place types to infer typical pricing
+        const typePriceMap = {
+            'convenience_store': '₱1-200',
+            'cafe': '₱200-400',
+            'restaurant': '₱400-800',
+            'fine_dining': '₱800+',
+            'park': '₱1-200',
+            'museum': '₱200-400',
+            'spa': '₱800+',
+            'bar': '₱400-600',
+            'night_club': '₱600-800',
+            'hotel': '₱800+',
+            'casino': '₱800+'
+        };
+        
+        if (place.types && Array.isArray(place.types)) {
+            for (const type of place.types) {
+                if (typePriceMap[type]) {
+                    return typePriceMap[type];
+                }
+            }
+        }
+        
+        // Use rating as a rough indicator (higher ratings often correlate with higher prices)
+        if (place.rating) {
+            if (place.rating >= 4.5) return '₱600-800';
+            if (place.rating >= 4.0) return '₱400-600';
+            if (place.rating >= 3.5) return '₱200-400';
+            return '₱1-200';
+        }
+        
+        return null;
     }
 }
 exports.BudgetUtils = BudgetUtils;

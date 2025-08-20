@@ -124,7 +124,7 @@ export default function SavedPlacesScreen() {
               address: place.location,
               category: place.category || 'food',
               rating: place.rating || 0,
-              user_ratings_total: place.reviews || 0,
+              user_ratings_total: typeof place.reviews === 'number' ? place.reviews : 0,
               reviews: [],
               mood_score: place.mood === 'hype' ? 80 : place.mood === 'chill' ? 30 : 50,
               final_mood: place.mood === 'neutral' ? 'neutral' : (place.mood as 'chill' | 'hype') || 'neutral',

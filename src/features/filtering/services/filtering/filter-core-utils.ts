@@ -14,6 +14,7 @@ import {
   LegacyBudgetOption,
   SearchParams
 } from '../../types/filter-interfaces';
+import { BUDGET_PRICE_MAPPING } from './configs/budget-config';
 
 // =================
 // INTERFACES
@@ -370,12 +371,10 @@ export class FilterMatching {
   static isBudgetMatch(place: any, budget: string): boolean {
     if (!place.price_level) return true; // Include places without price levels
     
-    switch (budget) {
-      case 'P': return place.price_level <= 1;
-      case 'PP': return place.price_level >= 1 && place.price_level <= 2;
-      case 'PPP': return place.price_level >= 2;
-      default: return true;
-    }
+    const allowedPriceLevels = BUDGET_PRICE_MAPPING[budget as keyof typeof BUDGET_PRICE_MAPPING];
+    if (!allowedPriceLevels) return true;
+    
+    return allowedPriceLevels.includes(place.price_level);
   }
 
   static isSocialContextMatch(place: any, socialContext: string): boolean {

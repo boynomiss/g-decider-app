@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Star, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Star, AlertCircle } from 'lucide-react-native';
 
 interface AIDescriptionCardProps {
   description: string | null;
@@ -19,11 +19,7 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
   onGenerate,
   variant = 'card',
 }) => {
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState<boolean>(false);
-
-  const toggleDescription = () => {
-    setIsDescriptionExpanded(!isDescriptionExpanded);
-  };
+  // Removed show more/show less functionality - always show full description
 
   if (variant === 'inline') {
     if (isLoading) {
@@ -54,20 +50,9 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
       <View style={styles.inlineContainer} testID="ai-description-inline">
         <Text
           style={styles.inlineDescription}
-          numberOfLines={isDescriptionExpanded ? undefined : 3}
         >
           {description}
         </Text>
-        {description.length > 150 && (
-          <TouchableOpacity onPress={toggleDescription} style={styles.inlineExpandButton} activeOpacity={0.7}>
-            <Text style={styles.inlineExpandText}>{isDescriptionExpanded ? 'Show Less' : 'Read More'}</Text>
-            {isDescriptionExpanded ? (
-              <ChevronUp size={16} color="#8B5FBF" />
-            ) : (
-              <ChevronDown size={16} color="#8B5FBF" />
-            )}
-          </TouchableOpacity>
-        )}
       </View>
     );
   }
@@ -126,26 +111,9 @@ export const AIDescriptionCard: React.FC<AIDescriptionCardProps> = ({
       <View style={styles.descriptionContainer}>
         <Text 
           style={styles.description} 
-          numberOfLines={isDescriptionExpanded ? undefined : 3}
         >
           {description}
         </Text>
-        {description.length > 150 && (
-          <TouchableOpacity 
-            style={styles.expandButton} 
-            onPress={toggleDescription}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.expandButtonText}>
-              {isDescriptionExpanded ? 'Show Less' : 'Read More'}
-            </Text>
-            {isDescriptionExpanded ? (
-              <ChevronUp size={16} color="#8B5FBF" />
-            ) : (
-              <ChevronDown size={16} color="#8B5FBF" />
-            )}
-          </TouchableOpacity>
-        )}
         <TouchableOpacity style={styles.regenerateButton} onPress={onRetry}>
           <Text style={styles.regenerateButtonText}>Regenerate</Text>
         </TouchableOpacity>
@@ -232,19 +200,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  expandButtonText: {
-    fontSize: 12,
-    color: '#8B5FBF',
-    fontWeight: '500',
-    marginRight: 4,
-  },
+
   regenerateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,18 +224,7 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     textAlign: 'center',
   },
-  inlineExpandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  inlineExpandText: {
-    fontSize: 12,
-    color: '#8B5FBF',
-    fontWeight: '500',
-    marginRight: 4,
-  },
+
   inlineGenerate: {
     alignSelf: 'flex-start',
     paddingVertical: 6,

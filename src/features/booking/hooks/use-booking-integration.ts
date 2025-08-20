@@ -16,6 +16,7 @@ export const useBookingIntegration = (): UseBookingIntegrationReturn => {
     try {
       let restaurantData;
       if ('id' in input) {
+        // This is a Suggestion type
         restaurantData = {
           name: input.name,
           location: input.location,
@@ -24,12 +25,13 @@ export const useBookingIntegration = (): UseBookingIntegrationReturn => {
           category: input.category
         };
       } else {
+        // This is a PlaceData type
         restaurantData = {
-          name: input.name,
-          location: input.address || input.vicinity || input.formatted_address || 'Unknown location',
-          budget: input.price_level === 1 ? 'P' : input.price_level === 2 ? 'PP' : 'PPP',
-          tags: input.types || [],
-          category: input.category
+          name: input.name || 'Unknown Place',
+          location: (input as any).address || (input as any).vicinity || (input as any).formatted_address || 'Unknown location',
+          budget: (input as any).price_level === 1 ? 'P' : (input as any).price_level === 2 ? 'PP' : 'PPP',
+          tags: (input as any).types || [],
+          category: input.category || 'food'
         };
       }
 

@@ -19,7 +19,9 @@ export const mockSuggestions: Suggestion[] = [
     category: 'food',
     mood: 'chill',
     socialContext: ['with-bae', 'solo'],
-    timeOfDay: ['morning', 'afternoon', 'night']
+    timeOfDay: ['morning', 'afternoon', 'night'],
+    rating: 4.5,
+    reviews: 127
   },
   {
     id: '5',
@@ -37,7 +39,9 @@ export const mockSuggestions: Suggestion[] = [
     category: 'food',
     mood: 'chill',
     socialContext: ['solo', 'with-bae'],
-    timeOfDay: ['morning', 'afternoon']
+    timeOfDay: ['morning', 'afternoon'],
+    rating: 4.3,
+    reviews: 89
   },
   {
     id: '6',
@@ -54,7 +58,9 @@ export const mockSuggestions: Suggestion[] = [
     category: 'food',
     mood: 'chill',
     socialContext: ['solo', 'barkada'],
-    timeOfDay: ['afternoon', 'night']
+    timeOfDay: ['afternoon', 'night'],
+    rating: 4.1,
+    reviews: 156
   },
   // Food - Hype
   {
@@ -73,7 +79,9 @@ export const mockSuggestions: Suggestion[] = [
     category: 'food',
     mood: 'hype',
     socialContext: ['barkada', 'with-bae'],
-    timeOfDay: ['night']
+    timeOfDay: ['night'],
+    rating: 4.7,
+    reviews: 203
   },
   {
     id: '8',
@@ -91,7 +99,9 @@ export const mockSuggestions: Suggestion[] = [
     category: 'food',
     mood: 'hype',
     socialContext: ['barkada'],
-    timeOfDay: ['afternoon', 'night']
+    timeOfDay: ['afternoon', 'night'],
+    rating: 4.4,
+    reviews: 178
   },
   // Activities - Chill
   {

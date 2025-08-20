@@ -6,6 +6,7 @@ import { ResultActionBar } from '@/components/results/ResultActionBar';
 import { PlaceMoodData as PlaceData } from '../types';
 import { useAIDescription } from '../hooks/use-ai-description';
 import { AIDescriptionCard } from './AIDescriptionCard';
+import { BudgetUtils } from '@/features/filtering/services/filtering/configs/budget-config';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -58,6 +59,11 @@ export default function EnhancedPlaceCard({
       clearDescription();
     };
   }, [place, generateDescription, clearDescription]);
+
+  // Reset image index when place changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [place]);
 
   const handleImageScroll = (event: { nativeEvent: { layoutMeasurement: { width: number }; contentOffset: { x: number } } }) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width || containerWidth;
@@ -117,6 +123,17 @@ export default function EnhancedPlaceCard({
     try {
       const src = place.openHours ?? '';
       if (!src || typeof src !== 'string') return null as null | { isOpenNow: boolean; label: string };
+
+      // Check if place is open 24 hours
+      const normalizedSrc = src.toLowerCase();
+      if (normalizedSrc.includes('24 hours') || 
+          normalizedSrc.includes('24hr') || 
+          normalizedSrc.includes('24 hr') ||
+          normalizedSrc.includes('open 24') ||
+          normalizedSrc.includes('24/7') ||
+          normalizedSrc.includes('always open')) {
+        return { isOpenNow: true, label: 'Open 24 hours' };
+      }
 
       const now = new Date();
       const toMinutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
@@ -228,16 +245,9 @@ export default function EnhancedPlaceCard({
     }
   };
 
-  const getBudgetDisplay = (): 'P' | 'PP' | 'PPP' => {
-    const priceLevel = place.price_level;
-    if (typeof priceLevel === 'number') {
-      if (priceLevel <= 1) return 'P';
-      if (priceLevel <= 2) return 'PP';
-      return 'PPP';
-    }
-    const b = (place.budget ?? '') as string;
-    if (b === 'P' || b === 'PP' || b === 'PPP') return b;
-    return 'PP';
+  const getBudgetDisplay = (): string => {
+    // Use the enhanced price display system
+    return BudgetUtils.getEnhancedPriceDisplay(place);
   };
 
   const moodDisplay = getMoodDisplay();
@@ -323,6 +333,8 @@ export default function EnhancedPlaceCard({
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             style={styles.imageScrollView}
+            contentContainerStyle={{ paddingTop: 0 }}
+            contentInsetAdjustmentBehavior="never"
             onScroll={handleImageScroll}
             onMomentumScrollEnd={handleImageScroll}
             scrollEventThrottle={16}
@@ -416,7 +428,7 @@ export default function EnhancedPlaceCard({
           })()}
           <View style={styles.budgetContainer}>
             <Text style={styles.budget}>
-              {getBudgetDisplay().replace(/P/g, '₱')}
+              {getBudgetDisplay()}
             </Text>
           </View>
           <View style={styles.enhancedInfoRow}>
@@ -514,7 +526,7 @@ export default function EnhancedPlaceCard({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginVertical: 8,
+    marginBottom: 8, // Only bottom margin, no top margin
   },
   imageCardContainer: {
     backgroundColor: '#A67BCE',
@@ -540,14 +552,16 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 240,
+    aspectRatio: 1, // Make it square
+    width: '100%',
   },
   imageScrollView: {
     width: '100%',
-    height: '100%',
+    aspectRatio: 1, // Keep it square
   },
   imageWrapper: {
-    height: '100%',
+    aspectRatio: 1, // Keep it square
+    width: '100%',
   },
   placeImage: {
     width: '100%',
@@ -555,7 +569,7 @@ const styles = StyleSheet.create({
   },
   placeholderImage: {
     width: '100%',
-    height: '100%',
+    aspectRatio: 1, // Keep it square
     backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
@@ -808,7 +822,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 12,
+    marginVertical: 8, // Reduced from 12
   },
   actionButtonsRow: {
     flexDirection: 'row',

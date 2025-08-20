@@ -1,5 +1,5 @@
 // Booking Feature Exports
-export { default as BookingOptionsCard } from './components/BookingOptionsCard';
+export { BookingOptionsCard } from './components/BookingOptionsCard';
 
 // Hooks
 export { useBookingIntegration } from './hooks/use-booking-integration';

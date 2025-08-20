@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -87,7 +87,7 @@ export default function ResultsScreen() {
     }
   }, [filters.category]);
 
-  // Auto-fetch places when page loads (only if no current suggestion exists)
+  // Auto-fetch places when page loads
   useEffect(() => {
     const initializePlaces = async () => {
       console.log('🎯 initializePlaces called:', {
@@ -99,22 +99,72 @@ export default function ResultsScreen() {
         hasCurrentSuggestion: !!currentSuggestion
       });
       
-      // Only fetch from Google API if we don't have a current suggestion and no places loaded
-      if (!currentSuggestion && places.length === 0 && !isLoading && !error) {
+      // Always fetch fresh places when filters change or when no places are loaded
+      // This ensures the G! button always gives fresh results
+      if ((!currentSuggestion || places.length === 0) && !isLoading && !error) {
         console.log('🎯 Initializing places from Google API');
         const query = buildQueryFromFilters();
         const location = userLocation || { lat: 14.5176, lng: 121.0509 }; // Default to BGC
         const distanceRange = filters?.distanceRange || 10; // Default to 10km if not set
         console.log('🔍 Fetching places with query:', query, 'location:', location, 'category:', filters?.category, 'distance:', distanceRange + 'km');
         await fetchPlaces(query, location, distanceRange);
-      } else if (currentSuggestion) {
+      } else if (currentSuggestion && places.length > 0) {
         console.log('🎯 Using current suggestion from store:', currentSuggestion.name);
+      } else if (currentSuggestion && places.length === 0) {
+        console.log('🎯 Has current suggestion but no places - fetching fresh results');
+        const query = buildQueryFromFilters();
+        const location = userLocation || { lat: 14.5176, lng: 121.0509 };
+        const distanceRange = filters?.distanceRange || 10;
+        await fetchPlaces(query, location, distanceRange);
       }
       setInitialized(true);
     };
 
     initializePlaces();
   }, [places.length, isLoading, error, fetchPlaces, userLocation, filters?.category, filters?.distanceRange, buildQueryFromFilters, currentSuggestion]);
+
+  // Track previous filter values to prevent unnecessary refreshes
+  const prevFiltersRef = useRef<typeof filters | undefined>(undefined);
+  
+  // Watch for filter changes and refresh places automatically
+  useEffect(() => {
+    const handleFilterChange = async () => {
+      // Only proceed if we have filters and we're initialized
+      if (!initialized || !filters?.category) return;
+      
+      // Check if filters actually changed by comparing with previous values
+      const prevFilters = prevFiltersRef.current;
+      const hasChanged = !prevFilters || 
+        prevFilters.category !== filters.category ||
+        prevFilters.mood !== filters.mood ||
+        prevFilters.budget !== filters.budget ||
+        prevFilters.socialContext !== filters.socialContext ||
+        prevFilters.timeOfDay !== filters.timeOfDay ||
+        prevFilters.distanceRange !== filters.distanceRange;
+      
+      if (!hasChanged) return;
+      
+      console.log('🔄 Filter change detected, refreshing places for category:', filters.category);
+      
+      // Clear existing places and suggestion to force fresh results
+      clearPlaces();
+      setCurrentPlaceIndex(0);
+      resetSuggestion();
+      
+      // Fetch new places based on updated filters
+      const query = buildQueryFromFilters();
+      const location = userLocation || { lat: 14.5176, lng: 121.0509 };
+      const distanceRange = filters.distanceRange || 10;
+      
+      console.log('🔍 Refreshing places with new filters - query:', query, 'category:', filters.category, 'distance:', distanceRange + 'km');
+      await fetchPlaces(query, location, distanceRange);
+      
+      // Update the previous filters reference
+      prevFiltersRef.current = { ...filters };
+    };
+
+    handleFilterChange();
+  }, [filters?.category, filters?.mood, filters?.budget, filters?.socialContext, filters?.timeOfDay, filters?.distanceRange, initialized, clearPlaces, setCurrentPlaceIndex, resetSuggestion, buildQueryFromFilters, userLocation, fetchPlaces]);
 
   // Debug logging for places state
   useEffect(() => {
@@ -165,6 +215,8 @@ export default function ResultsScreen() {
     router.push('/home');
   };
 
+
+
   const handleSavePlace = async (place: PlaceData) => {
     try {
       await savePlace(place);
@@ -184,7 +236,11 @@ export default function ResultsScreen() {
   };
 
   const handleRefreshPlaces = async () => {
+    console.log('🔄 Force refreshing places for fresh results');
+    clearPlaces();
     setCurrentPlaceIndex(0);
+    resetSuggestion(); // Clear the current suggestion to force fresh results
+    
     const query = buildQueryFromFilters();
     const location = userLocation || { lat: 14.5176, lng: 121.0509 };
     const distanceRange = filters?.distanceRange || 10;
