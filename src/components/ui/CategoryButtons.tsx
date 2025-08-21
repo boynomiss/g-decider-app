@@ -1,16 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { useAppStore } from '../../store/store';
 import { SPACING } from '../../shared/constants/constants';
-
 import { categoryOptions } from '../../features/filtering/services/filtering/configs/category-config';
 
-export default function CategoryButtons() {
+/**
+ * CategoryButtons Component Props
+ * @interface CategoryButtonsProps
+ * @property {string} title - Title text above the category buttons
+ * @property {ViewStyle} style - Additional styles for the container
+ * @property {string} testID - Test identifier for testing
+ */
+interface CategoryButtonsProps {
+  title?: string;
+  style?: ViewStyle;
+  testID?: string;
+}
+
+/**
+ * A component that displays category selection buttons for filtering
+ * 
+ * @example
+ * ```tsx
+ * <CategoryButtons title="Looking for:" />
+ * ```
+ */
+export default function CategoryButtons({ 
+  title = "Looking for:",
+  style,
+  testID 
+}: CategoryButtonsProps) {
   const { filters: { category }, updateFilters } = useAppStore();
 
+  const handleCategoryPress = (categoryId: string) => {
+    updateFilters({ category: categoryId });
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Looking for:</Text>
+    <View style={[styles.container, style]} testID={testID}>
+      <Text style={styles.title}>{title}</Text>
       
       <View style={styles.buttonsContainer}>
         {categoryOptions.map((categoryOption) => (
@@ -20,18 +48,8 @@ export default function CategoryButtons() {
               styles.categoryButton,
               category === categoryOption.id && styles.activeButton
             ]}
-            onPress={async () => {
-              console.log('🎯 Category button pressed:', categoryOption.id);
-              
-              // Update filters
-              updateFilters({ 
-                category: categoryOption.id
-              });
-              console.log('✅ Filters updated');
-              
-              // Filter validation removed for now to fix runtime errors
-              console.log('✅ Category filter applied successfully');
-            }}
+            onPress={() => handleCategoryPress(categoryOption.id)}
+            activeOpacity={0.8}
           >
             <Text style={styles.icon}>{categoryOption.icon}</Text>
             <Text style={[
@@ -74,7 +92,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    aspectRatio: 1, // Makes buttons square (1x1)
+    aspectRatio: 1,
     minHeight: 80,
   },
   activeButton: {
