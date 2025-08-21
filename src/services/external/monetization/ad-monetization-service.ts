@@ -254,39 +254,21 @@ export class AdMonetizationService {
       {
         id: 'premium_monthly',
         name: 'Premium Monthly',
-        price: 99,
+        price: 150,
         currency: 'PHP',
         features: [
-          'Ad-free experience',
-          'Exclusive deals and early access',
-          'Advanced filtering options',
-          'Personalized recommendations',
-          'Priority customer support'
+          '10 tokens daily (reset at midnight)',
+          'Save up to 10 favorite places',
+          'Early access to new features',
+          'Partner discounts (Eatigo, Klook)',
+          'Hidden gems discovery',
+          'Exclusive deals and early access'
         ],
         benefits: [
-          'Save ₱200+ monthly on ads',
-          'Access to premium restaurant reviews',
-          'Exclusive booking perks',
-          'Hidden gem recommendations'
-        ]
-      },
-      {
-        id: 'premium_yearly',
-        name: 'Premium Yearly',
-        price: 999,
-        currency: 'PHP',
-        features: [
-          'All monthly features',
-          '2 months free',
-          'Exclusive events access',
-          'VIP restaurant partnerships',
-          'Custom meal planning'
-        ],
-        benefits: [
-          'Save ₱189 vs monthly',
-          'Exclusive member-only events',
-          'Direct restaurant partnerships',
-          'Personalized dining concierge'
+          'Discover unique places with "Something New" category',
+          'Access to exclusive partner deals and discounts',
+          'Enhanced discovery capabilities',
+          'More daily suggestions for better exploration'
         ]
       }
     ];

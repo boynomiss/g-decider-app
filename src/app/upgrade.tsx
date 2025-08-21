@@ -5,7 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,9 +17,13 @@ import {
   Star, 
   MapPin,
   Heart,
-  Users
+  Users,
+  Zap, 
+  Infinity,
+  Percent,
+  Sparkles,
+  Flag
 } from 'lucide-react-native';
-import { Zap, Infinity } from 'lucide-react-native';
 import { useAuth } from '../features/auth';
 
 
@@ -40,7 +45,7 @@ export default function UpgradeScreen() {
       if (result.success) {
         Alert.alert(
           'Welcome to Premium!',
-          'You now have unlimited tries and access to all premium features.',
+          'You now have 10 daily tokens and access to all premium features.',
           [
             {
               text: 'Start Exploring',
@@ -60,34 +65,29 @@ export default function UpgradeScreen() {
 
   const features = [
     {
-      icon: <Infinity size={24} color="#8B5FBF" />,
-      title: 'Unlimited Tries',
-      description: 'Generate as many suggestions as you want, anytime'
-    },
-    {
-      icon: <MapPin size={24} color="#8B5FBF" />,
-      title: 'Priority Locations',
-      description: 'Get access to exclusive and premium venues'
+      icon: <Flag size={24} color="#8B5FBF" />,
+      title: '10 Tokens Daily',
+      description: 'Get 10 tokens that reset every midnight for unlimited suggestions'
     },
     {
       icon: <Heart size={24} color="#8B5FBF" />,
       title: 'Save Favorites',
-      description: 'Bookmark your favorite places for easy access'
-    },
-    {
-      icon: <Users size={24} color="#8B5FBF" />,
-      title: 'Group Planning',
-      description: 'Plan activities with friends and share suggestions'
-    },
-    {
-      icon: <Star size={24} color="#8B5FBF" />,
-      title: 'Premium Support',
-      description: 'Get priority customer support and assistance'
+      description: 'Bookmark up to 10 of your favorite places for easy access'
     },
     {
       icon: <Zap size={24} color="#8B5FBF" />,
       title: 'Early Access',
       description: 'Be the first to try new features and updates'
+    },
+    {
+      icon: <Percent size={24} color="#8B5FBF" />,
+      title: 'Partner Discounts',
+      description: 'Access exclusive deals from Eatigo, Klook and other partners'
+    },
+    {
+      icon: <Sparkles size={24} color="#8B5FBF" />,
+      title: 'Hidden Gems',
+      description: 'Unlock "Something New" category for unique discoveries'
     }
   ];
 
@@ -146,11 +146,15 @@ export default function UpgradeScreen() {
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.heroIcon}>
-            <Zap size={48} color="#FFD700" />
+            <Image 
+              source={require('../../assets/images/icon.png')} 
+              style={styles.heroLogo}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.heroTitle}>Unlock Unlimited G!</Text>
+          <Text style={styles.heroTitle}>Unlock Premium G!</Text>
           <Text style={styles.heroSubtitle}>
-            Get unlimited tries and discover amazing places without limits
+            Get 10 daily tokens and discover amazing places with premium features
           </Text>
         </View>
 
@@ -175,7 +179,7 @@ export default function UpgradeScreen() {
           <View style={styles.pricingCard}>
             <Text style={styles.pricingTitle}>Premium Plan</Text>
             <View style={styles.priceContainer}>
-              <Text style={styles.price}>₱299</Text>
+              <Text style={styles.price}>₱150</Text>
               <Text style={styles.pricePeriod}>/month</Text>
             </View>
             <Text style={styles.pricingDescription}>
@@ -253,6 +257,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+  },
+  heroLogo: {
+    width: 60,
+    height: 60,
   },
   heroTitle: {
     fontSize: 28,

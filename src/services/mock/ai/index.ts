@@ -1,6 +1,31 @@
 // Mock AI Services
 // Replace real AI calls with mock data for UI development
 
+// Lorem Ipsum text generator limited to 35 words
+const generateLoremIpsum = (maxWords: number = 35): string => {
+  const loremWords = [
+    'Lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit',
+    'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'et', 'dolore',
+    'magna', 'aliqua', 'Ut', 'enim', 'ad', 'minim', 'veniam', 'quis', 'nostrud',
+    'exercitation', 'ullamco', 'laboris', 'nisi', 'ut', 'aliquip', 'ex', 'ea',
+    'commodo', 'consequat', 'Duis', 'aute', 'irure', 'dolor', 'in', 'reprehenderit',
+    'voluptate', 'velit', 'esse', 'cillum', 'dolore', 'eu', 'fugiat', 'nulla',
+    'pariatur', 'Excepteur', 'sint', 'occaecat', 'cupidatat', 'non', 'proident',
+    'sunt', 'culpa', 'qui', 'officia', 'deserunt', 'mollit', 'anim', 'id', 'est',
+    'laborum', 'Sed', 'ut', 'perspiciatis', 'unde', 'omnis', 'iste', 'natus',
+    'error', 'sit', 'voluptatem', 'accusantium', 'doloremque', 'laudantium',
+    'totam', 'rem', 'aperiam', 'eaque', 'ipsa', 'quae', 'ab', 'illo', 'inventore',
+    'veritatis', 'et', 'quasi', 'architecto', 'beatae', 'vitae', 'dicta', 'sunt',
+    'explicabo', 'Nemo', 'enim', 'ipsam', 'voluptatem', 'quia', 'voluptas', 'sit',
+    'aspernatur', 'aut', 'odit', 'aut', 'fugit', 'sed', 'quia', 'consequuntur',
+    'magni', 'dolores', 'eos', 'qui', 'ratione', 'voluptatem', 'sequi', 'nesciunt'
+  ];
+  
+  const shuffled = loremWords.sort(() => 0.5 - Math.random());
+  const selectedWords = shuffled.slice(0, maxWords);
+  return selectedWords.join(' ') + '.';
+};
+
 export const mockAIProjectAgent = {
   createProject: async (requirements: any) => ({
     projectId: 'mock_project_123',
@@ -24,7 +49,7 @@ export const mockAIProjectAgent = {
 
 export const mockDescriptionGenerator = {
   generatePlaceDescription: async (placeData: any) => ({
-    description: 'This is a mock AI-generated description for the place. It includes details about the atmosphere, cuisine, and overall experience.',
+    description: generateLoremIpsum(35),
     highlights: [
       'Cozy and intimate atmosphere',
       'Expertly crafted dishes',
@@ -36,7 +61,7 @@ export const mockDescriptionGenerator = {
   }),
   
   enhanceDescription: async (existingDescription: string, enhancements: any) => ({
-    enhancedDescription: `${existingDescription} Enhanced with mock AI improvements including better flow and more engaging language.`,
+    enhancedDescription: generateLoremIpsum(35),
     improvements: ['Better flow', 'More engaging', 'Enhanced details']
   })
 };
@@ -76,7 +101,7 @@ export const mockPhotoUrlGenerator = {
 export const mockResultsServices = {
   aiDescriptionService: {
     generateEnhancedDescription: async (placeData: any) => ({
-      description: 'Enhanced mock description with AI-generated insights and recommendations.',
+      description: generateLoremIpsum(35),
       tags: ['romantic', 'fine-dining', 'local-favorite'],
       aiScore: 0.92
     })

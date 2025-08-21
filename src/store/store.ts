@@ -131,7 +131,7 @@ const [AppContext, useAppStore] = createContextHook(() => {
       socialContext: undefined,
       distanceRange: 10
     },
-    retriesLeft: 3,
+    tokensLeft: 3,
     currentSuggestion: null,
     isLoading: false,
     showMoreFilters: false,
@@ -176,6 +176,12 @@ const [AppContext, useAppStore] = createContextHook(() => {
     if (currentHour >= 4 && currentHour < 12) return 'morning';
     if (currentHour >= 12 && currentHour < 18) return 'afternoon';
     return 'night';
+  };
+
+  // Check if it's midnight for token refresh
+  const isMidnightForTokenRefresh = (): boolean => {
+    const now = new Date();
+    return now.getHours() === 0 && now.getMinutes() === 0;
   };
 
   // Initialize time of day on mount

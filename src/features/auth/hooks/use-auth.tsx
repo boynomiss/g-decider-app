@@ -7,6 +7,8 @@ interface User {
   email: string;
   avatar?: string;
   isPremium: boolean;
+  tokens: number;
+  lastTokenRefresh: string;
   createdAt: string;
 }
 
@@ -18,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   upgradeToPremium: () => Promise<{ success: boolean; error?: string }>;
+  refreshTokensAtMidnight: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +33,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Check for existing authentication on app start
     checkAuthStatus();
   }, []);
+
+  // Check if it's a new day since last token refresh
+  const isAfterMidnight = (lastRefresh: string): boolean => {
+    if (!lastRefresh) return true;
+    
+    const now = new Date();
+    const lastRefreshDate = new Date(lastRefresh);
+    
+    // Check if it's a new day (after midnight)
+    return now.getDate() !== lastRefreshDate.getDate() || 
+           now.getMonth() !== lastRefreshDate.getMonth() || 
+           now.getFullYear() !== lastRefreshDate.getFullYear();
+  };
+
+  // Refresh tokens at midnight for all users
+  const refreshTokensAtMidnight = async (): Promise<void> => {
+    if (!user) return;
+
+    const isNewDay = isAfterMidnight(user.lastTokenRefresh);
+    
+    if (isNewDay) {
+      // New day - refresh tokens based on user type
+      const newTokens = user.isPremium ? 10 : 3;
+      
+      const updatedUser: User = {
+        ...user,
+        tokens: newTokens,
+        lastTokenRefresh: new Date().toISOString()
+      };
+      
+      setUser(updatedUser);
+      
+      // In a real app, this would update the backend
+      console.log(`🎉 Tokens refreshed! ${user.isPremium ? 'Premium' : 'Free'} user now has ${newTokens} tokens`);
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -51,6 +90,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name: 'Demo User',
         email: email,
         isPremium: false,
+        tokens: 3, // Existing users have 3 tokens
+        lastTokenRefresh: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
       setUser(mockUser);
@@ -78,11 +119,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
       // Simulate registration - in a real app, this would call your auth API
+      // When user signs up, they get 3 tokens added to their existing count
+      const existingTokens = 0; // In a real app, this would come from the user's previous state
+      const newTokens = existingTokens + 3;
+      
       const mockUser: User = {
         id: '1',
         name: name,
         email: email,
         isPremium: false,
+        tokens: newTokens,
+        lastTokenRefresh: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
       setUser(mockUser);
@@ -103,7 +150,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Simulate premium upgrade - in a real app, this would call your payment API
       const updatedUser: User = {
         ...user,
-        isPremium: true
+        isPremium: true,
+        tokens: 10, // Premium users get 10 tokens immediately
+        lastTokenRefresh: new Date().toISOString() // Reset refresh timer
       };
       setUser(updatedUser);
       
@@ -114,6 +163,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Check for midnight token refresh on every user state change
+  useEffect(() => {
+    if (user) {
+      refreshTokensAtMidnight();
+    }
+  }, [user]);
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -122,6 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     register,
     upgradeToPremium,
+    refreshTokensAtMidnight,
   };
 
   return (

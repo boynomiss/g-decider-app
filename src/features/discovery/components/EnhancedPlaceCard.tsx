@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Linking, Alert, Scroll
 import { Phone, Globe, Star, MapPin, Clock, Trash } from 'lucide-react-native';
 import { ResultActionBar } from '@/components/results/ResultActionBar';
 import { PlaceMoodData as PlaceData } from '../types';
-import { useAIDescription } from '../hooks/use-ai-description';
+import { useAIDescriptionMock as useAIDescription } from '../hooks/use-ai-description-mock';
 import { AIDescriptionCard } from './AIDescriptionCard';
 import { BudgetUtils } from '@/features/filtering/services/filtering/configs/budget-config';
 

@@ -1,28 +1,49 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { useRetries } from '../hooks/use-retries';
+import { useTokens } from '../hooks/use-tokens';
 
 export default function Footer() {
-  const { retriesLeft, getRetriesText, getUpgradeText, isAuthenticated, user } = useRetries();
+  const { tokensLeft, getTokensText, getUpgradeText, isAuthenticated, user } = useTokens();
 
   const handleUpgradePress = () => {
+    console.log('Footer: Upgrade button pressed');
+    console.log('Footer: isAuthenticated:', isAuthenticated);
+    console.log('Footer: user:', user);
+    
     if (isAuthenticated) {
+      console.log('Footer: Navigating to /upgrade');
       router.push('/upgrade');
     } else {
-      router.push('/auth');
+      console.log('Footer: Navigating to /auth');
+      try {
+        router.push('/auth');
+        console.log('Footer: Navigation to /auth successful');
+      } catch (error) {
+        console.error('Footer: Navigation to /auth failed:', error);
+      }
     }
   };
 
+  console.log('Footer: Rendering with isAuthenticated:', isAuthenticated, 'user:', user);
+
   return (
     <View style={styles.container}>
-      <Text style={[
-        styles.retriesText,
-        retriesLeft === 0 && styles.noRetriesText
-      ]}>
-        {getRetriesText(retriesLeft)}
-      </Text>
-      <TouchableOpacity onPress={handleUpgradePress}>
+      <View style={styles.tokenSection}>
+        <Text style={[
+          styles.tokensText,
+          tokensLeft === 0 && styles.noTokensText
+        ]}>
+          {getTokensText(tokensLeft)}
+        </Text>
+      </View>
+      <TouchableOpacity 
+        onPress={handleUpgradePress}
+        activeOpacity={0.6}
+        style={styles.upgradeButton}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        testID="footer-upgrade-button"
+      >
         <Text style={[
           styles.upgradeText,
           isAuthenticated && user && user.isPremium && styles.premiumText
@@ -37,27 +58,50 @@ export default function Footer() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 50,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    elevation: 10,
   },
-  retriesText: {
+  tokenSection: {
+    alignItems: 'flex-start',
+  },
+  tokensText: {
     fontSize: 14,
-    color: '#4A4A4A',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  noTokensText: {
+    color: '#dc3545',
   },
   upgradeText: {
-    fontSize: 14,
-    color: '#8B5FBF',
+    fontSize: 13,
     fontWeight: '500',
-  },
-  noRetriesText: {
-    color: '#FF6B6B',
-    fontWeight: '600',
+    color: '#8B5FBF',
   },
   premiumText: {
-    color: '#4CAF50',
+    color: '#28a745',
     fontWeight: '600',
+  },
+  upgradeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 95, 191, 0.3)',
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+    elevation: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 95, 191, 0.5)',
   },
 });

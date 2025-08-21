@@ -8,10 +8,10 @@ export { AIProjectManager } from './components/AIProjectManager';
 
 // Hooks
 export { usePlaceDiscovery } from './hooks/use-place-discovery';
-export { useAIDescription } from './hooks/use-ai-description';
+export { useAIDescriptionMock as useAIDescription } from './hooks/use-ai-description-mock';
 export { useAIProjectAgent } from './hooks/use-ai-project-agent';
 export { useScrapingService } from './hooks/use-scraping-service';
-export { useGooglePlaces } from './hooks/use-google-places';
+export { useGooglePlacesMock as useGooglePlaces } from './hooks/use-google-places-mock';
 
 // Types
 export type { DiscoveryFilters, DiscoveryResult, PlaceData } from './types';

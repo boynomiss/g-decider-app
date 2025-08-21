@@ -1,0 +1,188 @@
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, ScrollView, View, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+
+// UI Components
+import { 
+  Button, 
+  Card, 
+  GButton, 
+  CategoryButtons, 
+  MoodSlider 
+} from '../components/ui';
+
+// Features
+import { Header, Footer } from '../features/auth';
+import { AdPlacement } from '../features/monetization';
+import { FilterControlPanel } from '../features/filtering';
+import { FilterLogDisplay } from '../features/filtering';
+
+// Store and Types
+import { useAppStore } from '../store/store';
+import { PlaceData } from '../features/discovery/types';
+import { SPACING } from '../shared/constants/constants';
+
+/**
+ * Home Screen Component
+ * 
+ * The main landing page of the app that displays:
+ * - Header with user info
+ * - Category selection
+ * - Mood slider for filtering
+ * - Main action button (G Button)
+ * - Filter control panel
+ * - Filter log display
+ * - Footer
+ */
+export default function HomeScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { 
+    showMoreFilters, 
+    updateFilters,
+    userLocation,
+    filters
+  } = useAppStore();
+  
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+
+  // Memoized container style with safe area insets
+  const containerStyle = useMemo(() => ({
+    ...styles.container,
+    paddingTop: insets.top,
+  }), [insets.top]);
+
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    updateFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    updateFilters({
+      mood: 50,
+      distanceRange: 10,
+      socialContext: 'solo',
+      budget: 'P',
+      timeOfDay: 'afternoon'
+    });
+  };
+
+  const handleGButtonPress = () => {
+    if (filters.category) {
+      router.push('/results');
+    }
+  };
+
+  return (
+    <View style={containerStyle}>
+      <LinearGradient
+        colors={['#7DD3C0', '#4ECDC4', '#45B7D1']}
+        style={styles.background}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <Header />
+      </View>
+      
+      {/* Main Content */}
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.contentContainer}>
+          
+          {/* Ad Placement */}
+          <AdPlacement />
+          
+          {/* Category Selection */}
+          <CategoryButtons 
+            title="What are you looking for?"
+            testID="home-category-buttons"
+          />
+          
+          {/* Mood Slider */}
+          <MoodSlider
+            value={filters.mood || 50}
+            onValueChange={(value) => handleFilterChange({ mood: value })}
+            title="How are you feeling today?"
+            subtitle="This helps us find the perfect match for your mood"
+            showLabels
+            testID="home-mood-slider"
+          />
+          
+          {/* G Button - Main Action */}
+          {showMoreFilters && (
+            <View style={styles.gButtonContainer}>
+              <GButton 
+                size={120}
+                disabled={!filters.category}
+                onPress={handleGButtonPress}
+                testID="home-g-button"
+              />
+            </View>
+          )}
+          
+          {/* Filter Control Panel */}
+          <FilterControlPanel
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onReset={handleResetFilters}
+            testID="home-filter-panel"
+          />
+          
+          {/* Filter Log Display */}
+          <FilterLogDisplay 
+            visible={true} 
+            showPlaceTypes={true}
+            testID="home-filter-log"
+          />
+          
+          {/* Bottom Spacer */}
+          <View style={styles.spacer} />
+        </View>
+      </ScrollView>
+      
+      {/* Footer */}
+      <Footer />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  background: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  headerContainer: {
+    zIndex: 10,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: SPACING.XLARGE,
+  },
+  gButtonContainer: {
+    alignItems: 'center',
+    marginVertical: SPACING.LARGE,
+  },
+  spacer: {
+    height: SPACING.XLARGE,
+  },
+});

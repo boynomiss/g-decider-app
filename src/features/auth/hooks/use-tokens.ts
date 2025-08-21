@@ -1,5 +1,13 @@
 import { useAuth } from './use-auth';
 
+/**
+ * Hook for managing user tokens and premium status
+ * 
+ * Token System:
+ * - Non-authenticated: 1 token (no refresh)
+ * - Registered users: 3 tokens (refresh at midnight, max 3)
+ * - Premium users: 10 tokens (refresh at midnight, max 10)
+ */
 export const useTokens = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -50,27 +58,7 @@ export const useTokens = () => {
     }
   };
 
-  const retriesLeft = calculateTokens();
-
-  // Function to refresh tokens at midnight
-  const refreshTokensAtMidnight = () => {
-    if (!isAuthenticated || !user) {
-      return;
-    }
-
-    const isNewDay = isAfterMidnight(user.lastTokenRefresh);
-    
-    if (isNewDay) {
-      // In a real app, this would update the user's token count and lastTokenRefresh in the backend
-      if (user.isPremium) {
-        return 10; // Premium users get 10 tokens
-      } else {
-        return 3; // Free users get 3 tokens
-      }
-    }
-
-    return user.tokens;
-  };
+  const tokensLeft = calculateTokens();
 
   // Function to consume a token (called when user uses a feature)
   const consumeToken = () => {
@@ -78,7 +66,7 @@ export const useTokens = () => {
       return false; // Can't consume tokens if not authenticated
     }
 
-    if (retriesLeft <= 0) {
+    if (tokensLeft <= 0) {
       return false; // No tokens left
     }
 
@@ -86,20 +74,20 @@ export const useTokens = () => {
     return true;
   };
 
-  const getRetriesText = (retriesLeft: number) => {
-    if (retriesLeft === 0) {
+  const getTokensText = (tokensLeft: number) => {
+    if (tokensLeft === 0) {
       return 'No tokens left';
     }
-    if (retriesLeft === 1) {
+    if (tokensLeft === 1) {
       return '1 token left';
     }
-    if (retriesLeft === 3) {
+    if (tokensLeft === 3) {
       return '3 tokens left';
     }
-    if (retriesLeft === 10) {
+    if (tokensLeft === 10) {
       return '10 tokens left';
     }
-    return `${retriesLeft} tokens left`;
+    return `${tokensLeft} tokens left`;
   };
 
   const getUpgradeText = () => {
@@ -133,13 +121,12 @@ export const useTokens = () => {
   };
 
   return {
-    retriesLeft,
-    getRetriesText,
+    tokensLeft,
+    getTokensText,
     getUpgradeText,
     getTimeUntilRefresh,
     isAuthenticated,
     user,
-    refreshTokensAtMidnight,
     consumeToken,
     isAfterMidnight,
     getLocalMidnight

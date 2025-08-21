@@ -1,19 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { Slider } from '@react-native-community/slider';
+import Slider from '@react-native-community/slider';
 
-/**
- * MoodSlider Component Props
- * @interface MoodSliderProps
- * @property {number} value - Current mood value (0-100)
- * @property {(value: number) => void} onValueChange - Function called when mood value changes
- * @property {string} title - Title text above the slider
- * @property {string} subtitle - Subtitle text below the title
- * @property {boolean} showLabels - Whether to show mood labels (Chill, Neutral, Hype)
- * @property {ViewStyle} style - Additional styles for the container
- * @property {string} testID - Test identifier for testing
- */
-interface MoodSliderProps {
+export interface MoodSliderProps {
   value: number;
   onValueChange: (value: number) => void;
   title?: string;
@@ -23,20 +12,6 @@ interface MoodSliderProps {
   testID?: string;
 }
 
-/**
- * A mood slider component for filtering based on user's current mood
- * 
- * @example
- * ```tsx
- * <MoodSlider
- *   value={mood}
- *   onValueChange={setMood}
- *   title="How are you feeling?"
- *   subtitle="This helps us find the perfect match"
- *   showLabels
- * />
- * ```
- */
 export default function MoodSlider({
   value,
   onValueChange,
@@ -111,11 +86,6 @@ export default function MoodSlider({
           onSlidingComplete={handleSlidingComplete}
           minimumTrackTintColor="#7DD3C0"
           maximumTrackTintColor="#E2E8F0"
-          thumbStyle={[
-            styles.thumb,
-            { backgroundColor: getMoodColor(value) }
-          ]}
-          trackStyle={styles.track}
         />
       </View>
       
@@ -227,23 +197,6 @@ const styles = StyleSheet.create({
   slider: {
     width: '100%',
     height: 40,
-  },
-  thumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  track: {
-    height: 4,
-    borderRadius: 2,
   },
   quickSelectContainer: {
     flexDirection: 'row',

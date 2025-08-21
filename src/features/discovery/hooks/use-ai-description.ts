@@ -34,12 +34,12 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           budget: input.budget,
           tags: input.tags,
           description: input.description || `${input.name} is a great place to visit.`,
-          reviews: (input.reviews || []).map(review => ({
+          reviews: Array.isArray(input.reviews) ? input.reviews.map(review => ({
             author: 'Anonymous',
             rating: review.rating,
             text: review.text,
             time: new Date(review.time).toISOString()
-          })),
+          })) : [],
           images: input.images,
           category: input.category,
           mood: getMoodNumber(input.mood),
@@ -63,12 +63,12 @@ export const useAIDescription = (): UseAIDescriptionReturn => {
           budget: input.price_level === 1 ? 'P' : input.price_level === 2 ? 'PP' : 'PPP',
           tags: input.types || [],
           description: input.description || `${input.name} is a great place to visit.`,
-          reviews: (input.reviews || []).map(review => ({
+          reviews: Array.isArray(input.reviews) ? input.reviews.map(review => ({
             author: 'Anonymous',
             rating: review.rating,
             text: review.text,
             time: new Date(review.time).toISOString()
-          })),
+          })) : [],
           images: input.photos?.medium || input.images?.urls || [],
           category: input.category,
           mood: getMoodNumber(input.final_mood || 'both'),
