@@ -3,7 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useTokens } from '../hooks/use-tokens';
 
-export default function Footer() {
+type PositioningMode = 'overlay' | 'inline';
+
+interface FooterProps {
+  positioningMode?: PositioningMode;
+}
+
+export default function Footer({ positioningMode = 'overlay' }: FooterProps) {
   const { tokensLeft, getTokensText, getUpgradeText, isAuthenticated, user } = useTokens();
 
   const handleUpgradePress = () => {
@@ -28,7 +34,10 @@ export default function Footer() {
   console.log('Footer: Rendering with isAuthenticated:', isAuthenticated, 'user:', user);
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      positioningMode === 'overlay' ? styles.overlayContainer : styles.inlineContainer
+    ]} pointerEvents="box-none">
       <View style={styles.tokenSection}>
         <Text style={[
           styles.tokensText,
@@ -39,8 +48,12 @@ export default function Footer() {
       </View>
       <TouchableOpacity 
         onPress={handleUpgradePress}
+        onPressIn={() => console.log('Footer: Button pressed in')}
         activeOpacity={0.6}
-        style={styles.upgradeButton}
+        style={[
+          styles.upgradeButton,
+          positioningMode === 'overlay' ? styles.overlayButton : styles.inlineButton
+        ]}
         hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         testID="footer-upgrade-button"
       >
@@ -61,14 +74,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 20,
     backgroundColor: 'transparent',
+  },
+  overlayContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 8,
     left: 0,
     right: 0,
-    zIndex: 9999,
-    elevation: 10,
+    zIndex: 99999,
+    elevation: 20,
+  },
+  inlineContainer: {
+    // Normal document flow - no special positioning
   },
   tokenSection: {
     alignItems: 'flex-start',
@@ -92,16 +109,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   upgradeButton: {
-    paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 8,
-    backgroundColor: 'rgba(139, 95, 191, 0.3)',
-    minHeight: 36,
+    backgroundColor: 'transparent',
+    minHeight: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlayButton: {
     zIndex: 10000,
     elevation: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 95, 191, 0.5)',
+  },
+  inlineButton: {
+    // Normal button styling for inline mode
   },
 });

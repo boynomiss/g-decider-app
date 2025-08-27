@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
   panelContainer: {
     borderRadius: 16,
     margin: 16,
+    marginBottom: 64,
     maxHeight: 400,
     shadowColor: '#000',
     shadowOffset: {

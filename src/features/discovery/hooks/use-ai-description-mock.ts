@@ -15,7 +15,7 @@ export const useAIDescriptionMock = () => {
     
     try {
       // Simulate AI processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const description = await mockDescriptionGenerator.generatePlaceDescription(placeData);
       setAiDescription(description.description);
@@ -34,7 +34,7 @@ export const useAIDescriptionMock = () => {
     
     try {
       // Simulate AI processing delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       const enhanced = await mockDescriptionGenerator.enhanceDescription(existingDescription, enhancements);
       setAiDescription(enhanced.enhancedDescription);
@@ -53,7 +53,7 @@ export const useAIDescriptionMock = () => {
     
     try {
       // Simulate AI processing delay
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       const enhanced = await mockResultsServices.aiDescriptionService.generateEnhancedDescription(placeData);
       setAiDescription(enhanced.description);

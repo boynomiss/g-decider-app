@@ -15,3 +15,9 @@ export { useGooglePlacesMock as useGooglePlaces } from './hooks/use-google-place
 
 // Types
 export type { DiscoveryFilters, DiscoveryResult, PlaceData } from './types';
+
+// Featured Places
+export * from './types/featured-place-types';
+export * from './hooks/use-featured-places';
+export { default as AdminPanel } from './components/AdminPanel';
+export { FeaturedPlaceCard } from './components/FeaturedPlaceCard';

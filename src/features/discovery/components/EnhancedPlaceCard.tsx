@@ -526,7 +526,6 @@ export default function EnhancedPlaceCard({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginBottom: 8, // Only bottom margin, no top margin
   },
   imageCardContainer: {
     backgroundColor: '#A67BCE',

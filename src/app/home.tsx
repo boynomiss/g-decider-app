@@ -118,12 +118,12 @@ export default function HomeScreen() {
         <View style={containerStyle}>
           <MainContent showMoreFilters={showMoreFilters} />
         </View>
-        
-        {/* Footer */}
-        <ErrorBoundary componentName="Footer">
-          <Footer />
-        </ErrorBoundary>
       </LinearGradient>
+      
+      {/* Footer - moved outside LinearGradient for proper layering */}
+      <ErrorBoundary componentName="Footer">
+        <Footer />
+      </ErrorBoundary>
       
       {/* G Button - Only show at bottom when showMoreFilters is false */}
       {!showMoreFilters && (
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 2,
+    zIndex: 1, // Lower z-index than Footer
     paddingBottom: SPACING.XLARGE * 2, // Increased bottom padding to bring button up more
   },
   gButtonInlineContainer: {
@@ -185,6 +185,6 @@ const styles = StyleSheet.create({
   },
   filterSpacer: {
     // Spacer to bring FilterLogDisplay down
-    height: 200, // 200px spacing on top of filter log display
+    height: 250, // 250px spacing on top of filter log display
   },
 });

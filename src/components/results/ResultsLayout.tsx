@@ -15,7 +15,6 @@ function ResultsLayoutBase({ children, topInset = 0, testID }: ResultsLayoutProp
       <View style={styles.content} testID="results-layout-content">
         {children}
       </View>
-      <Footer />
     </LinearGradient>
   );
 }

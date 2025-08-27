@@ -13,6 +13,7 @@ import { useSavedPlaces } from '../features/saved-places';
 import { PlaceMoodData as PlaceData } from '../features/discovery/types';
 import { ErrorBoundary } from '../components/feedback/ErrorBoundary';
 import { EnhancedPlaceCard, useGooglePlaces } from '../features/discovery';
+import { Footer } from '../features/auth';
 
 import { LoadingState, ErrorState, EmptyState } from '../components/results/ResultStates';
 
@@ -298,7 +299,7 @@ export default function ResultsScreen() {
 
   return (
     <ResultsLayout topInset={topInset}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 200 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 50 }}>
         <View style={styles.singleResultContainer}>
           <ErrorBoundary componentName="PlaceCard">
             <EnhancedPlaceCard
@@ -325,6 +326,9 @@ export default function ResultsScreen() {
               }}
             />
           </ErrorBoundary>
+          <View style={styles.footerContainer}>
+            <Footer positioningMode="inline" />
+          </View>
         </View>
       </ScrollView>
     </ResultsLayout>
@@ -345,5 +349,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  footerContainer: {
+    width: '100%',
   },
 });
