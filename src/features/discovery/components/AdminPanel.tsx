@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Eye, Upload, Save, X, MapPin, Phone, Globe, Star, Calendar, TrendingUp, Filter, Search, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Save, X, MapPin, Phone, Globe, Star, Calendar, TrendingUp, Filter, Search, Image as ImageIcon } from 'lucide-react-native';
 import { useFeaturedPlaces } from '../hooks/use-featured-places';
 import { categoriesService } from '../../../services/firebase/firestore/categories-service';
 import { imageUploadService } from '../../../services/firebase/storage/image-upload-service';

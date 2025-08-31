@@ -16,7 +16,7 @@ import {
   orderBy, 
   limit 
 } from 'firebase/firestore';
-import { db } from './firebase-config';
+import { getDb } from '../lazy-firebase';
 import type { AnalyticsData, PlaceAnalytics, AnalyticsQuery } from '../../../features/discovery/types/featured-place-types';
 
 export class AnalyticsService {

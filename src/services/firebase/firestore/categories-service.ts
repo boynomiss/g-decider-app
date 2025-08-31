@@ -16,7 +16,7 @@ import {
   where, 
   orderBy 
 } from 'firebase/firestore';
-import { db } from './firebase-config';
+import { getDb } from '../lazy-firebase';
 import type { Category } from '../../../features/discovery/types/featured-place-types';
 
 export class CategoriesService {

@@ -46,3 +46,6 @@ firebase-adminsdk.json
 nlp-service-account.json
 functions/gemini-api-client-key.json
 *-service-account.json
+
+# Google Services
+google-service-account.json

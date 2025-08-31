@@ -10,7 +10,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initializeFirebaseClient } from '../../api/api/firebase-client';
+import { getApp } from '../../firebase/lazy-firebase';
 
 // Unified interfaces
 export interface UnifiedCacheEntry {
@@ -132,7 +132,7 @@ export class UnifiedCacheService {
    */
   private async initializeFirestore(): Promise<void> {
     try {
-      initializeFirebaseClient();
+              getApp();
       // Use client SDK syntax - collection() is not available in client SDK
       // For now, disable Firestore cache until we implement proper client-side caching
       this.firestoreCache = null;

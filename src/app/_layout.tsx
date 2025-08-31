@@ -48,6 +48,9 @@ function RootLayoutNav() {
         <Stack.Screen name="upgrade" options={{ headerShown: false }} />
         <Stack.Screen name="saved-places" options={{ headerShown: false }} />
         <Stack.Screen name="instant-recommendations" options={{ headerShown: false }} />
+        <Stack.Screen name="Discovery" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="demo-admin" options={{ headerShown: false }} />
       </Stack>
     </ErrorBoundary>
   );

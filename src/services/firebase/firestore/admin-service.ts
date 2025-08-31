@@ -15,7 +15,7 @@ import {
   query, 
   where 
 } from 'firebase/firestore';
-import { db } from './firebase-config';
+import { getDb } from '../lazy-firebase';
 import type { AdminUser } from '../../../features/discovery/types/featured-place-types';
 
 export class AdminService {

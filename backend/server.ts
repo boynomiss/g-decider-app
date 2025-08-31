@@ -1,5 +1,9 @@
 import { serve } from "@hono/node-server";
 import app from "./hono";
+import { config } from "dotenv";
+
+// Load environment variables from .env file
+config({ path: './.env' });
 
 const port = 3000;
 

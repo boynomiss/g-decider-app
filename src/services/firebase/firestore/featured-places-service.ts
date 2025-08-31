@@ -21,7 +21,7 @@ import {
   writeBatch,
   QueryConstraint
 } from 'firebase/firestore';
-import { db } from './firebase-config';
+import { getDb } from '../lazy-firebase';
 import type { 
   FeaturedPlace, 
   CreateFeaturedPlaceRequest, 

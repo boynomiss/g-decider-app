@@ -12,7 +12,7 @@ import {
   listAll,
   StorageReference
 } from 'firebase/storage';
-import { storage } from '../firestore/firebase-config';
+import { getStorage } from '../lazy-firebase';
 import type { ImageUploadRequest, ImageUploadResponse } from '../../../features/discovery/types/featured-place-types';
 
 export class ImageUploadService {

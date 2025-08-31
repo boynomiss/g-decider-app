@@ -1,40 +1,4 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "featured_places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "metadata.status", "order": "ASCENDING" },
-        { "fieldPath": "category", "order": "ASCENDING" },
-        { "fieldPath": "metadata.created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "featured_places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "metadata.status", "order": "ASCENDING" },
-        { "fieldPath": "discovery.tags", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "metadata.created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "featured_places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "metadata.status", "order": "ASCENDING" },
-        { "fieldPath": "partnership.tier", "order": "ASCENDING" },
-        { "fieldPath": "metadata.created_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "analytics",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "total_impressions", "order": "DESCENDING" }
-      ]
-    }
-  ],
+  "indexes": [],
   "fieldOverrides": []
 }
