@@ -3,7 +3,7 @@
     "name": "g-decider-app",
     "slug": "g-decider-app",
     "version": "1.0.0",
-    "sdkVersion": "53.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -15,29 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.g-decider-app",
-      "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": [
-          "location"
-        ]
-      }
+      "bundleIdentifier": "app.rork.g-decider-app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.g-decider-app",
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
-      ]
+      "package": "app.rork.g-decider-app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -46,16 +31,8 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "isAndroidForegroundServiceEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true,
-          "isIosBackgroundLocationEnabled": true,
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+          "origin": "https://rork.com/",
+          "root": "./src/app"
         }
       ]
     ],

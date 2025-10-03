@@ -1,58 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as React from "react";
-import { useEffect, createContext, useContext } from "react";
+import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AppContext } from "../store/store";
-import { AuthProvider } from "../features/auth/hooks/use-auth";
-import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
-import colors from "../shared/constants/constants/colors";
-import { trpc, trpcClient } from "../../lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
-
-// Create a ThemeContext for colors
-const ThemeContext = createContext<typeof colors.light | undefined>(undefined);
-
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <ThemeContext.Provider value={colors.light}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
-};
-
 function RootLayoutNav() {
   return (
-    <ErrorBoundary componentName="RootLayoutNav">
-      <Stack screenOptions={{ headerBackTitle: "Back" }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        <Stack.Screen name="results" options={{ headerShown: false }} />
-        <Stack.Screen name="booking" options={{ headerShown: false }} />
-        <Stack.Screen name="confirmation" options={{ headerShown: false }} />
-        <Stack.Screen name="auth" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        <Stack.Screen name="upgrade" options={{ headerShown: false }} />
-        <Stack.Screen name="saved-places" options={{ headerShown: false }} />
-        <Stack.Screen name="instant-recommendations" options={{ headerShown: false }} />
-        <Stack.Screen name="Discovery" options={{ headerShown: false }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-        <Stack.Screen name="demo-admin" options={{ headerShown: false }} />
-      </Stack>
-    </ErrorBoundary>
+    <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="mvp-home" options={{ headerShown: false }} />
+      <Stack.Screen name="mvp-results" options={{ headerShown: false }} />
+      <Stack.Screen name="mvp-admin" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 
@@ -62,22 +24,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ErrorBoundary componentName="RootLayout">
-      <SafeAreaProvider>
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <AppContext>
-                <ThemeProvider>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                  </GestureHandlerRootView>
-                </ThemeProvider>
-              </AppContext>
-            </AuthProvider>
-          </QueryClientProvider>
-        </trpc.Provider>
-      </SafeAreaProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <RootLayoutNav />
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

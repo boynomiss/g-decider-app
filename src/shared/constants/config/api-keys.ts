@@ -28,7 +28,7 @@ console.log('🔑 EXPO_PUBLIC_GOOGLE_PLACES_API_KEY direct check:', {
 });
 
 // Fallback API key (temporary solution for environment variable issues)
-const FALLBACK_GOOGLE_API_KEY = 'AIzaSyA0sLEk4pjKM4H4zNEEFHaMxnzUcEVGfhk';
+const FALLBACK_GOOGLE_API_KEY = 'AIzaSyBTImieOwZZOaTLv-I1N8_qW75eIRvi8Nk';
 
 export const API_KEYS = {
   // Google Places API (New) - with fallback

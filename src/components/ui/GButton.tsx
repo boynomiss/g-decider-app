@@ -1,9 +1,3 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Animated, View, Image, ViewStyle } from 'react-native';
-import { useAppStore } from '../../store/store';
-import { useRouter } from 'expo-router';
-import { SPACING } from '../../shared/constants/constants';
-
 /**
  * GButton Component Props
  * @interface GButtonProps
@@ -12,11 +6,24 @@ import { SPACING } from '../../shared/constants/constants';
  * @property {ViewStyle} style - Additional styles for the button
  * @property {string} testID - Test identifier for testing
  */
+import React, { useRef, useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ViewStyle, 
+  Animated,
+  Image 
+} from 'react-native';
+import { useRouter } from 'expo-router';
+
 interface GButtonProps {
   size?: number;
   disabled?: boolean;
   style?: ViewStyle;
   testID?: string;
+  onPress?: () => void;
 }
 
 /**
@@ -31,9 +38,9 @@ export default function GButton({
   size = 120, 
   disabled = false,
   style,
-  testID 
+  testID,
+  onPress 
 }: GButtonProps) {
-  const { filters: { category } } = useAppStore();
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -41,12 +48,11 @@ export default function GButton({
   const [showErrorTagline, setShowErrorTagline] = useState(false);
 
   // Check if button should be disabled
-  const isDisabled = disabled || !category;
+  const isDisabled = disabled;
   
   console.log('🎯 GButton state check:', {
-    category,
     isDisabled,
-    hasCategory: !!category
+    hasCategory: !isDisabled
   });
 
   // Bounce animation when not disabled
@@ -71,6 +77,7 @@ export default function GButton({
     } else {
       // Stop pulse animation when disabled
       pulseAnim.setValue(1);
+      return undefined;
     }
   }, [isDisabled, pulseAnim]);
 
@@ -136,8 +143,15 @@ export default function GButton({
   // Navigate directly to results page
   const handlePress = () => {
     if (!isDisabled) {
-      console.log('🎯 G! button pressed - navigating to results page');
-      router.push('/results');
+      console.log('🎯 G! button pressed');
+      
+      // Use custom onPress if provided, otherwise use default navigation
+      if (onPress) {
+        onPress();
+      } else {
+        console.log('🎯 Using default navigation to results page');
+        router.push('/mvp-results');
+      }
     } else {
       // Trigger shake animation when disabled button is pressed
       triggerShake();
@@ -208,15 +222,15 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     alignItems: 'center',
-    paddingTop: SPACING.SMALL,
-    paddingBottom: SPACING.XLARGE,
+    paddingTop: 16,
+    paddingBottom: 40,
     backgroundColor: 'transparent',
   },
   tagline: {
     fontSize: 20,
     fontWeight: '700',
     color: '#2D3748',
-    marginBottom: SPACING.SMALL,
+    marginBottom: 16,
     textAlign: 'center',
     paddingHorizontal: 20,
   },
@@ -227,7 +241,7 @@ const styles = StyleSheet.create({
   },
   buttonWrapper: {
     alignItems: 'center',
-    marginVertical: SPACING.SMALL,
+    marginVertical: 16,
   },
   button: {
     justifyContent: 'center',
@@ -255,6 +269,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#4A5568',
     fontWeight: '600',
-    marginTop: SPACING.SMALL,
+    marginTop: 16,
   },
 });

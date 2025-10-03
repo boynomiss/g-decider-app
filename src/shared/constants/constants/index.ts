@@ -5,5 +5,4 @@
  */
 
 export * from './colors';
-export * from './suggestions';
 export * from './spacing';
